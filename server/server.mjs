@@ -14,6 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { createRtms, urlValidationResponse, verifyWebhook } from './rtms.mjs';
+import { createZoomEventSocket, parseSubscriptionId } from './zoomEvents.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -34,6 +35,10 @@ loadEnvFile(process.env.MB_ENV_FILE ?? path.join(ROOT, '.env.local'));
 const ZOOM_CLIENT_ID = process.env.ZOOM_CLIENT_ID ?? '';
 const ZOOM_CLIENT_SECRET = process.env.ZOOM_CLIENT_SECRET ?? '';
 const ZOOM_WEBHOOK_SECRET_TOKEN = process.env.ZOOM_WEBHOOK_SECRET_TOKEN ?? '';
+// Mit Subscription ID kommen Zoom-Ereignisse per WebSocket (ohne Tunnel), sonst per Webhook.
+const ZOOM_WS_SUBSCRIPTION_ID = parseSubscriptionId(process.env.ZOOM_WS_SUBSCRIPTION_ID);
+const ZOOM_ACCOUNT_ID = process.env.ZOOM_ACCOUNT_ID ?? '';
+const EVENT_CHANNEL = ZOOM_WS_SUBSCRIPTION_ID ? 'websocket' : 'webhook';
 
 const PORT = Number(process.env.PORT ?? 4300);
 const HOST = '127.0.0.1';
@@ -98,16 +103,27 @@ const rtms = createRtms({
 function rtmsStatus(status = rtms.status()) {
   return {
     ...status,
-    configured: Boolean(ZOOM_CLIENT_ID && ZOOM_CLIENT_SECRET && ZOOM_WEBHOOK_SECRET_TOKEN),
+    configured: Boolean(ZOOM_CLIENT_ID && ZOOM_CLIENT_SECRET && (ZOOM_WS_SUBSCRIPTION_ID || ZOOM_WEBHOOK_SECRET_TOKEN)),
     missing: [
       !ZOOM_CLIENT_ID && 'ZOOM_CLIENT_ID',
       !ZOOM_CLIENT_SECRET && 'ZOOM_CLIENT_SECRET',
-      !ZOOM_WEBHOOK_SECRET_TOKEN && 'ZOOM_WEBHOOK_SECRET_TOKEN',
+      !ZOOM_WS_SUBSCRIPTION_ID && !ZOOM_WEBHOOK_SECRET_TOKEN && 'ZOOM_WS_SUBSCRIPTION_ID',
     ].filter(Boolean),
+    channel: EVENT_CHANNEL,
+    eventSocket: eventSocket?.status() ?? null,
     lastWebhookAt,
   };
 }
 let lastWebhookAt = null;
+let eventSocket = null;
+
+/** Gemeinsame Verarbeitung für Webhook und WebSocket. */
+function handleZoomEvent(body) {
+  lastWebhookAt = Date.now();
+  if (body.event === 'meeting.rtms_started') rtms.start(body.payload ?? {});
+  else if (body.event === 'meeting.rtms_stopped') rtms.stop(body.payload ?? {});
+  broadcast('steuerung', { type: 'rtms-status', status: rtmsStatus() });
+}
 
 function readBody(req, limit = 1024 * 1024) {
   return new Promise((resolve, reject) => {
@@ -155,8 +171,7 @@ async function handleWebhook(req, res) {
   }
   // Zoom erwartet eine sofortige Antwort; die Verbindung wird danach aufgebaut.
   res.writeHead(200).end();
-  if (body.event === 'meeting.rtms_started') rtms.start(body.payload ?? {});
-  else if (body.event === 'meeting.rtms_stopped') rtms.stop(body.payload ?? {});
+  handleZoomEvent(body);
 }
 
 /** Anfragen über den Tunnel (fremder Hostname) dürfen nur den Webhook erreichen. */
@@ -404,17 +419,33 @@ server.listen(PORT, HOST, () => {
   console.log('  Weitere Ausgabe-Adressen stehen in der App unter „Audio & Ausgabe“.');
   const st = rtmsStatus();
   console.log(
-    st.configured
-      ? `  Zoom-Live-Chat:    eingerichtet, Webhook-Pfad /zoom/webhook (über den Tunnel erreichbar machen)`
-      : `  Zoom-Live-Chat:    noch nicht eingerichtet (fehlt in .env.local: ${st.missing.join(', ')})`,
+    !st.configured
+      ? `  Zoom-Live-Chat:    noch nicht eingerichtet (fehlt in .env.local: ${st.missing.join(', ')})`
+      : EVENT_CHANNEL === 'websocket'
+        ? '  Zoom-Live-Chat:    eingerichtet, Verbindung per WebSocket (kein Tunnel nötig)'
+        : '  Zoom-Live-Chat:    eingerichtet, Webhook-Pfad /zoom/webhook (über den Tunnel erreichbar machen)',
   );
-  console.log('  Beenden mit Strg+C');
+  console.log(`  Beenden mit ${process.platform === 'darwin' ? 'ctrl + C' : 'Strg + C'}`);
   console.log('');
+  if (st.configured && EVENT_CHANNEL === 'websocket') {
+    eventSocket = createZoomEventSocket({
+      clientId: ZOOM_CLIENT_ID,
+      clientSecret: ZOOM_CLIENT_SECRET,
+      accountId: ZOOM_ACCOUNT_ID,
+      subscriptionId: ZOOM_WS_SUBSCRIPTION_ID,
+      wsBase: process.env.MB_ZOOM_WS_URL,
+      oauthUrl: process.env.MB_ZOOM_OAUTH_URL,
+      log,
+      onEvent: handleZoomEvent,
+      onStatus: () => broadcast('steuerung', { type: 'rtms-status', status: rtmsStatus() }),
+    });
+  }
 });
 
 const shutdown = () => {
   stopWatch(false);
   rtms.close();
+  eventSocket?.close();
   wss.clients.forEach((ws) => ws.close());
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 500).unref();

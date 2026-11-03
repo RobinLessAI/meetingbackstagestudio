@@ -43,7 +43,7 @@ export async function copyText(text: string): Promise<boolean> {
 
 const ENV_TEMPLATE = `ZOOM_CLIENT_ID=
 ZOOM_CLIENT_SECRET=
-ZOOM_WEBHOOK_SECRET_TOKEN=`;
+ZOOM_WS_SUBSCRIPTION_ID=`;
 
 /** Einrichtung und Status des Live-Chats aus Zoom (Realtime Media Streams). */
 export function ZoomLiveChatSetup() {
@@ -90,12 +90,24 @@ export function ZoomLiveChatSetup() {
                 {rtms && !rtms.configured && rtms.missing.length > 0 && <span className="subtle"> (fehlt: {rtms.missing.join(', ')})</span>}
               </>
             ))}
-            {step(!!rtms?.lastWebhookAt, (
-              <>
-                Tunnel starten und in der Zoom-App als Webhook-Adresse <code>https://…/zoom/webhook</code> eintragen
-                {rtms?.lastWebhookAt && <span className="subtle"> (zuletzt erreicht {clock(rtms.lastWebhookAt, false)} Uhr)</span>}
-              </>
-            ))}
+            {rtms?.channel === 'webhook'
+              ? step(!!rtms?.lastWebhookAt, (
+                  <>
+                    Tunnel starten und in der Zoom-App als Webhook-Adresse <code>https://…/zoom/webhook</code> eintragen
+                    {rtms?.lastWebhookAt && <span className="subtle"> (zuletzt erreicht {clock(rtms.lastWebhookAt, false)} Uhr)</span>}
+                  </>
+                ))
+              : step(rtms?.eventSocket?.state === 'verbunden', (
+                  <>
+                    Verbindung zu den Zoom-Ereignissen per WebSocket, ohne Tunnel
+                    {rtms?.eventSocket && (
+                      <span className="subtle">
+                        {' '}
+                        ({rtms.eventSocket.state === 'verbunden' ? 'verbunden' : rtms.eventSocket.error ?? 'verbindet …'})
+                      </span>
+                    )}
+                  </>
+                ))}
             {step(rtms?.state === 'verbunden', 'Meeting starten; der Chat erscheint dann automatisch hier')}
           </ol>
           <div className="env-template">

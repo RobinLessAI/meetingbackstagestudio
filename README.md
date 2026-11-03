@@ -51,23 +51,17 @@ Weitere Optionen: `stil=einblendung|vollbild`, `hintergrund=transparent|dunkel`,
 
 ## Live-Chat aus Zoom einrichten (einmalig)
 
-Der Chat kommt über **Zoom Realtime Media Streams (RTMS)**. Zoom meldet den Start deines Meetings an eine öffentliche HTTPS-Adresse; ein Tunnel leitet diese Meldung an den lokalen Server weiter. Der Chat selbst kommt danach direkt von Zoom.
+Der Chat kommt über **Zoom Realtime Media Streams (RTMS)**. Den Start deines Meetings erfährt der Server über eine **WebSocket-Verbindung**, die er selbst zu Zoom aufbaut. Dafür braucht es keine öffentliche Adresse und keinen Tunnel-Dienst. Der Chat kommt danach direkt von Zoom.
 
-1. **RTMS-Zugang:** RTMS muss für dein Zoom-Konto freigeschaltet sein. Laut Zoom-Dokumentation beantragst du den Zugang im Zoom Developer Forum mit einer kurzen Beschreibung deines Anwendungsfalls.
-2. **Zoom-App anlegen:** marketplace.zoom.us → Develop → Build App → **General App** → **User-Managed**.
-   - Unter „Features → Access“: **Event Subscription** aktivieren, Ereignisse `meeting.rtms_started` und `meeting.rtms_stopped` hinzufügen.
-   - Als Endpunkt die Tunnel-Adresse mit `/zoom/webhook` eintragen, z. B. `https://dein-name.ngrok-free.app/zoom/webhook`.
-   - Unter „Scopes“: `meeting:read:meeting_chat` hinzufügen.
-   - Die App in deinem Konto hinzufügen bzw. autorisieren (Local Test).
-3. **Zugangsdaten eintragen:** `.env.example` nach `.env.local` kopieren und `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET` und `ZOOM_WEBHOOK_SECRET_TOKEN` (Secret Token der Zoom-App) eintragen. Danach `npm start` neu starten.
-4. **Tunnel starten**, z. B. mit ngrok und einer festen kostenlosen Adresse, damit sich die Webhook-Adresse nicht ändert:
-   ```bash
-   ngrok http --url=dein-name.ngrok-free.app 4300
-   ```
-   Alternativ Cloudflare Tunnel. Über den Tunnel ist nur `/zoom/webhook` erreichbar; Steuerung und Ausgaben bleiben lokal.
-5. **Meeting starten.** Sobald Zoom den Datenstrom startet, zeigt die App „Live aus Zoom“ und der Chat erscheint. Je nach Zoom-Einstellung startet der Datenstrom automatisch oder muss im Meeting für die App gestartet werden. Das bitte beim ersten Test prüfen.
+1. **Zoom-App anlegen:** marketplace.zoom.us → Develop → Build App → **General App** → **User-managed**.
+2. **Ereignisse abonnieren:** „Funktionen → Zugriff“ → Event Subscription → Methode **WebSocket** → Ereignisse **RTMS started in Meeting** und **RTMS stopped in Meeting** → Save. Zoom zeigt danach eine Adresse `wss://ws.zoom.us/ws?subscriptionId=…`.
+3. **RTMS-Zugang:** RTMS muss für dein Konto freigeschaltet sein. Laut Zoom-Dokumentation beantragst du ihn bei Bedarf im Zoom Developer Forum.
+4. **Zugangsdaten eintragen:** `.env.example` nach `.env.local` kopieren (Mac: `cp .env.example .env.local` und `open -e .env.local`). Eintragen: Client-ID, Client-Geheimnis und die Subscription ID (oder die komplette wss-Adresse). Danach den Server neu starten.
+5. **Meeting starten.** Sobald Zoom den Datenstrom startet, zeigt die App „Live aus Zoom“. Je nach Zoom-Einstellung startet er automatisch oder muss im Meeting für die App gestartet werden.
 
-Die Seite „Integrationen“ in der App zeigt den Stand jedes Schritts (Zugangsdaten vorhanden, Webhook erreicht, verbunden).
+Die Seite „Integrationen“ zeigt den Stand jedes Schritts.
+
+**Alternative mit Webhook:** Statt WebSocket kann Zoom den Start auch per Webhook an `/zoom/webhook` melden. Dann braucht es einen Tunnel (z. B. ngrok) und `ZOOM_WEBHOOK_SECRET_TOKEN` in `.env.local`.
 
 **Notlösung ohne RTMS:** In der App unter „Integrationen“ den Zoom-Ordner beobachten lassen. Nach jedem Klick auf „Chat speichern“ in Zoom übernimmt MeetingBackstage die neuen Nachrichten (nicht live). Nur Nachrichten an alle werden übernommen.
 

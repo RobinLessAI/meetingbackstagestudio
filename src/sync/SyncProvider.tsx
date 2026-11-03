@@ -25,6 +25,9 @@ export interface RtmsStatus {
   messages: number;
   error: string | null;
   lastWebhookAt: number | null;
+  /** Wie Zoom den Meeting-Start meldet: per WebSocket (ohne Tunnel) oder Webhook. */
+  channel?: 'websocket' | 'webhook';
+  eventSocket?: { state: 'verbunden' | 'verbindet' | 'getrennt' | 'fehler'; error: string | null } | null;
 }
 
 interface SyncValue {
