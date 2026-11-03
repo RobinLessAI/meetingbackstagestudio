@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { GalleryStage } from '../components/GalleryStage.tsx';
 import { NewEventButton } from '../components/NewEvent.tsx';
+import { LiveChatBadge } from '../components/LiveChat.tsx';
+import { useSync } from '../sync/SyncProvider.tsx';
 import { Badge, Button, DemoTag, NotConnected, Panel, Segmented } from '../components/ui.tsx';
 import { clock, dateLabel, duration, timecode } from '../lib/time.ts';
 import { GRAPHIC_LABEL, SESSION_LABEL, useCommands } from '../state/commands.ts';
@@ -36,6 +38,7 @@ export function EventView() {
   const ui = useUi();
   const now = useNow();
   const { session } = state;
+  const sync = useSync();
 
   const elapsedMin =
     session.status === 'laeuft' && session.startedAt ? (now - session.startedAt) / 60_000 : session.status === 'beendet' ? Infinity : -1;
@@ -295,12 +298,22 @@ export function EventView() {
           <Panel eyebrow="Verbindungen" title="Verbindungsstatus" actions={<Button size="sm" variant="ghost" onClick={() => ui.go('integrationen')}>Details</Button>}>
             <ul className="conn-list">
               <li>
-                <span>Zoom-Meeting</span>
-                <NotConnected />
+                <span>Chat aus Zoom</span>
+                <LiveChatBadge />
               </li>
               <li>
-                <span>Teilnehmerliste und Chat</span>
-                <DemoTag>Beispieldaten</DemoTag>
+                <span>OBS-Ausgabe</span>
+                {sync.status === 'verbunden' ? (
+                  <Badge tone={sync.outputs > 0 ? 'ok' : 'neutral'}>
+                    {sync.outputs > 0 ? `${sync.outputs} ${sync.outputs === 1 ? 'Quelle' : 'Quellen'} verbunden` : 'keine Quelle verbunden'}
+                  </Badge>
+                ) : (
+                  <NotConnected />
+                )}
+              </li>
+              <li>
+                <span>Teilnehmende, Spotlight, Stummschalten</span>
+                <DemoTag>Simulation</DemoTag>
               </li>
               <li>
                 <span>Stream Deck</span>

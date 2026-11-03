@@ -104,7 +104,13 @@ export function createZoomEventSocket({ clientId, clientSecret, accountId, subsc
     });
     ws.on('message', (data) => {
       const event = parseEventMessage(data);
-      if (event) onEvent(event);
+      if (event) {
+        onEvent(event);
+        return;
+      }
+      // Alles außer Lebenszeichen anzeigen, damit sich Probleme nachvollziehen lassen.
+      const text = String(data);
+      if (!/heart_beat/.test(text)) log(`Zoom-Ereignisse: Nachricht ohne Ereignis: ${text.slice(0, 300)}`);
     });
     ws.on('close', (code, reason) => {
       clearInterval(heartbeat);

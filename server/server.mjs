@@ -120,6 +120,7 @@ let eventSocket = null;
 /** Gemeinsame Verarbeitung für Webhook und WebSocket. */
 function handleZoomEvent(body) {
   lastWebhookAt = Date.now();
+  log(`Zoom-Ereignis empfangen: ${body.event ?? 'unbekannt'}`);
   if (body.event === 'meeting.rtms_started') rtms.start(body.payload ?? {});
   else if (body.event === 'meeting.rtms_stopped') rtms.stop(body.payload ?? {});
   broadcast('steuerung', { type: 'rtms-status', status: rtmsStatus() });
