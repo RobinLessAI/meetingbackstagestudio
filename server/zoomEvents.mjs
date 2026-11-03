@@ -110,7 +110,12 @@ export function createZoomEventSocket({ clientId, clientSecret, accountId, subsc
       }
       // Alles außer Lebenszeichen anzeigen, damit sich Probleme nachvollziehen lassen.
       const text = String(data);
-      if (!/heart_beat/.test(text)) log(`Zoom-Ereignisse: Nachricht ohne Ereignis: ${text.slice(0, 300)}`);
+      if (/heart_beat/.test(text)) return;
+      if (/"module"\s*:\s*"build_connection"/.test(text) && /"success"\s*:\s*true/.test(text)) {
+        log('Zoom-Ereignisse: Zoom hat die Verbindung bestätigt.');
+        return;
+      }
+      log(`Zoom-Ereignisse: unbekannte Nachricht von Zoom: ${text.slice(0, 300)}`);
     });
     ws.on('close', (code, reason) => {
       clearInterval(heartbeat);
