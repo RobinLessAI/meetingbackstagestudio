@@ -26,6 +26,9 @@ before(async () => {
         seen.tokenBody = new URLSearchParams(body);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ access_token: 'user-tok', refresh_token: 'ref', expires_in: 3600, scope: 'meeting:update:participant_rtms_app_status' }));
+      } else if (req.url === '/v2/users/me') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ id: 'U1' }));
       } else if (req.method === 'PATCH') {
         seen.patch = { url: req.url ?? '', auth: String(req.headers.authorization), body: JSON.parse(body) };
         res.writeHead(204).end();
@@ -106,7 +109,7 @@ test('Verbinden mit Zoom und Start des Chat-Datenstroms per Meeting-Link', async
   assert.equal(results[1].ok, true);
   assert.equal(seen.patch?.url, '/v2/live_meetings/81234567890/rtms_app/status');
   assert.equal(seen.patch?.auth, 'Bearer user-tok');
-  assert.deepEqual(seen.patch?.body, { action: 'start', settings: { client_id: 'cid' } });
+  assert.deepEqual(seen.patch?.body, { action: 'start', settings: { client_id: 'cid', participant_user_id: 'U1' } });
 
   ws.send(JSON.stringify({ type: 'rtms-start', meeting: 'kein link' }));
   const bad = await next('zoom-result');

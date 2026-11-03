@@ -94,28 +94,63 @@ export function createZoomApi({ clientId, clientSecret, redirectUri, dataDir, lo
       await fsp.rm(file, { force: true });
     },
 
-    /** Startet oder stoppt den Chat-Datenstrom für ein laufendes Meeting. */
+    /**
+     * Startet oder stoppt den Chat-Datenstrom für ein laufendes Meeting.
+     * Zoom erwartet laut Referenz die Nutzer-ID der Person, deren App startet.
+     * Weil die genaue Form nicht eindeutig dokumentiert ist, werden mehrere
+     * Varianten nacheinander versucht und alle Antworten im Terminal protokolliert.
+     */
     async setRtms(meetingInput, action) {
       const meetingId = parseMeetingId(meetingInput);
       if (!meetingId) throw new Error('Keine gültige Meeting-ID erkannt. Bitte den Zoom-Link oder die 9- bis 11-stellige Nummer einfügen.');
       const token = await accessToken();
-      const res = await fetch(`${API}/live_meetings/${meetingId}/rtms_app/status`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, settings: { client_id: clientId } }),
-      });
-      const text = await res.text();
-      log(`Zoom-API rtms_app/status (${action}, Meeting ${meetingId}): ${res.status} ${text.slice(0, 300)}`);
-      if (!res.ok) {
+      const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+      // Eigene Zoom-Nutzer-ID ermitteln (braucht die Berechtigung user:read:user).
+      if (!tokens.userId) {
+        const me = await fetch(`${API}/users/me`, { headers });
+        const meText = await me.text();
+        if (me.ok) {
+          try {
+            await save({ ...tokens, userId: JSON.parse(meText).id });
+          } catch {
+            /* ohne Nutzer-ID weiter */
+          }
+        } else {
+          log(`Zoom-API users/me: ${me.status} ${meText.slice(0, 200)}`);
+        }
+      }
+
+      const variants = [
+        tokens.userId && { action, settings: { client_id: clientId, participant_user_id: tokens.userId } },
+        { action, settings: { client_id: clientId, participant_user_id: 'me' } },
+        { action, settings: { client_id: clientId } },
+      ].filter(Boolean);
+
+      const failures = [];
+      for (const body of variants) {
+        const res = await fetch(`${API}/live_meetings/${meetingId}/rtms_app/status`, {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify(body),
+        });
+        const text = await res.text();
+        log(`Zoom-API rtms_app/status (${action}, Meeting ${meetingId}, ${JSON.stringify(body.settings)}): ${res.status} ${text.slice(0, 300)}`);
+        if (res.ok) return { meetingId };
         let message = text;
         try {
           message = JSON.parse(text).message ?? text;
         } catch {
           /* Klartext */
         }
-        throw new Error(`Zoom hat abgelehnt (${res.status}): ${message || 'ohne Begründung'}`);
+        failures.push(`${res.status}: ${message || 'ohne Begründung'}`);
+        // Bei fehlenden Rechten oder unbekanntem Meeting helfen weitere Varianten nicht.
+        if (res.status === 401 || res.status === 403 || res.status === 404) break;
       }
-      return { meetingId };
+      const hint = tokens.userId
+        ? ''
+        : ' Tipp: In der Zoom-App die Berechtigung user:read:user ergänzen und danach in MeetingBackstage „Trennen“ und neu verbinden.';
+      throw new Error(`Zoom hat abgelehnt (${failures.join(' | ')}).${hint}`);
     },
   };
 }
