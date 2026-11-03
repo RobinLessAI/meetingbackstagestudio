@@ -141,6 +141,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         if (added > 0) {
           dispatch({ type: 'chat/import', messages });
           notify(`${added} neue ${added === 1 ? 'Chat-Nachricht' : 'Chat-Nachrichten'} aus Zoom übernommen`, 'erfolg');
+        } else if (parsed.messages.length === 0) {
+          notify(`Chat-Datei gelesen (${msg.file}), aber keine Nachrichten an alle erkannt.`, 'warnung');
         }
         setLastImport({ at: Date.now(), added, file: msg.file });
         break;

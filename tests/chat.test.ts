@@ -32,6 +32,16 @@ test('Zoom-Chat: neues Format mit Nachricht in der Folgezeile, nur Nachrichten a
   assert.equal(r.skippedReactions, 1);
 });
 
+test('Zoom-Chat: aktuelles Format mit Datum (Zoom 7)', () => {
+  const r = parseZoomChat('2026-11-03 14:12:39 Von Robin Weniger an Alle:\n\tTest test\n\n2026-11-03 14:12:40 Von Lea an Alle:\n\tGrüße aus Wien\n');
+  assert.equal(r.format, 'zoom');
+  assert.deepEqual(r.messages.map((m) => [m.date, m.time, m.sender, m.text]), [
+    ['2026-11-03', '14:12:39', 'Robin Weniger', 'Test test'],
+    ['2026-11-03', '14:12:40', 'Lea', 'Grüße aus Wien'],
+  ]);
+  assert.equal(new Date(timeToTimestamp('14:12:40', Date.now(), '2026-11-03')).getDate(), 3);
+});
+
 test('Zoom-Chat: deutsches und älteres Format', () => {
   const de = parseZoomChat('10:01:51 Von Lea an Alle: Grüße aus Wien\n10:03:00 Von Jonas an Robin (Direktnachricht): privat');
   assert.deepEqual(de.messages.map((m) => m.text), ['Grüße aus Wien']);

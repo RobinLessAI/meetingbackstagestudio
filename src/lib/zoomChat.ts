@@ -5,6 +5,8 @@
 // ausschließlich Nachrichten an alle. Private Nachrichten werden nie übernommen.
 
 export interface ParsedChatMessage {
+  /** Datum aus der Datei, z. B. „2026-11-03“ (neuere Zoom-Versionen), sonst leer. */
+  date?: string;
   /** Uhrzeit aus der Datei, z. B. „10:05:23“. */
   time: string;
   sender: string;
@@ -18,7 +20,8 @@ export interface ChatParseResult {
   format: 'zoom' | 'einfach' | 'unbekannt';
 }
 
-const TIME = String.raw`(\d{1,2}:\d{2}(?::\d{2})?)`;
+// Neuere Zoom-Versionen schreiben das Datum vor die Uhrzeit: „2026-11-03 14:12:39 Von …“
+const TIME = String.raw`(?:(\d{4}-\d{2}-\d{2})\s+)?(\d{1,2}:\d{2}(?::\d{2})?)`;
 
 /** „10:01:51 From Robin to Everyone:“ bzw. „10:01:51 Von Robin an Alle: Text“ */
 const HEADER_TARGET = new RegExp(String.raw`^${TIME}\s+(?:From|Von)\s+(.+?)\s+(?:to|an)\s+(.+?)\s*:\s?(.*)$`, 'i');
@@ -36,13 +39,14 @@ export function parseZoomChat(raw: string): ChatParseResult {
   const lines = raw.replace(/^﻿/, '').split(/\r?\n/);
   const result: ChatParseResult = { messages: [], skippedPrivate: 0, skippedReactions: 0, format: 'unbekannt' };
   let current: (ParsedChatMessage & { isPrivate: boolean }) | null = null;
+  const withDate = (date: string | undefined) => (date ? { date } : {});
 
   const flush = () => {
     if (!current) return;
     const text = current.text.trim();
     if (current.isPrivate) result.skippedPrivate += 1;
     else if (REACTION.test(text)) result.skippedReactions += 1;
-    else if (text) result.messages.push({ time: current.time, sender: current.sender, text });
+    else if (text) result.messages.push({ ...withDate(current.date), time: current.time, sender: current.sender, text });
     current = null;
   };
 
@@ -53,12 +57,12 @@ export function parseZoomChat(raw: string): ChatParseResult {
       flush();
       result.format = 'zoom';
       if (target) {
-        const [, time, sender, to, text] = target;
+        const [, date, time, sender, to, text] = target;
         const isPrivate = !PUBLIC_TARGETS.test(cleanName(to)) || /privat|direct|direkt/i.test(to);
-        current = { time, sender: cleanName(sender), text: text ?? '', isPrivate };
+        current = { date, time, sender: cleanName(sender), text: text ?? '', isPrivate };
       } else {
-        const [, time, sender, text] = plain!;
-        current = { time, sender: cleanName(sender), text: text ?? '', isPrivate: /privately|privat/i.test(sender) };
+        const [, date, time, sender, text] = plain!;
+        current = { date, time, sender: cleanName(sender), text: text ?? '', isPrivate: /privately|privat/i.test(sender) };
       }
       continue;
     }
@@ -82,9 +86,11 @@ export function parseZoomChat(raw: string): ChatParseResult {
 }
 
 /** Wandelt die Uhrzeit aus der Datei in einen Zeitstempel von heute (oder gestern, nach Mitternacht). */
-export function timeToTimestamp(time: string, now: number = Date.now()): number {
+export function timeToTimestamp(time: string, now: number = Date.now(), date?: string): number {
   const m = time.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
   if (!m) return now;
+  const dm = date?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dm) return new Date(Number(dm[1]), Number(dm[2]) - 1, Number(dm[3]), Number(m[1]), Number(m[2]), Number(m[3] ?? 0)).getTime();
   const d = new Date(now);
   d.setHours(Number(m[1]), Number(m[2]), Number(m[3] ?? 0), 0);
   // Liegt die Zeit deutlich in der Zukunft, stammt die Nachricht vom Vortag.
@@ -99,7 +105,7 @@ export function timeToTimestamp(time: string, now: number = Date.now()): number 
 export function importKeys(messages: ParsedChatMessage[]): string[] {
   const seen = new Map<string, number>();
   return messages.map((m, i) => {
-    const base = m.time ? `${m.time}|${m.sender}|${m.text}` : `ohne-zeit|${i}|${m.sender}|${m.text}`;
+    const base = m.time ? `${m.date ? `${m.date} ` : ''}${m.time}|${m.sender}|${m.text}` : `ohne-zeit|${i}|${m.sender}|${m.text}`;
     const n = (seen.get(base) ?? 0) + 1;
     seen.set(base, n);
     return n > 1 ? `${base}#${n}` : base;

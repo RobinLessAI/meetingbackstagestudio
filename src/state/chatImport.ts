@@ -11,7 +11,7 @@ export function toChatMessages(parsed: ParsedChatMessage[], now: number = Date.n
     senderName: m.sender,
     text: m.text,
     // Ohne Uhrzeit (einfaches Format) zählen die Nachrichten ab jetzt, in Dateireihenfolge.
-    at: m.time ? timeToTimestamp(m.time, now) : now + i,
+    at: m.time ? timeToTimestamp(m.time, now, m.date) : now + i,
     source: 'import',
     importKey: keys[i],
   }));
