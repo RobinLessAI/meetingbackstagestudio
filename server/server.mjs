@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { createRtms, urlValidationResponse, verifyWebhook } from './rtms.mjs';
 import { createZoomEventSocket, parseSubscriptionId } from './zoomEvents.mjs';
+import { createZoomApi } from './zoomApi.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -39,6 +40,7 @@ const ZOOM_WEBHOOK_SECRET_TOKEN = process.env.ZOOM_WEBHOOK_SECRET_TOKEN ?? '';
 const ZOOM_WS_SUBSCRIPTION_ID = parseSubscriptionId(process.env.ZOOM_WS_SUBSCRIPTION_ID);
 const ZOOM_ACCOUNT_ID = process.env.ZOOM_ACCOUNT_ID ?? '';
 const EVENT_CHANNEL = ZOOM_WS_SUBSCRIPTION_ID ? 'websocket' : 'webhook';
+const ZOOM_REDIRECT_URI = process.env.ZOOM_REDIRECT_URI ?? '';
 
 const PORT = Number(process.env.PORT ?? 4300);
 const HOST = '127.0.0.1';
@@ -80,6 +82,15 @@ async function writeSave(state) {
 }
 
 // ----------------------------------------------------- Live-Chat aus Zoom
+const zoomApi = createZoomApi({
+  clientId: ZOOM_CLIENT_ID,
+  clientSecret: ZOOM_CLIENT_SECRET,
+  redirectUri: ZOOM_REDIRECT_URI,
+  dataDir: DATA_DIR,
+  log,
+  oauthBase: process.env.MB_ZOOM_OAUTH_BASE,
+  apiBase: process.env.MB_ZOOM_API_URL,
+});
 const liveChat = []; // zuletzt empfangene Nachrichten, damit eine neu geladene Steuerung nichts verpasst
 const rtms = createRtms({
   clientId: ZOOM_CLIENT_ID,
@@ -110,6 +121,7 @@ function rtmsStatus(status = rtms.status()) {
       !ZOOM_WS_SUBSCRIPTION_ID && !ZOOM_WEBHOOK_SECRET_TOKEN && 'ZOOM_WS_SUBSCRIPTION_ID',
     ].filter(Boolean),
     channel: EVENT_CHANNEL,
+    account: zoomApi?.status() ?? null,
     eventSocket: eventSocket?.status() ?? null,
     lastWebhookAt,
   };
@@ -302,6 +314,38 @@ wss.on('connection', (ws, rolle) => {
           send(ws, { type: 'error', message: `Speichern fehlgeschlagen: ${e.message}` });
         }
         break;
+      case 'zoom-connect':
+        try {
+          await zoomApi.connect(msg.input);
+          send(ws, { type: 'zoom-result', ok: true, action: 'connect', message: 'Mit Zoom verbunden.' });
+        } catch (e) {
+          send(ws, { type: 'zoom-result', ok: false, action: 'connect', message: e.message });
+        }
+        broadcast('steuerung', { type: 'rtms-status', status: rtmsStatus() });
+        break;
+      case 'zoom-disconnect':
+        await zoomApi.disconnect();
+        broadcast('steuerung', { type: 'rtms-status', status: rtmsStatus() });
+        break;
+      case 'zoom-auth-url':
+        send(ws, { type: 'zoom-auth-url', url: zoomApi.authorizeUrl() });
+        break;
+      case 'rtms-start':
+      case 'rtms-stop': {
+        const action = msg.type === 'rtms-start' ? 'start' : 'stop';
+        try {
+          const { meetingId } = await zoomApi.setRtms(msg.meeting, action);
+          send(ws, {
+            type: 'zoom-result',
+            ok: true,
+            action,
+            message: action === 'start' ? `Zoom startet den Chat-Datenstrom für Meeting ${meetingId} …` : `Chat-Datenstrom für Meeting ${meetingId} gestoppt.`,
+          });
+        } catch (e) {
+          send(ws, { type: 'zoom-result', ok: false, action, message: e.message });
+        }
+        break;
+      }
       case 'chat-watch':
         startWatch(msg.folder);
         break;

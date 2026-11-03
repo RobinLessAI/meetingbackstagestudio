@@ -986,3 +986,7 @@ a.icon-btn { text-decoration: none; }
 @media (max-width: 1100px) {
   .zoom-setup__grid { grid-template-columns: minmax(0, 1fr); }
 }
+.meeting-start { display: flex; flex-direction: column; gap: 10px; }
+.meeting-start code { font-family: var(--font-mono); font-size: 0.85em; background: var(--raised); padding: 0 4px; border-radius: 3px; }
+.meeting-start .is-ok { color: var(--ok); }
+.chat__start { padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--raised); flex: none; }

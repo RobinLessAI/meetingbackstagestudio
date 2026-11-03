@@ -6,6 +6,8 @@ import { useCommands } from '../state/commands.ts';
 import type { MessageTags } from '../state/derive.ts';
 import { useStore } from '../state/store.tsx';
 import { LiveChatBadge } from './LiveChat.tsx';
+import { MeetingStart } from './MeetingStart.tsx';
+import { useSync } from '../sync/SyncProvider.tsx';
 import { ROLE_LABEL } from './people.tsx';
 import { DemoTag, Empty, Switch } from './ui.tsx';
 
@@ -84,6 +86,7 @@ function TagChips({ tags, onFlag }: { tags: MessageTags; onFlag?: () => void }) 
 
 export function ChatPanel() {
   const { state, derived, dispatch } = useStore();
+  const sync = useSync();
   const commands = useCommands();
   const [showTeam, setShowTeam] = useState(true);
   const [senderId, setSenderId] = useState('jonas');
@@ -148,6 +151,11 @@ export function ChatPanel() {
           <span className="subtle tabular">{state.chat.length} Nachrichten</span>
         </div>
       </header>
+      {sync.rtms?.account?.connected && sync.rtms.state !== 'verbunden' && (
+        <div className="chat__start">
+          <MeetingStart compact />
+        </div>
+      )}
       <div className="chat__filters">
         <Switch checked={showTeam} onChange={setShowTeam} label="Team-Nachrichten zeigen" />
       </div>

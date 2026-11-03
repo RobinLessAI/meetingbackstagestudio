@@ -3,6 +3,7 @@ import { CircleCheck, CircleDashed, Copy, FolderSearch, Radio, TriangleAlert } f
 import { clock } from '../lib/time.ts';
 import { useStore } from '../state/store.tsx';
 import { useSync, type RtmsStatus } from '../sync/SyncProvider.tsx';
+import { MeetingStart } from './MeetingStart.tsx';
 import { Badge, Button, DemoTag, Panel, Switch } from './ui.tsx';
 
 export function rtmsLabel(r: RtmsStatus | null, available: boolean): { text: string; tone: 'ok' | 'warn' | 'danger' | 'neutral' } {
@@ -127,6 +128,9 @@ export function ZoomLiveChatSetup() {
           </div>
         </div>
         <div className="stack">
+          <h3 className="eyebrow">Chat für ein Meeting starten</h3>
+          <MeetingStart />
+          <div className="divider" />
           <h3 className="eyebrow">Notlösung ohne RTMS</h3>
           <p className="muted">
             Falls RTMS für dein Konto noch nicht freigeschaltet ist: Klicke im Zoom-Chat auf „Chat speichern“. MeetingBackstage übernimmt dann neue

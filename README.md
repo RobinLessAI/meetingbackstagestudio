@@ -59,6 +59,12 @@ Der Chat kommt über **Zoom Realtime Media Streams (RTMS)**. Den Start deines Me
 4. **Zugangsdaten eintragen:** `.env.example` nach `.env.local` kopieren (Mac: `cp .env.example .env.local` und `open -e .env.local`). Eintragen: Client-ID, Client-Geheimnis und die Subscription ID (oder die komplette wss-Adresse). Danach den Server neu starten.
 5. **Meeting starten.** Sobald Zoom den Datenstrom startet, zeigt die App „Live aus Zoom“. Je nach Zoom-Einstellung startet er automatisch oder muss im Meeting für die App gestartet werden.
 
+**Start per Meeting-Link (falls der automatische Start nicht greift):**
+1. In der Zoom-App unter „Anwendungsbereiche“ `meeting:update:participant_rtms_app_status` hinzufügen.
+2. In `.env.local` `ZOOM_REDIRECT_URI` setzen: dieselbe Adresse wie „OAuth Weiterleitungs-URL“ in der Zoom-App.
+3. In MeetingBackstage unter „Integrationen“ auf „Bei Zoom erlauben“ klicken, danach die Adresse aus dem Browser (mit `?code=`) einfügen und „Verbinden“ wählen. Das ist nur einmal nötig.
+4. Pro Meeting: Meeting-Link einfügen und „Chat-Datenstrom starten“. Es tritt kein zusätzlicher Teilnehmer bei.
+
 Die Seite „Integrationen“ zeigt den Stand jedes Schritts.
 
 **Alternative mit Webhook:** Statt WebSocket kann Zoom den Start auch per Webhook an `/zoom/webhook` melden. Dann braucht es einen Tunnel (z. B. ngrok) und `ZOOM_WEBHOOK_SECRET_TOKEN` in `.env.local`.

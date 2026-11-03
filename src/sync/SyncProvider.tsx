@@ -27,6 +27,8 @@ export interface RtmsStatus {
   lastWebhookAt: number | null;
   /** Wie Zoom den Meeting-Start meldet: per WebSocket (ohne Tunnel) oder Webhook. */
   channel?: 'websocket' | 'webhook';
+  /** Anmeldung bei Zoom für den Start per Meeting-Link. */
+  account?: { connected: boolean; redirectConfigured: boolean; scope: string } | null;
   eventSocket?: { state: 'verbunden' | 'verbindet' | 'getrennt' | 'fehler'; error: string | null } | null;
 }
 
@@ -44,6 +46,13 @@ interface SyncValue {
   baseUrl: string;
   startWatch: (folder?: string) => boolean;
   stopWatch: () => void;
+  /** Letzte Antwort von Zoom auf Verbinden, Start oder Stopp. */
+  zoomResult: { ok: boolean; action: string; message: string; at: number } | null;
+  zoomBusy: boolean;
+  requestAuthUrl: () => Promise<string | null>;
+  connectZoom: (input: string) => void;
+  disconnectZoom: () => void;
+  setRtms: (meeting: string, action: 'start' | 'stop') => void;
 }
 
 const SyncCtx = createContext<SyncValue | null>(null);
@@ -58,6 +67,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [watch, setWatch] = useState<WatchStatus>({ active: false, folder: null, file: null, error: null });
   const [lastImport, setLastImport] = useState<SyncValue['lastImport']>(null);
   const [rtms, setRtms] = useState<RtmsStatus | null>(null);
+  const [zoomResult, setZoomResult] = useState<SyncValue['zoomResult']>(null);
+  const [zoomBusy, setZoomBusy] = useState(false);
+  const authUrlWaiter = useRef<((url: string | null) => void) | null>(null);
   const socket = useRef<SyncSocket | null>(null);
   const rtmsRef = useRef<RtmsStatus | null>(null);
   rtmsRef.current = rtms;
@@ -103,6 +115,15 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         if (messages.length) dispatch({ type: 'chat/import', messages });
         break;
       }
+      case 'zoom-result':
+        setZoomBusy(false);
+        setZoomResult({ ok: msg.ok, action: msg.action, message: msg.message, at: Date.now() });
+        notify(msg.message, msg.ok ? 'erfolg' : 'fehler');
+        break;
+      case 'zoom-auth-url':
+        authUrlWaiter.current?.(msg.url ?? null);
+        authUrlWaiter.current = null;
+        break;
       case 'clients':
         setOutputs(msg.ausgaben ?? 0);
         break;
@@ -164,6 +185,27 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     socket.current?.send({ type: 'chat-watch-stop' });
   }, []);
 
+  const requestAuthUrl = useCallback(
+    () =>
+      new Promise<string | null>((resolve) => {
+        authUrlWaiter.current = resolve;
+        if (!socket.current?.send({ type: 'zoom-auth-url' })) resolve(null);
+        window.setTimeout(() => resolve(null), 4000);
+      }),
+    [],
+  );
+  const connectZoom = useCallback((input: string) => {
+    setZoomBusy(true);
+    if (!socket.current?.send({ type: 'zoom-connect', input })) setZoomBusy(false);
+  }, []);
+  const disconnectZoom = useCallback(() => {
+    socket.current?.send({ type: 'zoom-disconnect' });
+  }, []);
+  const setRtmsState = useCallback((meeting: string, action: 'start' | 'stop') => {
+    setZoomBusy(true);
+    if (!socket.current?.send({ type: action === 'start' ? 'rtms-start' : 'rtms-stop', meeting })) setZoomBusy(false);
+  }, []);
+
   const value = useMemo<SyncValue>(
     () => ({
       rtms,
@@ -176,8 +218,14 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       baseUrl: available ? window.location.origin : DEFAULT_BASE,
       startWatch,
       stopWatch,
+      zoomResult,
+      zoomBusy,
+      requestAuthUrl,
+      connectZoom,
+      disconnectZoom,
+      setRtms: setRtmsState,
     }),
-    [rtms, available, status, outputs, savedAt, watch, lastImport, startWatch, stopWatch],
+    [rtms, available, status, outputs, savedAt, watch, lastImport, startWatch, stopWatch, zoomResult, zoomBusy, requestAuthUrl, connectZoom, disconnectZoom, setRtmsState],
   );
   return <SyncCtx.Provider value={value}>{children}</SyncCtx.Provider>;
 }
