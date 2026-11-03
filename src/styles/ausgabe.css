@@ -1,0 +1,105 @@
+/*
+ * OBS-Ausgabe: feste Bühne in der Größe der Browserquelle (empfohlen 1920 × 1080).
+ * Hintergrund standardmäßig transparent, damit die Grafik über dem Zoom-Bild liegen kann.
+ * Alle Größen sind relativ zur Bühnenbreite (cqi), dadurch passt jede Auflösung.
+ */
+body.ausgabe {
+  background: transparent;
+  overflow: hidden;
+}
+
+.out {
+  position: fixed;
+  inset: 0;
+  container-type: size;
+  overflow: hidden;
+  color: var(--text);
+  font-family: var(--font-ui);
+}
+.out--transparent { background: transparent; }
+.out--dunkel { background: var(--stage); }
+
+@keyframes out-in {
+  from { opacity: 0; transform: translateY(1.2cqh); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Einblendung rechts (Weltkarte, Umfrage, Wortwolke) */
+.out-side {
+  position: absolute;
+  top: 6%;
+  right: 3%;
+  bottom: 6%;
+  width: 34%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1cqi;
+  padding: 2cqi;
+  border-radius: 0.5cqi;
+  background: rgb(9 10 13 / 0.92);
+  border: 1px solid var(--line-strong);
+  font-size: 1.45cqi;
+  animation: out-in 380ms ease-out;
+}
+.out-side--umfrage,
+.out-side--wortwolke { bottom: auto; max-height: 88%; }
+.out-side--umfrage .out-side__body,
+.out-side--wortwolke .out-side__body { flex: none; }
+.out-side__title { font-size: 1.3em; font-weight: 600; line-height: 1.2; text-wrap: balance; }
+.out-side__body { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; }
+.out-side__body .worldmap { width: 100%; height: 100%; }
+.out-side__meta { font-size: 0.8em; color: var(--text-3); }
+
+/* Bauchbinde unten links (Chat-Highlight) */
+.out-lower {
+  position: absolute;
+  left: 4%;
+  bottom: 7%;
+  width: fit-content;
+  min-width: 30%;
+  max-width: 62%;
+  font-size: 1.5cqi;
+  animation: out-in 380ms ease-out;
+}
+.out .highlight--overlay { font-size: 1.5cqi; }
+
+/* Vollbild */
+.out-full {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2.2cqi;
+  padding: 4.5cqi 5.5cqi 3.5cqi;
+  animation: out-in 380ms ease-out;
+}
+.out-full__title { font-size: 3.4cqi; font-weight: 600; line-height: 1.15; text-wrap: balance; }
+.out-full__body { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; }
+.out-full__body--karte .worldmap { width: 100%; height: 100%; }
+.out-full__body--wortwolke { align-items: center; }
+.out-full__body--highlight { align-items: flex-start; }
+.out-full__meta { font-size: 1.4cqi; color: var(--text-3); }
+
+/* Reaktion in der Bildmitte */
+.out-reaction {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 1cqi;
+  pointer-events: none;
+}
+.out-reaction__emoji { font-size: 12cqi; line-height: 1; animation: pop 320ms ease-out; filter: drop-shadow(0 0.6cqi 1.6cqi rgb(0 0 0 / 0.5)); }
+.out-reaction__label { padding: 0.3em 0.8em; border-radius: 0.3cqi; background: rgb(0 0 0 / 0.7); font-size: 2cqi; font-weight: 600; }
+
+.out-debug {
+  position: absolute;
+  left: 1cqi;
+  bottom: 1cqi;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 0.75);
+  color: #fff;
+  font: 14px/1.3 var(--font-mono);
+}
