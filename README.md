@@ -31,7 +31,7 @@ Ohne Git: auf GitHub „Code“ → „Download ZIP“, entpacken und im Termina
 - **Steuerung:** http://localhost:4300 im Browser öffnen.
 - **OBS:** Adressen unter „OBS-Ausgabe“ kopieren (siehe unten).
 
-Die App startet leer und zeigt nur drei Bereiche: **Live Grafiken** (mit Chat), **OBS-Ausgabe** und **Zoom & Einstellungen**. Die simulierten Bereiche (Teilnehmende, Galerie, Steuerpult & Stream Deck, Audio, Veranstaltungsübersicht) lassen sich unter „Zoom & Einstellungen“ → „Weitere Bereiche (Demo) zeigen“ einblenden. Beispieldaten gibt es dort auf Knopfdruck.
+Die App startet leer und zeigt nur drei Bereiche: **Live Grafiken** (Ausklappmenü mit Chat, Weltkarte, Umfrage, Wortwolke und Chat-Highlight), **OBS-Ausgabe** und **Zoom & Einstellungen**. Die simulierten Bereiche (Teilnehmende, Galerie, Steuerpult & Stream Deck, Audio, Veranstaltungsübersicht) lassen sich unter „Zoom & Einstellungen“ → „Weitere Bereiche (Demo) zeigen“ einblenden. Beispieldaten gibt es dort auf Knopfdruck.
 
 Der Server ist nur auf diesem Rechner erreichbar. Eine eigene Veranstaltung („Veranstaltung“ → „Neue Veranstaltung“) wird automatisch unter `daten/veranstaltung.json` gespeichert und nach einem Neustart wiederhergestellt.
 

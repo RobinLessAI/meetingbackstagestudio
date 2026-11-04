@@ -265,3 +265,40 @@ button.topbar__chip:hover { background: var(--hover); color: var(--text); }
   .main { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
   .view__title { font-size: var(--fs-xl); }
 }
+
+/* ------------------------------------------ Ausklappmenü „Live Grafiken“ */
+.nav__end { display: inline-flex; align-items: center; gap: 6px; }
+.nav__chevron { color: var(--text-3); transition: transform 0.15s ease; }
+.nav__chevron.is-open { transform: rotate(180deg); }
+.nav__link.is-parent { color: var(--text); }
+.nav__link.is-parent svg:first-of-type { color: var(--accent); }
+.nav__sub { list-style: none; margin: 2px 0 6px; padding: 0 0 0 36px; display: flex; flex-direction: column; gap: 1px; }
+.nav__sublink {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 4px 10px;
+  border-radius: var(--r-sm);
+  color: var(--text-2);
+  text-decoration: none;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+.nav__sublink:hover { background: var(--hover); color: var(--text); }
+.nav__sublink.is-active { background: var(--raised); color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
+.nav__sublink.is-active svg { color: var(--accent); }
+.nav__live { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.view__title .tab__live { margin-left: 10px; vertical-align: middle; }
+.graphics-chat { max-width: 920px; }
+.graphics-chat .chat { position: static; height: calc(100vh - var(--topbar-h) - 220px); }
+
+/* Tabs nur, wenn die Leiste keine Unterpunkte zeigen kann. */
+.graphics-tabs { display: none; }
+@media (prefers-reduced-motion: reduce) { .nav__chevron { transition: none; } }
+@media (max-width: 1180px) {
+  .nav__sub,
+  .nav__chevron { display: none; }
+  .graphics-tabs { display: flex; }
+}

@@ -24,13 +24,19 @@ const readDemo = () => {
   }
 };
 
-export type GraphicTab = GraphicKind;
+/** Unterseiten von „Live Grafiken“: der Chat und die vier Grafiken. */
+export type GraphicTab = 'chat' | GraphicKind;
+
+const NAV_OPEN_KEY = 'mb-grafiken-offen';
 
 interface UiValue {
   view: ViewId;
   go: (view: ViewId, opts?: { graphicTab?: GraphicTab }) => void;
   graphicTab: GraphicTab;
   setGraphicTab: (t: GraphicTab) => void;
+  /** Untermenü „Live Grafiken“ in der Leiste aufgeklappt. */
+  graphicsOpen: boolean;
+  setGraphicsOpen: (open: boolean) => void;
   muteAllOpen: boolean;
   setMuteAllOpen: (open: boolean) => void;
   presentation: GraphicKind | null;
@@ -53,7 +59,22 @@ const readHash = (): ViewId => {
 
 export function UiProvider({ children }: { children: ReactNode }) {
   const [view, setView] = useState<ViewId>(readHash);
-  const [graphicTab, setGraphicTab] = useState<GraphicTab>('karte');
+  const [graphicTab, setGraphicTab] = useState<GraphicTab>('chat');
+  const [graphicsOpen, setGraphicsOpenState] = useState(() => {
+    try {
+      return localStorage.getItem(NAV_OPEN_KEY) !== '0';
+    } catch {
+      return true;
+    }
+  });
+  const setGraphicsOpen = useCallback((on: boolean) => {
+    setGraphicsOpenState(on);
+    try {
+      localStorage.setItem(NAV_OPEN_KEY, on ? '1' : '0');
+    } catch {
+      /* nur Komfort */
+    }
+  }, []);
   const [muteAllOpen, setMuteAllOpen] = useState(false);
   const [presentation, setPresentation] = useState<GraphicKind | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -93,6 +114,8 @@ export function UiProvider({ children }: { children: ReactNode }) {
       go,
       graphicTab,
       setGraphicTab,
+      graphicsOpen,
+      setGraphicsOpen,
       muteAllOpen,
       setMuteAllOpen,
       presentation,
@@ -103,7 +126,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
       setShowDemo,
       views,
     }),
-    [view, go, graphicTab, muteAllOpen, presentation, helpOpen, showDemo, setShowDemo, views],
+    [view, go, graphicTab, graphicsOpen, setGraphicsOpen, muteAllOpen, presentation, helpOpen, showDemo, setShowDemo, views],
   );
   return <UiCtx.Provider value={value}>{children}</UiCtx.Provider>;
 }

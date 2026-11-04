@@ -1,6 +1,7 @@
 import {
   AudioLines,
   CalendarClock,
+  ChevronDown,
   MonitorPlay,
   CircleHelp,
   Hand,
@@ -19,6 +20,8 @@ import { useNow, useStore } from '../state/store.tsx';
 import type { ViewId } from '../state/types.ts';
 import { useUi } from '../state/ui.tsx';
 import { useSync } from '../sync/SyncProvider.tsx';
+import { GRAPHIC_PAGES } from '../views/graphics/pages.ts';
+import { useGraphicCounts } from '../views/graphics/counts.ts';
 import { regieLabel } from './LiveChat.tsx';
 import { DemoTag, Dialog, Kbd, Switch } from './ui.tsx';
 
@@ -54,8 +57,9 @@ export function Brand() {
 }
 
 export function Sidebar() {
-  const { view, go, views, showDemo } = useUi();
-  const { derived } = useStore();
+  const { view, go, views, showDemo, graphicTab, graphicsOpen, setGraphicsOpen } = useUi();
+  const { derived, state } = useStore();
+  const pageCounts = useGraphicCounts();
   const counts: Partial<Record<ViewId, { n: number; label: string; tone?: 'accent' | 'warn' }>> = {
     teilnehmende: derived.queue.length
       ? { n: derived.queue.length, label: 'gehobene Hände', tone: 'accent' }
@@ -75,15 +79,20 @@ export function Sidebar() {
       <ul className="nav">
         {views.map((v, i) => {
           const Icon = ICONS[v.id];
-          const c = counts[v.id];
+          const isGraphics = v.id === 'grafiken';
+          // Aufgeklappt zeigen die Unterpunkte ihre Zahlen selbst.
+          const c = isGraphics && graphicsOpen ? undefined : counts[v.id];
+          const active = view === v.id && !(isGraphics && graphicsOpen);
           return (
             <li key={v.id}>
               <a
                 href={`#${v.id}`}
-                className={`nav__link${view === v.id ? ' is-active' : ''}`}
-                aria-current={view === v.id ? 'page' : undefined}
+                className={`nav__link${active ? ' is-active' : ''}${isGraphics && view === v.id ? ' is-parent' : ''}`}
+                aria-current={active ? 'page' : undefined}
+                aria-expanded={isGraphics ? graphicsOpen : undefined}
                 onClick={(e) => {
                   e.preventDefault();
+                  if (isGraphics) setGraphicsOpen(view !== v.id || !graphicsOpen);
                   go(v.id);
                 }}
                 title={`${v.label} (Alt+${i + 1})`}
@@ -96,12 +105,49 @@ export function Sidebar() {
                 <span className="nav__short" aria-hidden>
                   {v.short}
                 </span>
-                {c && (
-                  <span className={`nav__count nav__count--${c.tone}`} aria-label={`${c.n} ${c.label}`}>
-                    {c.n}
-                  </span>
-                )}
+                <span className="nav__end">
+                  {c && (
+                    <span className={`nav__count nav__count--${c.tone}`} aria-label={`${c.n} ${c.label}`}>
+                      {c.n}
+                    </span>
+                  )}
+                  {isGraphics && <ChevronDown size={16} className={`nav__chevron${graphicsOpen ? ' is-open' : ''}`} aria-hidden />}
+                </span>
               </a>
+              {isGraphics && graphicsOpen && (
+                <ul className="nav__sub" aria-label="Live Grafiken">
+                  {GRAPHIC_PAGES.map((p) => {
+                    const on = view === 'grafiken' && graphicTab === p.id;
+                    const n = pageCounts[p.id];
+                    return (
+                      <li key={p.id}>
+                        <a
+                          href="#grafiken"
+                          className={`nav__sublink${on ? ' is-active' : ''}`}
+                          aria-current={on ? 'page' : undefined}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            go('grafiken', { graphicTab: p.id });
+                          }}
+                        >
+                          <p.icon size={15} strokeWidth={1.9} aria-hidden />
+                          <span>{p.label}</span>
+                          <span className="nav__end">
+                            {p.id !== 'chat' && state.program.graphic === p.id && (
+                              <span className="nav__live" title="Eingeblendet" aria-label="eingeblendet" />
+                            )}
+                            {n ? (
+                              <span className="nav__count nav__count--warn" aria-label={`${n} zur Prüfung`}>
+                                {n}
+                              </span>
+                            ) : null}
+                          </span>
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </li>
           );
         })}
