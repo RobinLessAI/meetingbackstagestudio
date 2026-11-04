@@ -1,6 +1,7 @@
 import {
   AudioLines,
   CalendarClock,
+  MonitorPlay,
   CircleHelp,
   Hand,
   LayoutGrid,
@@ -16,7 +17,7 @@ import { GRAPHIC_LABEL, SESSION_LABEL } from '../state/commands.ts';
 import { useDeckActions, SHORTCUTS } from '../state/deckActions.ts';
 import { useNow, useStore } from '../state/store.tsx';
 import type { ViewId } from '../state/types.ts';
-import { useUi, VIEWS } from '../state/ui.tsx';
+import { useUi } from '../state/ui.tsx';
 import { useSync } from '../sync/SyncProvider.tsx';
 import { regieLabel } from './LiveChat.tsx';
 import { DemoTag, Dialog, Kbd, Switch } from './ui.tsx';
@@ -28,6 +29,7 @@ const ICONS: Record<ViewId, LucideIcon> = {
   grafiken: Sparkles,
   steuerpult: SlidersHorizontal,
   audio: AudioLines,
+  ausgabe: MonitorPlay,
   integrationen: Plug,
 };
 
@@ -52,7 +54,7 @@ export function Brand() {
 }
 
 export function Sidebar() {
-  const { view, go } = useUi();
+  const { view, go, views, showDemo } = useUi();
   const { derived } = useStore();
   const counts: Partial<Record<ViewId, { n: number; label: string; tone?: 'accent' | 'warn' }>> = {
     teilnehmende: derived.queue.length
@@ -71,7 +73,7 @@ export function Sidebar() {
     <nav className="sidebar" aria-label="Bereiche">
       <Brand />
       <ul className="nav">
-        {VIEWS.map((v, i) => {
+        {views.map((v, i) => {
           const Icon = ICONS[v.id];
           const c = counts[v.id];
           return (
@@ -104,17 +106,19 @@ export function Sidebar() {
           );
         })}
       </ul>
-      <div className="sidebar__foot">
-        <DemoTag>Teilweise Demo</DemoTag>
-        <p>Live: Chat aus Zoom und Grafiken für OBS über den lokalen Server. Simuliert: Teilnehmende, Spotlight, Stummschalten, Audio.</p>
-      </div>
+      {showDemo && (
+        <div className="sidebar__foot">
+          <DemoTag>Demo-Bereiche sichtbar</DemoTag>
+          <p>Ab „Veranstaltung“ ist alles simuliert: Teilnehmende, Spotlight, Stummschalten, Audio. Ausblenden unter „Zoom & Einstellungen“.</p>
+        </div>
+      )}
     </nav>
   );
 }
 
 export function TopBar() {
   const { state, derived, dispatch } = useStore();
-  const { go, setHelpOpen } = useUi();
+  const { go, setHelpOpen, showDemo } = useUi();
   const now = useNow();
   const { session } = state;
   const spot = state.spotlight.map((id) => derived.byId[id]).filter(Boolean);
@@ -137,30 +141,34 @@ export function TopBar() {
         <span className="topbar__sub">{session.format}</span>
       </div>
 
-      <div className={`session-pill session-pill--${session.status}`} role="status" aria-label={`Sitzungsstatus: ${SESSION_LABEL[session.status]} ${timer}`}>
-        <span className="session-pill__dot" aria-hidden />
-        <span className="session-pill__label">{SESSION_LABEL[session.status]}</span>
-        <span className="session-pill__time mono">{timer}</span>
-      </div>
+      {showDemo && (
+        <>
+          <div className={`session-pill session-pill--${session.status}`} role="status" aria-label={`Sitzungsstatus: ${SESSION_LABEL[session.status]} ${timer}`}>
+            <span className="session-pill__dot" aria-hidden />
+            <span className="session-pill__label">{SESSION_LABEL[session.status]}</span>
+            <span className="session-pill__time mono">{timer}</span>
+          </div>
 
-      <button type="button" className="topbar__chip" onClick={() => go('teilnehmende')} aria-label={`Spotlight: ${spot.length ? spot.map((p) => p.name).join(', ') : 'niemand'}. Teilnehmende öffnen`}>
-        <Star size={14} strokeWidth={2.4} className={spot.length ? 'is-accent' : ''} aria-hidden />
-        <span className="topbar__chip-label">Spotlight</span>
-        <span className="topbar__chip-value">
-          {spot.length === 0 ? 'niemand' : spot.slice(0, 2).map((p) => p.shortName).join(', ')}
-          {spot.length > 2 && ` +${spot.length - 2}`}
-        </span>
-      </button>
+          <button type="button" className="topbar__chip" onClick={() => go('teilnehmende')} aria-label={`Spotlight: ${spot.length ? spot.map((p) => p.name).join(', ') : 'niemand'}. Teilnehmende öffnen`}>
+            <Star size={14} strokeWidth={2.4} className={spot.length ? 'is-accent' : ''} aria-hidden />
+            <span className="topbar__chip-label">Spotlight</span>
+            <span className="topbar__chip-value">
+              {spot.length === 0 ? 'niemand' : spot.slice(0, 2).map((p) => p.shortName).join(', ')}
+              {spot.length > 2 && ` +${spot.length - 2}`}
+            </span>
+          </button>
 
-      <button type="button" className="topbar__chip" onClick={() => go('teilnehmende')} aria-label={`${derived.queue.length} Hände gehoben. Teilnehmende öffnen`}>
-        <Hand size={14} strokeWidth={2.4} className={derived.queue.length ? 'is-accent' : ''} aria-hidden />
-        <span className="topbar__chip-value tabular">{derived.queue.length}</span>
-        {first && (
-          <span className="topbar__chip-label">
-            {first.participant.shortName} {duration(now - first.raisedAt)}
-          </span>
-        )}
-      </button>
+          <button type="button" className="topbar__chip" onClick={() => go('teilnehmende')} aria-label={`${derived.queue.length} Hände gehoben. Teilnehmende öffnen`}>
+            <Hand size={14} strokeWidth={2.4} className={derived.queue.length ? 'is-accent' : ''} aria-hidden />
+            <span className="topbar__chip-value tabular">{derived.queue.length}</span>
+            {first && (
+              <span className="topbar__chip-label">
+                {first.participant.shortName} {duration(now - first.raisedAt)}
+              </span>
+            )}
+          </button>
+        </>
+      )}
 
       {state.program.graphic && (
         <button type="button" className="topbar__chip topbar__chip--accent" onClick={() => go('grafiken', { graphicTab: state.program.graphic! })}>
@@ -170,24 +178,26 @@ export function TopBar() {
         </button>
       )}
 
-      {state.muteAll && (
+      {showDemo && state.muteAll && (
         <span className="topbar__chip topbar__chip--danger" role="status">
           Alle stumm
         </span>
       )}
 
       <div className="topbar__end">
-        <button type="button" className="demo-status" onClick={() => go('integrationen')} title="Live-Chat und Integrationen anzeigen">
+        <button type="button" className="demo-status" onClick={() => go('integrationen')} title="Zoom-Live-Chat und Einstellungen anzeigen">
           {state.dataMode === 'demo' ? <DemoTag>Beispieldaten</DemoTag> : <span className="data-mode">Eigene Veranstaltung</span>}
           <span className={`demo-status__live demo-status__live--${live.tone}`}>{live.text}</span>
         </button>
-        <div className="topbar__sim" title="Live-Simulation: erzeugt Beispiel-Chat, Handzeichen und Reaktionen">
-          <Switch
-            checked={state.settings.autoDemo}
-            onChange={(v) => dispatch({ type: 'settings/update', patch: { autoDemo: v } })}
-            label="Live-Simulation"
-          />
-        </div>
+        {showDemo && (
+          <div className="topbar__sim" title="Live-Simulation: erzeugt Beispiel-Chat, Handzeichen und Reaktionen">
+            <Switch
+              checked={state.settings.autoDemo}
+              onChange={(v) => dispatch({ type: 'settings/update', patch: { autoDemo: v } })}
+              label="Live-Simulation"
+            />
+          </div>
+        )}
         <button type="button" className="icon-btn" onClick={() => setHelpOpen(true)} aria-label="Tastenkürzel anzeigen" title="Tastenkürzel (?)">
           <CircleHelp size={18} aria-hidden />
         </button>
@@ -197,7 +207,7 @@ export function TopBar() {
 }
 
 export function ShortcutHelp() {
-  const { helpOpen, setHelpOpen } = useUi();
+  const { helpOpen, setHelpOpen, views } = useUi();
   const actions = useDeckActions();
   const { state } = useStore();
   return (
@@ -210,7 +220,7 @@ export function ShortcutHelp() {
         <div>
           <h3 className="eyebrow">Bereiche</h3>
           <ul className="shortcut-list">
-            {VIEWS.map((v, i) => (
+            {views.map((v, i) => (
               <li key={v.id}>
                 <span>{v.label}</span>
                 <span>

@@ -228,6 +228,7 @@ export type ViewId =
   | 'grafiken'
   | 'steuerpult'
   | 'audio'
+  | 'ausgabe'
   | 'integrationen';
 
 export type ParticipantFilter =

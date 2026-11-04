@@ -10,7 +10,7 @@ import {
   type Dispatch,
   type ReactNode,
 } from 'react';
-import { createInitialState } from '../data/sample.ts';
+import { createEmptyState } from '../data/event.ts';
 import {
   analyzeCloud,
   analyzeMap,
@@ -63,7 +63,7 @@ let uid = 0;
 export const nextId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(uid++).toString(36)}`;
 
 export function StoreProvider({ children, initial }: { children: ReactNode; initial?: AppState }) {
-  const [state, dispatch] = useReducer(reducer, initial, (init) => init ?? createInitialState());
+  const [state, dispatch] = useReducer(reducer, initial, (init) => init ?? createEmptyState());
   const stateRef = useRef(state);
   stateRef.current = state;
 

@@ -29,7 +29,9 @@ Ohne Git: auf GitHub „Code“ → „Download ZIP“, entpacken und im Termina
 `npm start` baut die App und startet den lokalen Server. Danach:
 
 - **Steuerung:** http://localhost:4300 im Browser öffnen.
-- **OBS:** Adressen unter „Audio & Ausgabe“ kopieren (siehe unten).
+- **OBS:** Adressen unter „OBS-Ausgabe“ kopieren (siehe unten).
+
+Die App startet leer und zeigt nur drei Bereiche: **Live Grafiken** (mit Chat), **OBS-Ausgabe** und **Zoom & Einstellungen**. Die simulierten Bereiche (Teilnehmende, Galerie, Steuerpult & Stream Deck, Audio, Veranstaltungsübersicht) lassen sich unter „Zoom & Einstellungen“ → „Weitere Bereiche (Demo) zeigen“ einblenden. Beispieldaten gibt es dort auf Knopfdruck.
 
 Der Server ist nur auf diesem Rechner erreichbar. Eine eigene Veranstaltung („Veranstaltung“ → „Neue Veranstaltung“) wird automatisch unter `daten/veranstaltung.json` gespeichert und nach einem Neustart wiederhergestellt.
 
@@ -59,13 +61,13 @@ Der Chat kommt über ein **Regie-Fenster**: MeetingBackstage öffnet ein Browser
 
 **Pro Meeting:**
 1. Meeting in Zoom als Host starten.
-2. In MeetingBackstage unter „Integrationen“ (oder oben im Chat) den Meeting-Link einfügen und **„Regie beitreten“** klicken. Es öffnet sich das Regie-Fenster.
+2. In MeetingBackstage unter „Zoom & Einstellungen“ (oder oben im Chat) den Meeting-Link einfügen und **„Regie beitreten“** klicken. Es öffnet sich das Regie-Fenster.
 3. In Zoom die Regie aus dem Warteraum **zulassen**, falls ein Warteraum aktiv ist.
 4. Das Regie-Fenster offen lassen. Beenden mit „Regie verlassen“ oder durch Schließen des Fensters.
 
 Grenzen: Ohne eine von Zoom geprüfte und veröffentlichte App tritt die Regie nur Meetings deines **eigenen Zoom-Kontos** bei. Die Regie ist für alle sichtbar und belegt einen Teilnehmerplatz. Private Nachrichten werden nicht übernommen. Wenn Zoom den Beitritt wegen des Kenncodes ablehnt, den Kenncode im Feld „Kenncode“ eintragen.
 
-**Notlösung ohne Regie:** In der App unter „Integrationen“ den Zoom-Ordner beobachten lassen. Nach jedem Klick auf „Chat speichern“ in Zoom übernimmt MeetingBackstage die neuen Nachrichten (nicht live). Nur Nachrichten an alle werden übernommen.
+**Notlösung ohne Regie:** In der App unter „Zoom & Einstellungen“ den Zoom-Ordner beobachten lassen. Nach jedem Klick auf „Chat speichern“ in Zoom übernimmt MeetingBackstage die neuen Nachrichten (nicht live). Nur Nachrichten an alle werden übernommen.
 
 ## Regeln der Chat-Auswertung
 
@@ -103,7 +105,7 @@ meetingbackstagestudio/
 │   ├── state/            # Datenmodell, Auswertung von Karte, Umfrage, Wortwolke
 │   ├── lib/              # Ortserkennung, Abstimmung, Wortwolke, Zoom-Chat-Datei
 │   ├── components/       # Grafiken, Chat, Live-Chat-Einrichtung, OBS-Adressen
-│   └── views/            # die sieben Bereiche
+│   └── views/            # Bereiche (sichtbar: Live Grafiken, OBS-Ausgabe, Zoom & Einstellungen; weitere als Demo zuschaltbar)
 └── tests/
 ```
 

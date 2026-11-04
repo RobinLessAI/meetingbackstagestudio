@@ -5,6 +5,7 @@ import { clock } from '../lib/time.ts';
 import { useCommands } from '../state/commands.ts';
 import type { MessageTags } from '../state/derive.ts';
 import { useStore } from '../state/store.tsx';
+import { useUi } from '../state/ui.tsx';
 import { LiveChatBadge, RegieStart } from './LiveChat.tsx';
 import { useSync } from '../sync/SyncProvider.tsx';
 import { ROLE_LABEL } from './people.tsx';
@@ -86,6 +87,7 @@ function TagChips({ tags, onFlag }: { tags: MessageTags; onFlag?: () => void }) 
 export function ChatPanel() {
   const { state, derived, dispatch } = useStore();
   const sync = useSync();
+  const { showDemo } = useUi();
   const commands = useCommands();
   const [showTeam, setShowTeam] = useState(true);
   const [senderId, setSenderId] = useState('jonas');
@@ -211,14 +213,16 @@ export function ChatPanel() {
         })}
       </ol>
       <form className="chat__composer" onSubmit={submit} noValidate>
-        <div className="chat__examples" role="group" aria-label="Beispieltext einsetzen">
-          <span className="subtle">Beispiel:</span>
-          {EXAMPLES.map((ex) => (
-            <button key={ex.label} type="button" className="chip chip--action" onClick={() => fillExample(ex.texts)}>
-              {ex.label}
-            </button>
-          ))}
-        </div>
+        {showDemo && (
+          <div className="chat__examples" role="group" aria-label="Beispieltext einsetzen">
+            <span className="subtle">Beispiel:</span>
+            {EXAMPLES.map((ex) => (
+              <button key={ex.label} type="button" className="chip chip--action" onClick={() => fillExample(ex.texts)}>
+                {ex.label}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="chat__sender">
           <label className="sr-only" htmlFor={ids.sender}>
             Absender

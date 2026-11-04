@@ -66,6 +66,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const regieRef = useRef<RegieStatus | null>(null);
   regieRef.current = regie;
   const restored = useRef(false);
+  // Unveränderter Startzustand: darf durch einen gespeicherten Stand ersetzt werden.
+  const initialState = useRef(state);
 
   // Eingehende Nachrichten über eine Referenz, damit die Verbindung stabil bleibt.
   const onMessage = useRef<(msg: any) => void>(() => {});
@@ -78,7 +80,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         if (msg.regie) setRegie(msg.regie);
         const saved = msg.saved?.state as Partial<AppState> | undefined;
         // Eine eigene Veranstaltung nach Neuladen oder Absturz automatisch wiederherstellen.
-        if (!restored.current && saved?.dataMode === 'eigene' && stateRef.current.dataMode === 'demo') {
+        const untouched = stateRef.current === initialState.current || stateRef.current.dataMode === 'demo';
+        if (!restored.current && saved?.dataMode === 'eigene' && untouched) {
           restored.current = true;
           dispatch({ type: 'demo/replace', state: normalizeState(saved) });
           notify(`Veranstaltung „${saved.session?.title ?? ''}“ wiederhergestellt (Stand ${clock(msg.saved.savedAt, false)} Uhr)`, 'info');
@@ -164,7 +167,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   // Eigene Veranstaltungen automatisch speichern (Beispieldaten werden nicht gespeichert).
   useEffect(() => {
-    if (status !== 'verbunden' || state.dataMode !== 'eigene') return;
+    // Erst speichern, wenn ein gespeicherter Stand geprüft wurde, sonst überschreibt der leere Start ihn.
+    if (status !== 'verbunden' || state.dataMode !== 'eigene' || !restored.current) return;
     const t = window.setTimeout(() => socket.current?.send({ type: 'save', state }), 1500);
     return () => window.clearTimeout(t);
   }, [state, status]);

@@ -458,7 +458,7 @@ server.listen(PORT, HOST, () => {
   console.log('  MeetingBackstage Studio läuft');
   console.log(`  Steuerung:         ${base}/`);
   console.log(`  OBS-Browserquelle: ${base}/ausgabe.html?grafik=programm`);
-  console.log('  Weitere Ausgabe-Adressen stehen in der App unter „Audio & Ausgabe“.');
+  console.log('  Weitere Ausgabe-Adressen stehen in der App unter „OBS-Ausgabe“.');
   const st = regieStatus();
   console.log(
     !st.sdkInstalled

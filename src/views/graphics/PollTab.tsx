@@ -310,7 +310,7 @@ export function PollTab() {
               >
                 {a.votes.length === 0 ? (
                   <Empty icon={Vote} title="Noch keine Stimmen" compact>
-                    <p>Im Chat-Simulator z. B. „B“ oder „2“ senden.</p>
+                    <p>Im Chat z. B. „B“ oder „2“ senden.</p>
                   </Empty>
                 ) : (
                   <ul className="vote-log">

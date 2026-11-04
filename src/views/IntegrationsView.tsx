@@ -19,6 +19,7 @@ import { INTEGRATIONS, STREAMDECK_MAPPING, type Integration, type IntegrationId 
 import { createInitialState } from '../data/sample.ts';
 import { testConnection, type ConnectionState } from '../integrations/adapters.ts';
 import { useStore } from '../state/store.tsx';
+import { useUi } from '../state/ui.tsx';
 import type { Settings } from '../state/types.ts';
 
 const ICONS: Record<IntegrationId, LucideIcon> = {
@@ -151,6 +152,7 @@ export function IntegrationsView() {
   const { state, dispatch, notify } = useStore();
   const [detail, setDetail] = useState<Integration | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
+  const { showDemo, setShowDemo } = useUi();
   const s = state.settings;
   const set = (patch: Partial<Settings>) => dispatch({ type: 'settings/update', patch });
 
@@ -158,21 +160,21 @@ export function IntegrationsView() {
     <div className="view">
       <header className="view__head">
         <div className="view__titles">
-          <span className="eyebrow">Integrationen und Einstellungen</span>
-          <h1 className="view__title">Integrationen</h1>
-          <p className="view__lead">
-            Live verbunden sind der Chat aus Zoom und die Grafik-Ausgabe für OBS. Die Karten darunter zeigen, was weitere Anbindungen bräuchten.
-          </p>
+          <span className="eyebrow">Live-Chat und Einstellungen</span>
+          <h1 className="view__title">Zoom & Einstellungen</h1>
+          <p className="view__lead">Hier holst du die Regie ins Meeting, trägst Team-Namen ein und legst eine neue Veranstaltung an.</p>
         </div>
       </header>
 
       <ZoomLiveChatSetup />
 
-      <div className="int-grid">
-        {INTEGRATIONS.map((i) => (
-          <IntegrationCard key={i.id} integration={i} onDetails={() => setDetail(i)} />
-        ))}
-      </div>
+      {showDemo && (
+        <div className="int-grid">
+          {INTEGRATIONS.map((i) => (
+            <IntegrationCard key={i.id} integration={i} onDetails={() => setDetail(i)} />
+          ))}
+        </div>
+      )}
 
       <div className="settings-grid">
         <Panel eyebrow="Einstellungen" title="Bedienung">
@@ -192,29 +194,39 @@ export function IntegrationsView() {
               />
             </Field>
             <Switch
-              checked={s.autoDemo}
-              onChange={(v) => set({ autoDemo: v })}
-              label="Live-Simulation"
-              description="Erzeugt alle paar Sekunden Chat-Beiträge, Handzeichen, Reaktionen und Sprecherwechsel."
+              checked={showDemo}
+              onChange={setShowDemo}
+              label="Weitere Bereiche (Demo) zeigen"
+              description="Teilnehmende, Galerie, Steuerpult & Stream Deck, Audio und Veranstaltungsübersicht. Alles dort ist simuliert und wirkt nicht in Zoom."
             />
-            <Switch
-              checked={s.lowerHandOnSpotlight}
-              onChange={(v) => set({ lowerHandOnSpotlight: v })}
-              label="Hand beim Spotlight automatisch senken"
-              description="Aus empfohlen: So bleibt die Person in der Liste und ein zweiter Klick nimmt das Spotlight zurück."
-            />
-            <Switch
-              checked={s.shortcuts}
-              onChange={(v) => set({ shortcuts: v })}
-              label="Tastenkürzel für Aktionen"
-              description="N, M, G, U, K, W, H, X, R und S. Alt + 1 bis 7 wechselt immer den Bereich."
-            />
-            <Segmented<number>
-              label="Höchstens im Spotlight"
-              value={s.maxSpotlight}
-              onChange={(maxSpotlight) => set({ maxSpotlight })}
-              options={[1, 2, 4, 6, 9].map((n) => ({ value: n, label: String(n) }))}
-            />
+            {showDemo && (
+              <>
+                <Switch
+                  checked={s.autoDemo}
+                  onChange={(v) => set({ autoDemo: v })}
+                  label="Live-Simulation"
+                  description="Erzeugt alle paar Sekunden Chat-Beiträge, Handzeichen, Reaktionen und Sprecherwechsel."
+                />
+                <Switch
+                  checked={s.lowerHandOnSpotlight}
+                  onChange={(v) => set({ lowerHandOnSpotlight: v })}
+                  label="Hand beim Spotlight automatisch senken"
+                  description="Aus empfohlen: So bleibt die Person in der Liste und ein zweiter Klick nimmt das Spotlight zurück."
+                />
+                <Switch
+                  checked={s.shortcuts}
+                  onChange={(v) => set({ shortcuts: v })}
+                  label="Tastenkürzel für Aktionen"
+                  description="N, M, G, U, K, W, H, X, R und S. Alt + Ziffer wechselt immer den Bereich."
+                />
+                <Segmented<number>
+                  label="Höchstens im Spotlight"
+                  value={s.maxSpotlight}
+                  onChange={(maxSpotlight) => set({ maxSpotlight })}
+                  options={[1, 2, 4, 6, 9].map((n) => ({ value: n, label: String(n) }))}
+                />
+              </>
+            )}
             <Segmented<Settings['motion']>
               label="Bewegung"
               value={s.motion}
@@ -228,17 +240,19 @@ export function IntegrationsView() {
           </div>
         </Panel>
 
-        <Panel eyebrow="Architektur" title="Integrationsgrenzen">
-          <ul className="rules">
-            <li>Alle Bereiche lesen einen gemeinsamen Zustand: Veranstaltung, Teilnehmende, Chat, Spotlight und eingeblendete Grafik.</li>
-            <li>Bedienaktionen laufen über lokale Befehle. Später ersetzt ein Adapter die Demo-Befehle, ohne die Oberfläche zu ändern.</li>
-            <li>
-              Vorgesehene Adapter: <code>MeetingAdapter</code> (Konferenzplattform), <code>ControllerAdapter</code> (Tastenfeld) und{' '}
-              <code>OutputAdapter</code> (Video- und Audioausgänge).
-            </li>
-            <li>Die Chat-Auswertung bleibt auf deinem Rechner. Über den Tunnel läuft nur der Startaufruf von Zoom; der Chat selbst kommt direkt von Zoom an den lokalen Server.</li>
-          </ul>
-        </Panel>
+        {showDemo && (
+          <Panel eyebrow="Architektur" title="Integrationsgrenzen">
+            <ul className="rules">
+              <li>Alle Bereiche lesen einen gemeinsamen Zustand: Veranstaltung, Teilnehmende, Chat, Spotlight und eingeblendete Grafik.</li>
+              <li>Bedienaktionen laufen über lokale Befehle. Später ersetzt ein Adapter die Demo-Befehle, ohne die Oberfläche zu ändern.</li>
+              <li>
+                Vorgesehene Adapter: <code>MeetingAdapter</code> (Konferenzplattform), <code>ControllerAdapter</code> (Tastenfeld) und{' '}
+                <code>OutputAdapter</code> (Video- und Audioausgänge).
+              </li>
+              <li>Die Chat-Auswertung bleibt auf deinem Rechner. Das Regie-Fenster gibt den Chat direkt an den lokalen Server weiter.</li>
+            </ul>
+          </Panel>
+        )}
 
         <Panel eyebrow={state.dataMode === 'demo' ? 'Beispieldaten geladen' : 'Eigene Veranstaltung'} title="Daten">
           <div className="stack">

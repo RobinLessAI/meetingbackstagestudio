@@ -6,7 +6,8 @@ import { SHORTCUTS, useDeckActions } from './state/deckActions.ts';
 import { useAutoDemo } from './state/simulation.ts';
 import { StoreProvider, useStore } from './state/store.tsx';
 import { SyncProvider } from './sync/SyncProvider.tsx';
-import { UiProvider, useUi, VIEWS } from './state/ui.tsx';
+import { DEFAULT_VIEW, UiProvider, useUi, VIEWS } from './state/ui.tsx';
+import { ObsView } from './views/ObsView.tsx';
 import { AudioView } from './views/AudioView.tsx';
 import { ControlView } from './views/ControlView.tsx';
 import { EventView } from './views/EventView.tsx';
@@ -46,10 +47,12 @@ function useShortcuts() {
     const onKey = (e: KeyboardEvent) => {
       const { actions: a, ui: u, enabled } = latest.current;
       if (e.defaultPrevented || isTyping(e.target)) return;
-      // Alt + 1 … 7 wechselt den Bereich (über den Tastencode, damit es auch auf macOS funktioniert).
-      if (e.altKey && !e.ctrlKey && !e.metaKey && /^Digit[1-7]$/.test(e.code)) {
+      // Alt + Ziffer wechselt den sichtbaren Bereich (über den Tastencode, damit es auch auf macOS funktioniert).
+      if (e.altKey && !e.ctrlKey && !e.metaKey && /^Digit[1-9]$/.test(e.code)) {
+        const target = u.views[Number(e.code.slice(5)) - 1];
+        if (!target) return;
         e.preventDefault();
-        u.go(VIEWS[Number(e.code.slice(5)) - 1].id);
+        u.go(target.id);
         return;
       }
       if (e.altKey || e.ctrlKey || e.metaKey) return;
@@ -72,7 +75,7 @@ function useShortcuts() {
 }
 
 function Shell() {
-  const { view } = useUi();
+  const { view, views, go, showDemo } = useUi();
   const { state } = useStore();
   useAutoDemo();
   useShortcuts();
@@ -80,6 +83,11 @@ function Shell() {
   useEffect(() => {
     document.documentElement.dataset.motion = state.settings.motion;
   }, [state.settings.motion]);
+
+  // Ausgeblendete Bereiche nicht offen lassen.
+  useEffect(() => {
+    if (!views.some((v) => v.id === view)) go(DEFAULT_VIEW);
+  }, [view, views, go]);
 
   useEffect(() => {
     const label = VIEWS.find((v) => v.id === view)?.label;
@@ -94,16 +102,19 @@ function Shell() {
       <Sidebar />
       <TopBar />
       <main id="main" className="main" tabIndex={-1}>
-        <div className="main__banners">
-          <MuteAllBanner />
-          {view !== 'veranstaltung' && view !== 'integrationen' && <LockedBanner />}
-        </div>
+        {showDemo && (
+          <div className="main__banners">
+            <MuteAllBanner />
+            {view !== 'veranstaltung' && view !== 'integrationen' && view !== 'ausgabe' && <LockedBanner />}
+          </div>
+        )}
         {view === 'veranstaltung' && <EventView />}
         {view === 'teilnehmende' && <ParticipantsView />}
         {view === 'galerie' && <GalleryView />}
         {view === 'grafiken' && <GraphicsView />}
         {view === 'steuerpult' && <ControlView />}
         {view === 'audio' && <AudioView />}
+        {view === 'ausgabe' && <ObsView />}
         {view === 'integrationen' && <IntegrationsView />}
       </main>
       <MuteAllDialog />

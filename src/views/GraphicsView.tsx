@@ -32,8 +32,8 @@ export function GraphicsView() {
           <span className="eyebrow">Live Grafiken</span>
           <h1 className="view__title">Grafiken aus dem Chat</h1>
           <p className="view__lead">
-            Jede Nachricht im Chat-Simulator aktualisiert Weltkarte, Umfrage und Wortwolke gleichzeitig. Die Chips an jeder Nachricht zeigen,
-            wie sie verstanden wurde.
+            Jede Chat-Nachricht aus Zoom aktualisiert Weltkarte, Umfrage und Wortwolke gleichzeitig. Die Chips an jeder Nachricht zeigen, wie
+            sie verstanden wurde. Unten im Chat kannst du Testnachrichten eingeben.
           </p>
         </div>
       </header>

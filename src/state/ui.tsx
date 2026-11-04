@@ -1,15 +1,28 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { GraphicKind, ViewId } from './types.ts';
 
-export const VIEWS: Array<{ id: ViewId; label: string; short: string }> = [
-  { id: 'veranstaltung', label: 'Veranstaltung', short: 'Start' },
-  { id: 'teilnehmende', label: 'Teilnehmende', short: 'Personen' },
-  { id: 'galerie', label: 'Galerie Studio', short: 'Galerie' },
+/** Alle Bereiche. demo = nur simuliert, standardmäßig ausgeblendet. */
+export const VIEWS: Array<{ id: ViewId; label: string; short: string; demo?: boolean }> = [
   { id: 'grafiken', label: 'Live Grafiken', short: 'Grafiken' },
-  { id: 'steuerpult', label: 'Steuerpult & Stream Deck', short: 'Steuerpult' },
-  { id: 'audio', label: 'Audio & Ausgabe', short: 'Audio' },
-  { id: 'integrationen', label: 'Integrationen & Einstellungen', short: 'Integrationen' },
+  { id: 'ausgabe', label: 'OBS-Ausgabe', short: 'OBS' },
+  { id: 'integrationen', label: 'Zoom & Einstellungen', short: 'Zoom' },
+  { id: 'veranstaltung', label: 'Veranstaltung', short: 'Start', demo: true },
+  { id: 'teilnehmende', label: 'Teilnehmende', short: 'Personen', demo: true },
+  { id: 'galerie', label: 'Galerie Studio', short: 'Galerie', demo: true },
+  { id: 'steuerpult', label: 'Steuerpult & Stream Deck', short: 'Steuerpult', demo: true },
+  { id: 'audio', label: 'Audio & Ausgabe', short: 'Audio', demo: true },
 ];
+
+export const DEFAULT_VIEW: ViewId = 'grafiken';
+
+const DEMO_KEY = 'mb-demo-bereiche';
+const readDemo = () => {
+  try {
+    return localStorage.getItem(DEMO_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
 
 export type GraphicTab = GraphicKind;
 
@@ -24,13 +37,18 @@ interface UiValue {
   setPresentation: (g: GraphicKind | null) => void;
   helpOpen: boolean;
   setHelpOpen: (open: boolean) => void;
+  /** Simulierte Bereiche (Teilnehmende, Galerie, Steuerpult, Audio …) anzeigen. */
+  showDemo: boolean;
+  setShowDemo: (on: boolean) => void;
+  /** Die aktuell sichtbaren Bereiche in Reihenfolge der Leiste. */
+  views: typeof VIEWS;
 }
 
 const UiCtx = createContext<UiValue | null>(null);
 
 const readHash = (): ViewId => {
   const h = window.location.hash.replace('#', '');
-  return (VIEWS.find((v) => v.id === h)?.id ?? 'veranstaltung') as ViewId;
+  return (VIEWS.find((v) => v.id === h)?.id ?? DEFAULT_VIEW) as ViewId;
 };
 
 export function UiProvider({ children }: { children: ReactNode }) {
@@ -39,6 +57,16 @@ export function UiProvider({ children }: { children: ReactNode }) {
   const [muteAllOpen, setMuteAllOpen] = useState(false);
   const [presentation, setPresentation] = useState<GraphicKind | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [showDemo, setShowDemoState] = useState(readDemo);
+  const views = useMemo(() => VIEWS.filter((v) => showDemo || !v.demo), [showDemo]);
+  const setShowDemo = useCallback((on: boolean) => {
+    setShowDemoState(on);
+    try {
+      localStorage.setItem(DEMO_KEY, on ? '1' : '0');
+    } catch {
+      /* nur Komfort */
+    }
+  }, []);
 
   useEffect(() => {
     const onHash = () => setView(readHash());
@@ -71,8 +99,11 @@ export function UiProvider({ children }: { children: ReactNode }) {
       setPresentation,
       helpOpen,
       setHelpOpen,
+      showDemo,
+      setShowDemo,
+      views,
     }),
-    [view, go, graphicTab, muteAllOpen, presentation, helpOpen],
+    [view, go, graphicTab, muteAllOpen, presentation, helpOpen, showDemo, setShowDemo, views],
   );
   return <UiCtx.Provider value={value}>{children}</UiCtx.Provider>;
 }

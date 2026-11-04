@@ -44,6 +44,11 @@ export function createEventState(input: NewEventInput, now: number = Date.now())
   };
 }
 
+/** Startzustand der App: leer, ohne Beispieldaten (Beispieldaten nur auf Knopfdruck). */
+export function createEmptyState(now: number = Date.now()): AppState {
+  return createEventState({ title: 'Workshop', teamNames: [], mapQuestion: '', cloudPrompt: '' }, now);
+}
+
 /**
  * Ergänzt einen gespeicherten Stand um Felder, die in neueren Versionen
  * hinzugekommen sind, damit ältere Speicherstände weiter funktionieren.
