@@ -536,6 +536,7 @@
 .worldmap__land { fill: var(--map-land); }
 .worldmap__borders { fill: none; stroke: var(--map-borders); stroke-linejoin: round; }
 .worldmap__states { fill: none; stroke: var(--map-states); stroke-linejoin: round; }
+.worldmap__de-outline { fill: none; stroke: var(--map-states); stroke-linejoin: round; }
 /* Nur Umrisse: transparenter Grund, Küsten und Grenzen als Linie (für OBS über Video). */
 .worldmap__coast { fill: none; stroke: var(--map-outline); stroke-linejoin: round; }
 .worldmap--umrisse .worldmap__borders { stroke: var(--map-outline); }

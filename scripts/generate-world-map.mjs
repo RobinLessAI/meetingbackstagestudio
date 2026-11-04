@@ -67,26 +67,11 @@ const europeBorders = europePath(
   mesh(countries50, countries50.objects.countries, (a, b) => a !== b),
 );
 
-// Detailebene für die Deutschland-Ansicht (1:10 Mio.) mit Bundesländern, feinere Koordinaten.
-const deCorners = [
-  [-3, 58],
-  [24.5, 58],
-  [-3, 44],
-  [24.5, 44],
-].map((c) => projection(c));
-const deXs = deCorners.map((c) => c[0]);
-const deYs = deCorners.map((c) => c[1]);
-const DE_EXTENT = [
-  [Math.min(...deXs) - 0.2, Math.min(...deYs) - 0.2],
-  [Math.max(...deXs) + 0.2, Math.max(...deYs) + 0.2],
-];
-const dePath = geoPath(geoEqualEarth().scale(scale).translate([tx, ty]).clipExtent(DE_EXTENT)).digits(2);
-const land10 = atlas('land-10m.json');
+// Deutschland-Ansicht: nur Deutschland (1:10 Mio.) mit Bundesländern, feinere Koordinaten.
+const dePath = geoPath(projection).digits(2);
 const countries10 = atlas('countries-10m.json');
-const deLand = dePath(feature(land10, land10.objects.land));
-// Küstenlinien als Linien (nicht als Flächenrand), damit am Rand des Ausschnitts keine Schnittkanten entstehen.
-const deCoast = dePath(mesh(land10, land10.objects.land));
-const deBorders = dePath(mesh(countries10, countries10.objects.countries, (a, b) => a !== b));
+const germany = feature(countries10, countries10.objects.countries).features.find((f) => f.id === '276');
+const deCountry = dePath(germany);
 // Bundesländer: Natural Earth Admin 1 (1:10 Mio.), ausgezogen in scripts/data/de-bundeslaender.geojson.
 // d3-geo erwartet Ringe im Uhrzeigersinn; gegen den Uhrzeigersinn gespeicherte Ringe umdrehen.
 const states = JSON.parse(readFileSync(join(root, 'scripts/data/de-bundeslaender.geojson'), 'utf8'));
@@ -117,11 +102,8 @@ export const EUROPE_LAND_PATH = ${JSON.stringify(europeLand)};
 export const EUROPE_BORDERS_PATH = ${JSON.stringify(europeBorders)};
 export const EUROPE_COAST_PATH = ${JSON.stringify(europeCoast)};
 
-/** Bereich der Deutschland-Detailebene (x0, y0, x1, y1). */
-export const DE_DETAIL_EXTENT = ${JSON.stringify(DE_EXTENT.flat().map((v) => Math.round(v * 100) / 100))} as const;
-export const DE_LAND_PATH = ${JSON.stringify(deLand)};
-export const DE_BORDERS_PATH = ${JSON.stringify(deBorders)};
-export const DE_COAST_PATH = ${JSON.stringify(deCoast)};
+/** Umriss von Deutschland (Natural Earth 1:10 Mio.). */
+export const DE_COUNTRY_PATH = ${JSON.stringify(deCountry)};
 /** Bundesländer (Natural Earth Admin 1). */
 export const DE_STATES_PATH = ${JSON.stringify(deStates)};
 `;
