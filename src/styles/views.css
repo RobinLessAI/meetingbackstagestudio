@@ -510,8 +510,9 @@
 .review__who { font-weight: 600; font-size: var(--fs-sm); }
 .review__text { color: var(--text); overflow-wrap: anywhere; }
 .review__actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.review__manual { display: flex; gap: 6px; flex: 1 1 220px; min-width: 0; }
-.review__manual .select { height: 28px; font-size: var(--fs-sm); flex: 1; min-width: 0; }
+.review__manual { display: flex; flex-direction: column; gap: 6px; flex: 1 1 100%; min-width: 0; }
+.review__manual .input { height: 28px; font-size: var(--fs-sm); max-width: 320px; }
+.review__results { display: flex; flex-wrap: wrap; gap: 6px; }
 .select--sm { height: 28px; font-size: var(--fs-sm); width: auto; max-width: 100%; }
 
 .rules { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; color: var(--text-2); font-size: var(--fs-sm); }

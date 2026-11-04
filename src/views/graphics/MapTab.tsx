@@ -2,17 +2,47 @@ import { useId, useState } from 'react';
 import { Check, CircleHelp, MapPin, Pause, Play, RotateCcw, Undo2, X } from 'lucide-react';
 import { WorldMap, type PinCluster } from '../../components/graphics/WorldMap.tsx';
 import { Badge, Button, Dialog, Empty, IconButton, Panel, Segmented, Switch } from '../../components/ui.tsx';
-import { PLACE_BY_ID, PLACES } from '../../data/places.ts';
+import { PLACE_BY_ID } from '../../data/places.ts';
+import { searchPlaces } from '../../lib/places.ts';
 import { clock } from '../../lib/time.ts';
 import type { LocationItem } from '../../state/derive.ts';
 import { useStore } from '../../state/store.tsx';
 import type { MapState } from '../../state/types.ts';
 import { CollectStatus, GraphicHeader } from './shared.tsx';
 
+/** Ort aus dem Verzeichnis suchen und zuordnen (größte Orte zuerst). */
+function PlaceSearch({ onPick, initial }: { onPick: (placeId: string) => void; initial: string }) {
+  const [query, setQuery] = useState(initial);
+  const inputId = useId();
+  const results = searchPlaces(query, 6);
+  return (
+    <div className="review__manual">
+      <label htmlFor={inputId} className="sr-only">
+        Ort im Verzeichnis suchen
+      </label>
+      <input
+        id={inputId}
+        className="input input--sm"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Anderen Ort suchen …"
+        autoComplete="off"
+      />
+      {results.length > 0 && (
+        <div className="review__results">
+          {results.map((p) => (
+            <Button key={p.id} size="sm" icon={MapPin} onClick={() => onPick(p.id)} title={p.region}>
+              {p.name} <span className="subtle">({p.parent ?? p.region})</span>
+            </Button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReviewItem({ item }: { item: LocationItem }) {
   const { dispatch, notify } = useStore();
-  const [manual, setManual] = useState('');
-  const selectId = useId();
   const d = item.detection;
   const confirm = (placeId: string) => {
     dispatch({ type: 'map/decide', messageId: item.message.id, decision: { status: 'bestaetigt', placeId, at: Date.now() } });
@@ -49,36 +79,14 @@ function ReviewItem({ item }: { item: LocationItem }) {
         )}
         {d?.kind === 'mehrdeutig' &&
           d.placeIds.map((id) => (
-            <Button key={id} size="sm" icon={Check} onClick={() => confirm(id)}>
+            <Button key={id} size="sm" icon={Check} onClick={() => confirm(id)} title={PLACE_BY_ID[id]?.region}>
               {PLACE_BY_ID[id]?.name}
+              {d.placeIds.some((o) => o !== id && PLACE_BY_ID[o]?.name === PLACE_BY_ID[id]?.name) && (
+                <span className="subtle"> ({PLACE_BY_ID[id]?.parent ?? PLACE_BY_ID[id]?.region})</span>
+              )}
             </Button>
           ))}
-        {(d?.kind === 'unbekannt' || !d) && (
-          <form
-            className="review__manual"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (manual) confirm(manual);
-            }}
-          >
-            <label htmlFor={selectId} className="sr-only">
-              Ort aus dem Verzeichnis zuordnen
-            </label>
-            <select id={selectId} className="select" value={manual} onChange={(e) => setManual(e.target.value)}>
-              <option value="">Ort zuordnen …</option>
-              {[...PLACES]
-                .sort((a, b) => a.name.localeCompare(b.name, 'de'))
-                .map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.region})
-                  </option>
-                ))}
-            </select>
-            <Button size="sm" type="submit" disabled={!manual}>
-              Zuordnen
-            </Button>
-          </form>
-        )}
+        <PlaceSearch onPick={confirm} initial={d?.kind === 'unbekannt' ? d.candidate : ''} />
         <Button size="sm" variant="ghost" icon={X} onClick={dismiss}>
           Verwerfen
         </Button>

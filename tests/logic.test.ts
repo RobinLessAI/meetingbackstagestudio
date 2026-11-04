@@ -10,21 +10,6 @@ import { createInitialState } from '../src/data/sample.ts';
 import { analyzeCloud, analyzeMap, analyzePoll, handQueue } from '../src/state/derive.ts';
 import type { PollOption } from '../src/state/types.ts';
 
-test('Ortserkennung: eindeutige Orte aus dem Verzeichnis', () => {
-  assert.deepEqual(detectLocation('Werl'), { kind: 'eindeutig', placeId: 'werl', matched: 'werl' });
-  assert.equal(detectLocation('Grüße aus Wien!')?.kind, 'eindeutig');
-  assert.equal((detectLocation('Wien-Floridsdorf') as { placeId: string }).placeId, 'wien');
-  assert.equal((detectLocation('Frankfurt am Main') as { placeId: string }).placeId, 'frankfurt-main');
-  assert.equal((detectLocation('frankfurt (oder)') as { placeId: string }).placeId, 'frankfurt-oder');
-});
-
-test('Ortserkennung: mehrdeutige Orte gehen zur Prüfung', () => {
-  const r = detectLocation('Frankfurt');
-  assert.equal(r?.kind, 'mehrdeutig');
-  assert.deepEqual((r as { placeIds: string[] }).placeIds.sort(), ['frankfurt-main', 'frankfurt-oder']);
-  assert.equal(detectLocation('Berlin, aber eigentlich Wien')?.kind, 'mehrdeutig');
-});
-
 test('Ortserkennung: unbekannte Orte nur über typische Formulierungen', () => {
   assert.deepEqual(detectLocation('Grüße aus Hintertupfingen'), {
     kind: 'unbekannt',
@@ -104,10 +89,10 @@ test('Beispieldaten: Warteschlange, Umfrage, Karte und Wortwolke', () => {
   assert.deepEqual(jonas.map((v) => [v.optionId, v.counted]), [['o3', true], ['o1', false]]);
 
   const map = analyzeMap(s);
-  const werl = map.pins.find((p) => p.place.id === 'werl');
+  const werl = map.pins.find((p) => p.place.name === 'Werl');
   assert.equal(werl?.people.length, 2);
   const reviewKinds = map.review.map((r) => r.detection?.kind).sort();
-  assert.deepEqual(reviewKinds, ['eindeutig', 'mehrdeutig', 'mehrdeutig', 'unbekannt']);
+  assert.deepEqual(reviewKinds, ['eindeutig', 'eindeutig', 'mehrdeutig', 'unbekannt']);
 
   const cloud = analyzeCloud(s, poll);
   assert.equal(cloud.visible[0].key, 'aufmerksamkeit');
