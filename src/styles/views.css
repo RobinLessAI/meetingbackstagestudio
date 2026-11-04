@@ -535,9 +535,11 @@
 .worldmap__grid { fill: none; stroke: var(--map-grid); stroke-width: 0.5; }
 .worldmap__land { fill: var(--map-land); }
 .worldmap__borders { fill: none; stroke: var(--map-borders); stroke-linejoin: round; }
+.worldmap__states { fill: none; stroke: var(--map-states); stroke-linejoin: round; }
 /* Nur Umrisse: transparenter Grund, Küsten und Grenzen als Linie (für OBS über Video). */
-.worldmap--umrisse .worldmap__land { fill: none; stroke: var(--map-outline); stroke-linejoin: round; }
+.worldmap__coast { fill: none; stroke: var(--map-outline); stroke-linejoin: round; }
 .worldmap--umrisse .worldmap__borders { stroke: var(--map-outline); }
+.worldmap--umrisse .worldmap__states { stroke: var(--map-outline); stroke-opacity: 0.55; }
 .worldmap--present .worldmap__ocean { fill: #0b0f12; }
 .worldmap__pin { outline: none; }
 .worldmap__pin.is-interactive { cursor: pointer; }

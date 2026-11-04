@@ -1,6 +1,12 @@
 import { useId, useMemo } from 'react';
 import {
+  DE_BORDERS_PATH,
+  DE_COAST_PATH,
+  DE_DETAIL_EXTENT,
+  DE_LAND_PATH,
+  DE_STATES_PATH,
   EUROPE_BORDERS_PATH,
+  EUROPE_COAST_PATH,
   EUROPE_DETAIL_EXTENT,
   EUROPE_LAND_PATH,
   GRATICULE_PATH,
@@ -8,6 +14,7 @@ import {
   MAP_WIDTH,
   SPHERE_PATH,
   WORLD_BORDERS_PATH,
+  WORLD_COAST_PATH,
   WORLD_LAND_PATH,
 } from '../../data/worldMap.ts';
 import { project } from '../../lib/projection.ts';
@@ -182,11 +189,17 @@ export function WorldMap({
     () => (showLabels ? placeLabels(clusters, radius, fontSize) : new Map<string, LabelPlacement>()),
     [clusters, showLabels, fontSize, pinBase],
   );
-  const maskId = `europa-${useId().replace(/:/g, '')}`;
+  const uid = useId().replace(/:/g, '');
+  const maskId = `europa-${uid}`;
+  const deMaskId = `de-${uid}`;
   const [ex0, ey0, ex1, ey1] = EUROPE_DETAIL_EXTENT;
+  const [dx0, dy0, dx1, dy1] = DE_DETAIL_EXTENT;
+  // Deutschland-Ansicht: feinere Karte (1:10 Mio.) mit Bundesländern.
+  const germany = view === 'deutschland';
   const outline = mapStyle === 'umrisse';
-  // Im Umriss-Modus werden auch die Küstenlinien (Rand der Landflächen) gezeichnet.
-  const landStroke = (w: number) => (outline ? w : undefined);
+  // Gefüllt: Landflächen. Nur Umrisse: Küstenlinien als Linien (ohne Schnittkanten am Ausschnittrand).
+  const land = (fill: string, coast: string, width: number) =>
+    outline ? <path d={coast} className="worldmap__coast" strokeWidth={width} /> : <path d={fill} className="worldmap__land" />;
 
   return (
     <svg
@@ -208,16 +221,29 @@ export function WorldMap({
             <rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="#fff" />
             <rect x={ex0} y={ey0} width={ex1 - ex0} height={ey1 - ey0} fill="#000" />
           </mask>
+          {germany && (
+            <mask id={deMaskId} maskUnits="userSpaceOnUse" x="0" y="0" width={MAP_WIDTH} height={MAP_HEIGHT}>
+              <rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="#fff" />
+              <rect x={dx0} y={dy0} width={dx1 - dx0} height={dy1 - dy0} fill="#000" />
+            </mask>
+          )}
         </defs>
       )}
       <g mask={detailed ? `url(#${maskId})` : undefined}>
-        <path d={WORLD_LAND_PATH} className="worldmap__land" strokeWidth={landStroke(0.7 * px)} />
+        {land(WORLD_LAND_PATH, WORLD_COAST_PATH, 0.7 * px)}
         <path d={WORLD_BORDERS_PATH} className="worldmap__borders" strokeWidth={0.7 * px} />
       </g>
       {detailed && (
-        <>
-          <path d={EUROPE_LAND_PATH} className="worldmap__land" strokeWidth={landStroke(px)} />
+        <g mask={germany ? `url(#${deMaskId})` : undefined}>
+          {land(EUROPE_LAND_PATH, EUROPE_COAST_PATH, px)}
           <path d={EUROPE_BORDERS_PATH} className="worldmap__borders" strokeWidth={px} />
+        </g>
+      )}
+      {germany && (
+        <>
+          {land(DE_LAND_PATH, DE_COAST_PATH, 1.2 * px)}
+          <path d={DE_STATES_PATH} className="worldmap__states" strokeWidth={0.7 * px} />
+          <path d={DE_BORDERS_PATH} className="worldmap__borders" strokeWidth={1.2 * px} />
         </>
       )}
       {clusters.map((c) => {

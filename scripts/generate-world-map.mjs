@@ -1,13 +1,14 @@
 // Erzeugt die lokal eingebundene, vereinfachte Weltkarte als SVG-Pfaddaten.
 //
-// Quelle: Natural Earth (gemeinfrei) über das npm-Paket "world-atlas".
+// Quelle: Natural Earth (gemeinfrei) über das npm-Paket "world-atlas";
+// Bundesländer aus Natural Earth Admin 1 (scripts/data/de-bundeslaender.geojson).
 // Ergebnis: src/data/worldMap.ts. Die App lädt zur Laufzeit keine Kartendienste.
 //
 // Aufruf: npm run map:generate
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { geoEqualEarth, geoPath, geoGraticule } from 'd3-geo';
+import { geoArea, geoEqualEarth, geoPath, geoGraticule } from 'd3-geo';
 import { feature, mesh } from 'topojson-client';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -31,6 +32,7 @@ const HEIGHT = Math.ceil(sy1 - sy0);
 const land110 = atlas('land-110m.json');
 const countries110 = atlas('countries-110m.json');
 const worldLand = path(feature(land110, land110.objects.land));
+const worldCoast = path(mesh(land110, land110.objects.land));
 const worldBorders = path(
   mesh(countries110, countries110.objects.countries, (a, b) => a !== b),
 );
@@ -60,9 +62,41 @@ const europePath = geoPath(europeProjection).digits(1);
 const land50 = atlas('land-50m.json');
 const countries50 = atlas('countries-50m.json');
 const europeLand = europePath(feature(land50, land50.objects.land));
+const europeCoast = europePath(mesh(land50, land50.objects.land));
 const europeBorders = europePath(
   mesh(countries50, countries50.objects.countries, (a, b) => a !== b),
 );
+
+// Detailebene für die Deutschland-Ansicht (1:10 Mio.) mit Bundesländern, feinere Koordinaten.
+const deCorners = [
+  [-3, 58],
+  [24.5, 58],
+  [-3, 44],
+  [24.5, 44],
+].map((c) => projection(c));
+const deXs = deCorners.map((c) => c[0]);
+const deYs = deCorners.map((c) => c[1]);
+const DE_EXTENT = [
+  [Math.min(...deXs) - 0.2, Math.min(...deYs) - 0.2],
+  [Math.max(...deXs) + 0.2, Math.max(...deYs) + 0.2],
+];
+const dePath = geoPath(geoEqualEarth().scale(scale).translate([tx, ty]).clipExtent(DE_EXTENT)).digits(2);
+const land10 = atlas('land-10m.json');
+const countries10 = atlas('countries-10m.json');
+const deLand = dePath(feature(land10, land10.objects.land));
+// Küstenlinien als Linien (nicht als Flächenrand), damit am Rand des Ausschnitts keine Schnittkanten entstehen.
+const deCoast = dePath(mesh(land10, land10.objects.land));
+const deBorders = dePath(mesh(countries10, countries10.objects.countries, (a, b) => a !== b));
+// Bundesländer: Natural Earth Admin 1 (1:10 Mio.), ausgezogen in scripts/data/de-bundeslaender.geojson.
+// d3-geo erwartet Ringe im Uhrzeigersinn; gegen den Uhrzeigersinn gespeicherte Ringe umdrehen.
+const states = JSON.parse(readFileSync(join(root, 'scripts/data/de-bundeslaender.geojson'), 'utf8'));
+for (const f of states.features) {
+  const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+  for (const poly of polys) {
+    if (geoArea({ type: 'Polygon', coordinates: poly }) > 2 * Math.PI) for (const ring of poly) ring.reverse();
+  }
+}
+const deStates = dePath(states);
 
 const out = `// Automatisch erzeugt durch scripts/generate-world-map.mjs – nicht von Hand bearbeiten.
 // Kartendaten: Natural Earth (gemeinfrei), https://www.naturalearthdata.com
@@ -78,8 +112,18 @@ export const SPHERE_PATH = ${JSON.stringify(spherePath)};
 export const GRATICULE_PATH = ${JSON.stringify(graticule)};
 export const WORLD_LAND_PATH = ${JSON.stringify(worldLand)};
 export const WORLD_BORDERS_PATH = ${JSON.stringify(worldBorders)};
+export const WORLD_COAST_PATH = ${JSON.stringify(worldCoast)};
 export const EUROPE_LAND_PATH = ${JSON.stringify(europeLand)};
 export const EUROPE_BORDERS_PATH = ${JSON.stringify(europeBorders)};
+export const EUROPE_COAST_PATH = ${JSON.stringify(europeCoast)};
+
+/** Bereich der Deutschland-Detailebene (x0, y0, x1, y1). */
+export const DE_DETAIL_EXTENT = ${JSON.stringify(DE_EXTENT.flat().map((v) => Math.round(v * 100) / 100))} as const;
+export const DE_LAND_PATH = ${JSON.stringify(deLand)};
+export const DE_BORDERS_PATH = ${JSON.stringify(deBorders)};
+export const DE_COAST_PATH = ${JSON.stringify(deCoast)};
+/** Bundesländer (Natural Earth Admin 1). */
+export const DE_STATES_PATH = ${JSON.stringify(deStates)};
 `;
 
 const target = join(root, 'src/data/worldMap.ts');
