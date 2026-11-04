@@ -153,6 +153,27 @@ export interface CloudState extends CollectWindow {
 
 export type GraphicKind = 'karte' | 'umfrage' | 'wortwolke' | 'highlight';
 
+/** Aussehen der Chat-Highlight-Einblendung (Bauchbinde). Farben als #rrggbb. */
+export interface HighlightStyle {
+  background: string;
+  /** Deckkraft des Hintergrunds in Prozent (0 = durchsichtig). */
+  backgroundOpacity: number;
+  text: string;
+  accent: string;
+  name: string;
+  /** Schriftgröße in Prozent der Standardgröße. */
+  size: number;
+  corners: 'eckig' | 'rund' | 'stark';
+  position: 'links' | 'mitte' | 'rechts';
+  font: 'standard' | 'schmal' | 'serif';
+  /** Akzentbalken am linken Rand. */
+  bar: boolean;
+  /** Kleine Überschrift über dem Text, leer = ausgeblendet. */
+  label: string;
+  showName: boolean;
+  showTime: boolean;
+}
+
 export interface ProgramState {
   /** Die aktuell eingeblendete Grafik in der lokalen Vorschau. */
   graphic: GraphicKind | null;
@@ -264,6 +285,7 @@ export interface AppState {
   poll: PollState;
   cloud: CloudState;
   highlightId: string | null;
+  highlightStyle: HighlightStyle;
   program: ProgramState;
   gallery: GalleryState;
   deck: DeckState;

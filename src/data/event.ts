@@ -63,5 +63,6 @@ export function normalizeState(raw: Partial<AppState>): AppState {
     map: { ...base.map, ...(raw.map ?? {}) },
     poll: { ...base.poll, ...(raw.poll ?? {}) },
     program: { ...base.program, ...(raw.program ?? {}) },
+    highlightStyle: { ...base.highlightStyle, ...(raw.highlightStyle ?? {}) },
   } as AppState;
 }

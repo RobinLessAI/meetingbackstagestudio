@@ -61,7 +61,11 @@ body.ausgabe {
   font-size: 1.5cqi;
   animation: out-in 380ms ease-out;
 }
-.out .highlight--overlay { font-size: 1.5cqi; }
+.out .highlight--overlay { font-size: calc(1.5cqi * var(--hl-scale, 1)); }
+.out-lower--mitte { left: 0; right: 0; margin-inline: auto; }
+.out-lower--rechts { left: auto; right: 4%; }
+.out-full__body--highlight.is-mitte { align-items: center; }
+.out-full__body--highlight.is-rechts { align-items: flex-end; }
 
 /* Vollbild */
 .out-full {

@@ -17,7 +17,7 @@ export function ProgramOverlay() {
     <>
       {graphic === 'highlight' && (
         <div className="overlay overlay--lower">
-          <HighlightCard message={highlight} variant="overlay" />
+          <HighlightCard message={highlight} variant="overlay" style={state.highlightStyle} />
         </div>
       )}
       {graphic && graphic !== 'highlight' && (

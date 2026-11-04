@@ -62,7 +62,7 @@ function GraphicBody({ s, g, full }: { s: OutputSnapshot; g: GraphicKind; full: 
   }
   if (g === 'umfrage') return <PollChart data={s.poll} variant={full ? 'present' : 'overlay'} />;
   if (g === 'wortwolke') return <WordCloud terms={full ? s.cloud.terms : s.cloud.terms.slice(0, 20)} variant={full ? 'present' : 'overlay'} />;
-  return <HighlightCard message={s.highlight} variant={full ? 'present' : 'overlay'} />;
+  return <HighlightCard message={s.highlight} variant={full ? 'present' : 'overlay'} style={s.highlightStyle} />;
 }
 
 export function Output({ options }: { options: OutputOptions }) {
@@ -106,14 +106,14 @@ export function Output({ options }: { options: OutputOptions }) {
       {snapshot && g && full && (
         <section className="out-full" key={`full-${g}`}>
           <h1 className="out-full__title">{title(snapshot, g)}</h1>
-          <div className={`out-full__body out-full__body--${g}`}>
+          <div className={`out-full__body out-full__body--${g}${g === 'highlight' ? ` is-${snapshot.highlightStyle?.position ?? 'links'}` : ''}`}>
             <GraphicBody s={snapshot} g={g} full />
           </div>
           {meta(snapshot, g) && <p className="out-full__meta">{meta(snapshot, g)}</p>}
         </section>
       )}
       {snapshot && g && !full && g === 'highlight' && (
-        <section className="out-lower" key="lower">
+        <section className={`out-lower out-lower--${snapshot.highlightStyle?.position ?? 'links'}`} key="lower">
           <GraphicBody s={snapshot} g={g} full={false} />
         </section>
       )}

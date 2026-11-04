@@ -133,7 +133,7 @@ export function Presentation() {
             )}
             {presentation === 'umfrage' && <PollChart data={pollView(state.poll, p)} variant="present" />}
             {presentation === 'wortwolke' && <WordCloud terms={derived.cloud.visible} variant="present" />}
-            {presentation === 'highlight' && <HighlightCard message={highlight} variant="present" />}
+            {presentation === 'highlight' && <HighlightCard message={highlight} variant="present" style={state.highlightStyle} />}
           </div>
           {meta && <p className="presentation__meta">{meta}</p>}
         </div>
