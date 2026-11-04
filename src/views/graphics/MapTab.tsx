@@ -139,6 +139,16 @@ export function MapTab() {
             { value: 'welt', label: 'Welt' },
             { value: 'europa', label: 'Europa' },
             { value: 'dach', label: 'D-A-CH' },
+            { value: 'deutschland', label: 'Deutschland' },
+          ]}
+        />
+        <Segmented<MapState['style']>
+          label="Darstellung"
+          value={map.style}
+          onChange={(style) => dispatch({ type: 'map/update', patch: { style } })}
+          options={[
+            { value: 'gefuellt', label: 'Gefüllt' },
+            { value: 'umrisse', label: 'Nur Umrisse' },
           ]}
         />
         <div className="row graphic-tools__buttons">
@@ -159,7 +169,7 @@ export function MapTab() {
 
       <div className="map-layout">
         <div className="map-canvas">
-          <WorldMap pins={m.pins} view={map.view} selectedId={selected?.id} onSelect={setSelected} aspect={1.9} />
+          <WorldMap pins={m.pins} view={map.view} mapStyle={map.style} selectedId={selected?.id} onSelect={setSelected} aspect={1.9} />
           {m.pins.length === 0 && (
             <div className="map-canvas__empty">
               <Empty icon={MapPin} title="Noch keine bestätigten Orte" compact>

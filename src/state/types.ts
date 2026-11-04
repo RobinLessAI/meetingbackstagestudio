@@ -106,7 +106,9 @@ export interface MapState extends CollectWindow {
   decisions: Record<string, LocationDecision>;
   /** Manuell zur Prüfung markierte Nachrichten. */
   flagged: string[];
-  view: 'welt' | 'europa' | 'dach';
+  view: 'welt' | 'europa' | 'dach' | 'deutschland';
+  /** gefuellt = Meer und Länder farbig; umrisse = nur Länderumrisse auf transparentem Grund. */
+  style: 'gefuellt' | 'umrisse';
 }
 
 export interface PollOption {

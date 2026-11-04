@@ -111,6 +111,7 @@ export function Presentation() {
                 <WorldMap
                   pins={derived.map.pins}
                   view={state.map.view}
+                  mapStyle={state.map.style}
                   variant="present"
                   aspect={2.1}
                   selectedId={selected?.id}

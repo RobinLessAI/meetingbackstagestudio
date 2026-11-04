@@ -40,6 +40,7 @@
   --map-grid: #1b2329;
   --map-land: #2a323b;
   --map-borders: #151a1f;
+  --map-outline: rgb(255 255 255 / 0.6);
   --map-dot-stroke: #0b0d10;
   --overlay-bg: rgb(13 15 18 / 0.88);
   --highlight-bg: rgb(13 15 19 / 0.95);
@@ -100,6 +101,7 @@
   --map-grid: #d9e1e8;
   --map-land: #c4ccd5;
   --map-borders: #eef1f4;
+  --map-outline: #8d97a2;
   --map-dot-stroke: #ffffff;
   --overlay-bg: rgb(255 255 255 / 0.92);
   --highlight-bg: #ffffff;
@@ -139,6 +141,7 @@
   --map-grid: #1b2329;
   --map-land: #2a323b;
   --map-borders: #151a1f;
+  --map-outline: rgb(255 255 255 / 0.6);
   --map-dot-stroke: #0b0d10;
   --overlay-bg: rgb(13 15 18 / 0.88);
   --highlight-bg: rgb(13 15 19 / 0.95);

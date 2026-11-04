@@ -26,7 +26,7 @@ export function ProgramOverlay() {
             {graphic === 'karte' ? state.map.question : graphic === 'umfrage' ? state.poll.question : state.cloud.prompt}
           </p>
           <div className="overlay__body">
-            {graphic === 'karte' && <WorldMap pins={derived.map.pins} view={state.map.view} variant="overlay" aspect={1.25} />}
+            {graphic === 'karte' && <WorldMap pins={derived.map.pins} view={state.map.view} mapStyle={state.map.style} variant="overlay" aspect={1.25} />}
             {graphic === 'umfrage' && (
               <PollChart data={pollView(state.poll, derived.poll)} variant="overlay" chart="balken" />
             )}

@@ -14,6 +14,8 @@ export interface OutputOptions {
   stil: 'einblendung' | 'vollbild';
   sichtbar: 'immer' | 'programm';
   hintergrund: 'transparent' | 'dunkel';
+  /** hintergrund steht ausdrücklich in der Adresse (sonst darf die Karte „Nur Umrisse“ ihn transparent machen). */
+  hintergrundFest: boolean;
   debug: boolean;
 }
 
@@ -27,7 +29,8 @@ export function readOptions(search: string): OutputOptions {
   const stil = p.get('stil') === 'vollbild' ? 'vollbild' : p.get('stil') === 'einblendung' ? 'einblendung' : grafik === 'programm' ? 'einblendung' : 'vollbild';
   const sichtbar = p.get('sichtbar') === 'programm' ? 'programm' : p.get('sichtbar') === 'immer' ? 'immer' : grafik === 'programm' ? 'programm' : 'immer';
   const hintergrund = p.get('hintergrund') === 'dunkel' ? 'dunkel' : p.get('hintergrund') === 'transparent' ? 'transparent' : stil === 'vollbild' ? 'dunkel' : 'transparent';
-  return { grafik, stil, sichtbar, hintergrund, debug: p.get('debug') === '1' };
+  const hintergrundFest = p.get('hintergrund') === 'dunkel' || p.get('hintergrund') === 'transparent';
+  return { grafik, stil, sichtbar, hintergrund, hintergrundFest, debug: p.get('debug') === '1' };
 }
 
 function title(s: OutputSnapshot, g: GraphicKind) {
@@ -50,6 +53,7 @@ function GraphicBody({ s, g, full }: { s: OutputSnapshot; g: GraphicKind; full: 
       <WorldMap
         pins={s.map.pins}
         view={s.map.view}
+        mapStyle={s.map.style ?? 'gefuellt'}
         variant="present"
         aspect={full ? 2.3 : 1.2}
         renderWidth={full ? 1250 : 440}
@@ -92,10 +96,13 @@ export function Output({ options }: { options: OutputOptions }) {
         ? options.grafik
         : null;
   const full = options.stil === 'vollbild';
+  // Weltkarte „Nur Umrisse“: ohne festen Hintergrund in der Adresse transparent ausgeben.
+  const background =
+    !options.hintergrundFest && g === 'karte' && snapshot?.map.style === 'umrisse' ? 'transparent' : options.hintergrund;
   const showReaction = options.grafik === 'programm' && reaction && now - reaction.at < 5000;
 
   return (
-    <div className={`out out--${options.hintergrund}`}>
+    <div className={`out out--${background}`}>
       {snapshot && g && full && (
         <section className="out-full" key={`full-${g}`}>
           <h1 className="out-full__title">{title(snapshot, g)}</h1>

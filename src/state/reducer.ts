@@ -46,7 +46,7 @@ export type Action =
   | { type: 'chat/import'; messages: ChatMessage[] }
   | { type: 'map/decide'; messageId: string; decision: LocationDecision | null }
   | { type: 'map/flag'; messageId: string }
-  | { type: 'map/update'; patch: Partial<Pick<MapState, 'question' | 'autoConfirm' | 'view'>> }
+  | { type: 'map/update'; patch: Partial<Pick<MapState, 'question' | 'autoConfirm' | 'view' | 'style'>> }
   | { type: 'map/pause' | 'map/resume' | 'map/reset'; at: number }
   | {
       type: 'poll/configure';

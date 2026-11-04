@@ -201,6 +201,7 @@ export function createInitialState(now: number = Date.now()): AppState {
       ),
       flagged: [],
       view: 'europa',
+      style: 'gefuellt',
     },
     poll: {
       kind: 'auswahl',

@@ -27,7 +27,7 @@ export interface OutputSnapshot {
   at: number;
   title: string;
   program: { graphic: GraphicKind | null; reaction: Reaction | null };
-  map: { question: string; view: MapState['view']; pins: MapPin[]; people: number };
+  map: { question: string; view: MapState['view']; style: MapState['style']; pins: MapPin[]; people: number };
   poll: PollView;
   cloud: { prompt: string; terms: CloudTerm[]; messages: number };
   highlight: HighlightView | null;
@@ -64,7 +64,7 @@ export function buildSnapshot(
     at: now,
     title: state.session.title,
     program: { graphic: state.program.graphic, reaction: state.program.reaction },
-    map: { question: state.map.question, view: state.map.view, pins: derived.map.pins, people: derived.map.peopleOnMap },
+    map: { question: state.map.question, view: state.map.view, style: state.map.style, pins: derived.map.pins, people: derived.map.peopleOnMap },
     poll: pollView(state.poll, derived.poll),
     cloud: { prompt: state.cloud.prompt, terms: derived.cloud.visible, messages: derived.cloud.messageCount },
     highlight: h ? { text: h.text, senderName: h.senderName, at: h.at } : null,

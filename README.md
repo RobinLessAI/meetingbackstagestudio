@@ -72,7 +72,7 @@ Grenzen: Ohne eine von Zoom geprüfte und veröffentlichte App tritt die Regie n
 ## Regeln der Chat-Auswertung
 
 - **Team-Namen:** Beiträge der eingetragenen Team-Namen (z. B. deine eigenen Fragen) werden nicht ausgewertet. „Robin“ erfasst auch „Robin Weniger“.
-- **Weltkarte:** Nur Orte, die Personen selbst nennen, erkannt über ein lokales Ortsverzeichnis (`src/data/places.ts`). Eindeutige Orte werden bestätigt (optional automatisch), mehrdeutige und unbekannte landen in der Prüfliste. Pro Person zählt der zuletzt bestätigte Ort.
+- **Weltkarte:** Nur Orte, die Personen selbst nennen, erkannt über ein lokales Ortsverzeichnis (`src/data/places.ts`). Eindeutige Orte werden bestätigt (optional automatisch), mehrdeutige und unbekannte landen in der Prüfliste. Pro Person zählt der zuletzt bestätigte Ort. Ausschnitte: Welt, Europa, D-A-CH, Deutschland. Darstellung „Nur Umrisse“ zeigt nur Küsten und Grenzen ohne Hintergrund; die OBS-Ausgabe ist dann transparent (außer bei `hintergrund=dunkel` in der Adresse).
 - **Umfrage:** Gültig ist genau eine Kennung (A, B … oder 1, 2 …) oder genau der Antworttext. „eher B“ oder „B oder C“ gehen zur Prüfung. Pro Person zählt die zuletzt abgegebene gültige Antwort.
 - **Wortwolke:** Jeder Begriff zählt pro Nachricht einmal; Filter für Füllwörter, Kurzwörter, unangemessene Begriffe und Umfrage-Stimmen.
 - Jede Frage sammelt Beiträge ab ihrem Start („Neu starten“ setzt den Startpunkt auf jetzt).

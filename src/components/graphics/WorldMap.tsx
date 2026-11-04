@@ -20,6 +20,14 @@ type View = MapState['view'];
 const BOUNDS: Record<Exclude<View, 'welt'>, [number, number, number, number]> = {
   europa: [-11, 35.5, 31, 60.5],
   dach: [4.6, 45.6, 17.6, 55.2],
+  deutschland: [5.4, 47.1, 15.4, 55.2],
+};
+
+const VIEW_LABEL: Record<View, string> = {
+  welt: 'Welt',
+  europa: 'Europa',
+  dach: 'Deutschland, Österreich, Schweiz',
+  deutschland: 'Deutschland',
 };
 
 function viewBoxFor(view: View, aspect: number): [number, number, number, number] {
@@ -142,6 +150,7 @@ function clusterPins(pins: MapPin[], radius: number): PinCluster[] {
 export function WorldMap({
   pins,
   view,
+  mapStyle = 'gefuellt',
   variant = 'preview',
   selectedId,
   onSelect,
@@ -150,6 +159,8 @@ export function WorldMap({
 }: {
   pins: MapPin[];
   view: View;
+  /** umrisse: kein Meer, keine Flächen, nur Länderumrisse (transparent für OBS). */
+  mapStyle?: MapState['style'];
   variant?: 'preview' | 'present' | 'overlay';
   selectedId?: string | null;
   onSelect?: (cluster: PinCluster | null) => void;
@@ -173,20 +184,23 @@ export function WorldMap({
   );
   const maskId = `europa-${useId().replace(/:/g, '')}`;
   const [ex0, ey0, ex1, ey1] = EUROPE_DETAIL_EXTENT;
+  const outline = mapStyle === 'umrisse';
+  // Im Umriss-Modus werden auch die Küstenlinien (Rand der Landflächen) gezeichnet.
+  const landStroke = (w: number) => (outline ? w : undefined);
 
   return (
     <svg
-      className={`worldmap worldmap--${variant}`}
+      className={`worldmap worldmap--${variant}${outline ? ' worldmap--umrisse' : ''}`}
       viewBox={vb.join(' ')}
       preserveAspectRatio="xMidYMid meet"
       role="img"
-      aria-label={`Weltkarte (${view === 'welt' ? 'Welt' : view === 'europa' ? 'Europa' : 'Deutschland, Österreich, Schweiz'}) mit ${pins.length} bestätigten Orten`}
+      aria-label={`Weltkarte (${VIEW_LABEL[view]}) mit ${pins.length} bestätigten Orten`}
       onClick={(e) => {
         if (e.target === e.currentTarget) onSelect?.(null);
       }}
     >
-      <path d={SPHERE_PATH} className="worldmap__ocean" />
-      {!detailed && <path d={GRATICULE_PATH} className="worldmap__grid" />}
+      {!outline && <path d={SPHERE_PATH} className="worldmap__ocean" />}
+      {!detailed && !outline && <path d={GRATICULE_PATH} className="worldmap__grid" />}
       {detailed && (
         <defs>
           {/* Außerhalb des Europa-Ausschnitts wird die gröbere Weltkarte gezeigt. */}
@@ -197,12 +211,12 @@ export function WorldMap({
         </defs>
       )}
       <g mask={detailed ? `url(#${maskId})` : undefined}>
-        <path d={WORLD_LAND_PATH} className="worldmap__land" />
+        <path d={WORLD_LAND_PATH} className="worldmap__land" strokeWidth={landStroke(0.7 * px)} />
         <path d={WORLD_BORDERS_PATH} className="worldmap__borders" strokeWidth={0.7 * px} />
       </g>
       {detailed && (
         <>
-          <path d={EUROPE_LAND_PATH} className="worldmap__land" />
+          <path d={EUROPE_LAND_PATH} className="worldmap__land" strokeWidth={landStroke(px)} />
           <path d={EUROPE_BORDERS_PATH} className="worldmap__borders" strokeWidth={px} />
         </>
       )}
