@@ -3,6 +3,7 @@ import {
   CalendarClock,
   ChevronDown,
   MonitorPlay,
+  Moon,
   CircleHelp,
   Hand,
   LayoutGrid,
@@ -10,6 +11,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   Star,
+  Sun,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -18,6 +20,7 @@ import { GRAPHIC_LABEL, SESSION_LABEL } from '../state/commands.ts';
 import { useDeckActions, SHORTCUTS } from '../state/deckActions.ts';
 import { useNow, useStore } from '../state/store.tsx';
 import type { ViewId } from '../state/types.ts';
+import { useTheme } from '../state/theme.ts';
 import { useUi } from '../state/ui.tsx';
 import { useSync } from '../sync/SyncProvider.tsx';
 import { GRAPHIC_PAGES } from '../views/graphics/pages.ts';
@@ -165,6 +168,7 @@ export function Sidebar() {
 export function TopBar() {
   const { state, derived, dispatch } = useStore();
   const { go, setHelpOpen, showDemo } = useUi();
+  const [theme, setTheme] = useTheme();
   const now = useNow();
   const { session } = state;
   const spot = state.spotlight.map((id) => derived.byId[id]).filter(Boolean);
@@ -244,6 +248,15 @@ export function TopBar() {
             />
           </div>
         )}
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={() => setTheme(theme === 'hell' ? 'dunkel' : 'hell')}
+          aria-label={theme === 'hell' ? 'Dunkles Design einschalten' : 'Helles Design einschalten'}
+          title={theme === 'hell' ? 'Dunkles Design' : 'Helles Design'}
+        >
+          {theme === 'hell' ? <Moon size={18} aria-hidden /> : <Sun size={18} aria-hidden />}
+        </button>
         <button type="button" className="icon-btn" onClick={() => setHelpOpen(true)} aria-label="Tastenkürzel anzeigen" title="Tastenkürzel (?)">
           <CircleHelp size={18} aria-hidden />
         </button>

@@ -406,7 +406,7 @@
 .chat__list { list-style: none; margin: 0; padding: 8px; overflow-y: auto; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
 .chat__list:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
 .msg { padding: 8px 10px; border-radius: var(--r-md); border: 1px solid transparent; }
-.msg:hover { background: rgb(255 255 255 / 0.02); border-color: var(--line); }
+.msg:hover { background: var(--row-hover); border-color: var(--line); }
 .msg.is-team { opacity: 0.78; }
 .msg.is-highlight { border-color: var(--accent-line); background: var(--accent-soft); opacity: 1; }
 .msg__head { display: flex; align-items: baseline; gap: 6px; }
@@ -527,19 +527,19 @@
 }
 .map-canvas { position: relative; display: flex; flex-direction: column; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px; min-width: 0; }
 .map-canvas .worldmap { width: 100%; height: auto; aspect-ratio: 1.9; display: block; }
-.map-canvas__empty { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); background: rgb(13 15 18 / 0.88); border: 1px solid var(--line-strong); border-radius: var(--r-md); max-width: 360px; }
+.map-canvas__empty { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); background: var(--overlay-bg); border: 1px solid var(--line-strong); border-radius: var(--r-md); max-width: 360px; }
 .map-canvas__credit { font-size: var(--fs-xs); color: var(--text-3); }
 .map-side { min-width: 0; }
 
-.worldmap__ocean { fill: #0f1418; }
-.worldmap__grid { fill: none; stroke: #1b2329; stroke-width: 0.5; }
-.worldmap__land { fill: #2a323b; }
-.worldmap__borders { fill: none; stroke: #151a1f; stroke-linejoin: round; }
+.worldmap__ocean { fill: var(--map-ocean); }
+.worldmap__grid { fill: none; stroke: var(--map-grid); stroke-width: 0.5; }
+.worldmap__land { fill: var(--map-land); }
+.worldmap__borders { fill: none; stroke: var(--map-borders); stroke-linejoin: round; }
 .worldmap--present .worldmap__ocean { fill: #0b0f12; }
 .worldmap__pin { outline: none; }
 .worldmap__pin.is-interactive { cursor: pointer; }
 .worldmap__halo { fill: var(--accent); opacity: 0.16; }
-.worldmap__dot { fill: var(--accent); stroke: #0b0d10; }
+.worldmap__dot { fill: var(--accent); stroke: var(--map-dot-stroke); }
 .worldmap__pin.is-interactive:hover .worldmap__halo,
 .worldmap__pin:focus-visible .worldmap__halo { opacity: 0.38; }
 .worldmap__pin.is-selected .worldmap__dot { fill: #fff2d4; stroke: var(--accent); }
@@ -551,7 +551,7 @@
   font-family: var(--font-ui);
   font-weight: 600;
   paint-order: stroke;
-  stroke: #0b0e11;
+  stroke: var(--map-dot-stroke);
   stroke-linejoin: round;
   pointer-events: none;
 }
@@ -666,7 +666,7 @@
 /* Chat-Highlight */
 .highlight-layout { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(280px, 1fr); gap: 14px; align-items: start; }
 .highlight-stage { padding: 28px 20px; background: var(--stage); border-radius: var(--r-md); border: 1px solid var(--line); }
-.highlight { margin: 0; display: flex; flex-direction: column; gap: 0.5em; padding: 1em 1.2em; border-radius: var(--r-md); background: rgb(13 15 19 / 0.95); border: 1px solid var(--line-strong); box-shadow: inset 0.25em 0 0 var(--accent); font-size: var(--fs-md); }
+.highlight { margin: 0; display: flex; flex-direction: column; gap: 0.5em; padding: 1em 1.2em; border-radius: var(--r-md); background: var(--highlight-bg); border: 1px solid var(--line-strong); box-shadow: inset 0.25em 0 0 var(--accent); font-size: var(--fs-md); }
 .highlight--present { font-size: 2.4cqi; max-width: 82%; padding: 1.2em 1.6em; }
 .highlight--overlay { font-size: clamp(8px, 1.5cqi, 18px); }
 .highlight__eyebrow { display: inline-flex; align-items: center; gap: 0.4em; font-family: var(--font-cond); font-size: 0.8em; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
@@ -779,7 +779,7 @@
   text-align: left;
   transition: background 120ms, border-color 120ms, transform 80ms;
 }
-.deck-tile:hover:not(:disabled) { background: var(--hover); border-color: #4a535f; }
+.deck-tile:hover:not(:disabled) { background: var(--hover); border-color: var(--line-hover); }
 .deck-tile:active:not(:disabled) { transform: translateY(1px); }
 .deck-tile:disabled { cursor: default; opacity: 0.7; }
 .deck-tile__top { display: flex; width: 100%; justify-content: space-between; align-items: center; color: var(--text-2); }

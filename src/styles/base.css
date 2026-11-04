@@ -1,7 +1,8 @@
 /*
  * MeetingBackstage Studio – visuelles System
  * Layout: feste Seitenleiste, Statusleiste oben, ruhige Arbeitsfläche aus Panels.
- * Eine dunkle Oberfläche (bewusst einthemig), ein Akzentton (Bernstein) nur für aktive Zustände.
+ * Dunkle Oberfläche als Standard, helle Oberfläche über data-theme="light" (Schalter oben rechts).
+ * Ein Akzentton (Bernstein) nur für aktive Zustände.
  * Status-Farben (grün = spricht/offen, rot = stumm/Fehler) sind semantisch und kein Akzent.
  */
 :root {
@@ -13,6 +14,8 @@
   --hover: #22272e;
   --line: #262c33;
   --line-strong: #39414b;
+  --line-hover: #4a535f;
+  --row-hover: rgb(255 255 255 / 0.02);
   --text: #e8ebee;
   --text-2: #aab3bd;
   --text-3: #8a949f;
@@ -20,6 +23,7 @@
 
   --accent: #f0b43c;
   --accent-ink: #1b1405;
+  --accent-hover: #f6c25a;
   --accent-soft: rgb(240 180 60 / 0.13);
   --accent-line: rgb(240 180 60 / 0.5);
 
@@ -31,6 +35,14 @@
   --warn-soft: rgb(236 148 85 / 0.14);
   --info: #8fb6e6;
   --info-soft: rgb(143 182 230 / 0.12);
+
+  --map-ocean: #0f1418;
+  --map-grid: #1b2329;
+  --map-land: #2a323b;
+  --map-borders: #151a1f;
+  --map-dot-stroke: #0b0d10;
+  --overlay-bg: rgb(13 15 18 / 0.88);
+  --highlight-bg: rgb(13 15 19 / 0.95);
 
   --font-ui: 'Barlow', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-cond: 'Barlow Semi Condensed', 'Barlow', 'Arial Narrow', system-ui, sans-serif;
@@ -50,6 +62,87 @@
   --topbar-h: 60px;
 
   --focus: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+}
+
+/* Helles Design. Vorschauen im Stil der OBS-Ausgabe und die Präsentation bleiben dunkel. */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f3f4f6;
+  --panel: #ffffff;
+  --raised: #eceef1;
+  --hover: #e4e7eb;
+  --line: #dadee3;
+  --line-strong: #c2c8cf;
+  --line-hover: #a3abb5;
+  --row-hover: rgb(0 0 0 / 0.025);
+  --text: #15181c;
+  --text-2: #49525d;
+  --text-3: #66707b;
+  --stage: #07080a;
+
+  --accent: #b7790a;
+  --accent-ink: #ffffff;
+  --accent-hover: #a06806;
+  --accent-soft: rgb(183 121 10 / 0.12);
+  --accent-line: rgb(183 121 10 / 0.5);
+
+  --ok: #1d8553;
+  --ok-soft: rgb(29 133 83 / 0.1);
+  --danger: #c7323c;
+  --danger-soft: rgb(199 50 60 / 0.09);
+  --warn: #b25a17;
+  --warn-soft: rgb(178 90 23 / 0.1);
+  --info: #2c68ad;
+  --info-soft: rgb(44 104 173 / 0.09);
+
+  --map-ocean: #e8eef3;
+  --map-grid: #d9e1e8;
+  --map-land: #c4ccd5;
+  --map-borders: #eef1f4;
+  --map-dot-stroke: #ffffff;
+  --overlay-bg: rgb(255 255 255 / 0.92);
+  --highlight-bg: #ffffff;
+}
+
+:root[data-theme='light'] :is(.presentation, .highlight-stage, .stage__screen, .theme-dark) {
+  color-scheme: dark;
+  --bg: #0d0f12;
+  --panel: #14171b;
+  --raised: #1a1e23;
+  --hover: #22272e;
+  --line: #262c33;
+  --line-strong: #39414b;
+  --line-hover: #4a535f;
+  --row-hover: rgb(255 255 255 / 0.02);
+  --text: #e8ebee;
+  --text-2: #aab3bd;
+  --text-3: #8a949f;
+  --stage: #07080a;
+
+  --accent: #f0b43c;
+  --accent-ink: #1b1405;
+  --accent-hover: #f6c25a;
+  --accent-soft: rgb(240 180 60 / 0.13);
+  --accent-line: rgb(240 180 60 / 0.5);
+
+  --ok: #4cc38a;
+  --ok-soft: rgb(76 195 138 / 0.14);
+  --danger: #f0727a;
+  --danger-soft: rgb(240 114 122 / 0.14);
+  --warn: #ec9455;
+  --warn-soft: rgb(236 148 85 / 0.14);
+  --info: #8fb6e6;
+  --info-soft: rgb(143 182 230 / 0.12);
+
+  --map-ocean: #0f1418;
+  --map-grid: #1b2329;
+  --map-land: #2a323b;
+  --map-borders: #151a1f;
+  --map-dot-stroke: #0b0d10;
+  --overlay-bg: rgb(13 15 18 / 0.88);
+  --highlight-bg: rgb(13 15 19 / 0.95);
+  color: var(--text);
 }
 
 *,

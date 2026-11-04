@@ -58,12 +58,12 @@
   white-space: nowrap;
   transition: background 120ms, border-color 120ms, color 120ms;
 }
-.btn:hover:not(:disabled) { background: var(--hover); border-color: #4a535f; }
+.btn:hover:not(:disabled) { background: var(--hover); border-color: var(--line-hover); }
 .btn:disabled { opacity: 0.45; }
 .btn--sm { height: 28px; padding: 0 10px; font-size: var(--fs-sm); gap: 6px; }
 .btn--lg { height: 44px; padding: 0 18px; font-size: var(--fs-lg); font-weight: 600; }
 .btn--primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
-.btn--primary:hover:not(:disabled) { background: #f6c25a; border-color: #f6c25a; }
+.btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
 .btn--ghost { background: transparent; border-color: transparent; color: var(--text-2); }
 .btn--ghost:hover:not(:disabled) { background: var(--hover); color: var(--text); border-color: transparent; }
 .btn--danger { color: var(--danger); border-color: rgb(240 114 122 / 0.45); background: var(--danger-soft); }
@@ -240,7 +240,7 @@
 .textarea::placeholder { color: var(--text-3); }
 .input:hover,
 .select:hover,
-.textarea:hover { border-color: #4a535f; }
+.textarea:hover { border-color: var(--line-hover); }
 .input:focus-visible,
 .select:focus-visible,
 .textarea:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
@@ -364,7 +364,7 @@
   white-space: normal;
 }
 .table td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
-.table tbody tr:hover { background: rgb(255 255 255 / 0.02); }
+.table tbody tr:hover { background: var(--row-hover); }
 .table tbody tr:last-child td { border-bottom: 0; }
 
 /* --------------------------------------------------------------- Status */

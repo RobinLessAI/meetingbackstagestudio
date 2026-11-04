@@ -20,6 +20,10 @@ import './styles/layout.css';
 import './styles/views.css';
 
 import { App } from './App.tsx';
+import { applyTheme, readTheme } from './state/theme.ts';
+
+// Design vor dem ersten Zeichnen setzen, damit nichts aufblitzt.
+applyTheme(readTheme());
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
