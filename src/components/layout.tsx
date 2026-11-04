@@ -18,7 +18,7 @@ import { useNow, useStore } from '../state/store.tsx';
 import type { ViewId } from '../state/types.ts';
 import { useUi, VIEWS } from '../state/ui.tsx';
 import { useSync } from '../sync/SyncProvider.tsx';
-import { rtmsLabel } from './LiveChat.tsx';
+import { regieLabel } from './LiveChat.tsx';
 import { DemoTag, Dialog, Kbd, Switch } from './ui.tsx';
 
 const ICONS: Record<ViewId, LucideIcon> = {
@@ -120,7 +120,7 @@ export function TopBar() {
   const spot = state.spotlight.map((id) => derived.byId[id]).filter(Boolean);
   const first = derived.queue.find((q) => !q.inSpotlight);
   const sync = useSync();
-  const live = rtmsLabel(sync.rtms, sync.available);
+  const live = regieLabel(sync.regie, sync.available);
 
   let timer = '';
   if (session.status === 'laeuft' && session.startedAt) timer = timecode(now - session.startedAt);

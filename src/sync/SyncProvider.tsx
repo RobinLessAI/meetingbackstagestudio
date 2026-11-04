@@ -16,25 +16,23 @@ export interface WatchStatus {
   suggested?: string;
 }
 
-export interface RtmsStatus {
-  state: 'nicht-eingerichtet' | 'bereit' | 'verbindet' | 'verbunden' | 'fehler';
+/** Live-Chat über das Regie-Fenster (Zoom Meeting SDK). */
+export interface RegieStatus {
+  state: 'bereit' | 'verbindet' | 'wartet' | 'verbunden' | 'fehler';
+  /** Zugangsdaten und SDK vorhanden. */
   configured: boolean;
+  sdkInstalled: boolean;
   missing: string[];
   meeting: string | null;
   since: number | null;
   messages: number;
   error: string | null;
-  lastWebhookAt: number | null;
-  /** Wie Zoom den Meeting-Start meldet: per WebSocket (ohne Tunnel) oder Webhook. */
-  channel?: 'websocket' | 'webhook';
-  /** Anmeldung bei Zoom für den Start per Meeting-Link. */
-  account?: { connected: boolean; redirectConfigured: boolean; scope: string } | null;
-  eventSocket?: { state: 'verbunden' | 'verbindet' | 'getrennt' | 'fehler'; error: string | null } | null;
+  name: string;
 }
 
 interface SyncValue {
-  /** Live-Chat aus Zoom (RTMS), null solange kein Server erreichbar ist. */
-  rtms: RtmsStatus | null;
+  /** Live-Chat über das Regie-Fenster, null solange kein Server erreichbar ist. */
+  regie: RegieStatus | null;
   /** Die Seite läuft über den lokalen Server (sonst z. B. als reine Vorschau). */
   available: boolean;
   status: SocketStatus | 'nicht-verfuegbar';
@@ -46,13 +44,10 @@ interface SyncValue {
   baseUrl: string;
   startWatch: (folder?: string) => boolean;
   stopWatch: () => void;
-  /** Letzte Antwort von Zoom auf Verbinden, Start oder Stopp. */
-  zoomResult: { ok: boolean; action: string; message: string; at: number } | null;
-  zoomBusy: boolean;
-  requestAuthUrl: () => Promise<string | null>;
-  connectZoom: (input: string) => void;
-  disconnectZoom: () => void;
-  setRtms: (meeting: string, action: 'start' | 'stop') => void;
+  /** Öffnet das Regie-Fenster, das dem Meeting beitritt. */
+  openRegie: (meeting: string, passcode: string) => boolean;
+  /** Lässt das Regie-Fenster das Meeting verlassen. */
+  leaveRegie: () => void;
 }
 
 const SyncCtx = createContext<SyncValue | null>(null);
@@ -66,13 +61,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [watch, setWatch] = useState<WatchStatus>({ active: false, folder: null, file: null, error: null });
   const [lastImport, setLastImport] = useState<SyncValue['lastImport']>(null);
-  const [rtms, setRtms] = useState<RtmsStatus | null>(null);
-  const [zoomResult, setZoomResult] = useState<SyncValue['zoomResult']>(null);
-  const [zoomBusy, setZoomBusy] = useState(false);
-  const authUrlWaiter = useRef<((url: string | null) => void) | null>(null);
+  const [regie, setRegie] = useState<RegieStatus | null>(null);
   const socket = useRef<SyncSocket | null>(null);
-  const rtmsRef = useRef<RtmsStatus | null>(null);
-  rtmsRef.current = rtms;
+  const regieRef = useRef<RegieStatus | null>(null);
+  regieRef.current = regie;
   const restored = useRef(false);
 
   // Eingehende Nachrichten über eine Referenz, damit die Verbindung stabil bleibt.
@@ -83,7 +75,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         setOutputs(msg.ausgaben ?? 0);
         setSavedAt(msg.saved?.savedAt ?? null);
         if (msg.watch) setWatch(msg.watch);
-        if (msg.rtms) setRtms(msg.rtms);
+        if (msg.regie) setRegie(msg.regie);
         const saved = msg.saved?.state as Partial<AppState> | undefined;
         // Eine eigene Veranstaltung nach Neuladen oder Absturz automatisch wiederherstellen.
         if (!restored.current && saved?.dataMode === 'eigene' && stateRef.current.dataMode === 'demo') {
@@ -94,15 +86,19 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         restored.current = true;
         break;
       }
-      case 'rtms-status': {
-        const prev = rtmsRef.current;
-        setRtms(msg.status);
-        if (msg.status.state === 'verbunden' && prev?.state !== 'verbunden') notify('Live-Chat aus Zoom verbunden', 'erfolg');
-        if (msg.status.state === 'fehler' && msg.status.error && prev?.error !== msg.status.error) notify(msg.status.error, 'fehler');
+      case 'regie-status': {
+        const prev = regieRef.current;
+        const next = msg.status as RegieStatus;
+        setRegie(next);
+        if (next.state === prev?.state && next.error === prev?.error) break;
+        if (next.state === 'verbunden') notify('Regie ist im Meeting, der Chat kommt jetzt live', 'erfolg');
+        else if (next.state === 'wartet') notify('Regie wartet im Warteraum: bitte in Zoom zulassen', 'warnung');
+        else if (next.state === 'fehler' && next.error) notify(next.error, 'fehler');
+        else if (next.state === 'bereit' && prev?.state === 'verbunden') notify('Regie hat das Meeting verlassen', 'info');
         break;
       }
       case 'live-chat': {
-        // Live-Nachrichten aus Zoom: Schlüssel verhindern doppelte Übernahme nach Neuladen.
+        // Live-Nachrichten aus dem Regie-Fenster: Schlüssel verhindern doppelte Übernahme nach Neuladen.
         const messages = (msg.messages ?? []).map((m: { key: string; senderName: string; text: string; at: number }) => ({
           id: nextId('r'),
           senderId: null,
@@ -115,15 +111,6 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         if (messages.length) dispatch({ type: 'chat/import', messages });
         break;
       }
-      case 'zoom-result':
-        setZoomBusy(false);
-        setZoomResult({ ok: msg.ok, action: msg.action, message: msg.message, at: Date.now() });
-        notify(msg.message, msg.ok ? 'erfolg' : 'fehler');
-        break;
-      case 'zoom-auth-url':
-        authUrlWaiter.current?.(msg.url ?? null);
-        authUrlWaiter.current = null;
-        break;
       case 'clients':
         setOutputs(msg.ausgaben ?? 0);
         break;
@@ -187,30 +174,19 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     socket.current?.send({ type: 'chat-watch-stop' });
   }, []);
 
-  const requestAuthUrl = useCallback(
-    () =>
-      new Promise<string | null>((resolve) => {
-        authUrlWaiter.current = resolve;
-        if (!socket.current?.send({ type: 'zoom-auth-url' })) resolve(null);
-        window.setTimeout(() => resolve(null), 4000);
-      }),
-    [],
-  );
-  const connectZoom = useCallback((input: string) => {
-    setZoomBusy(true);
-    if (!socket.current?.send({ type: 'zoom-connect', input })) setZoomBusy(false);
+  const openRegie = useCallback((meeting: string, passcode: string) => {
+    const q = new URLSearchParams({ meeting: meeting.trim() });
+    if (passcode.trim()) q.set('kenncode', passcode.trim());
+    const win = window.open(`/regie.html?${q.toString()}`, 'mb-regie', 'width=1180,height=780');
+    return Boolean(win);
   }, []);
-  const disconnectZoom = useCallback(() => {
-    socket.current?.send({ type: 'zoom-disconnect' });
-  }, []);
-  const setRtmsState = useCallback((meeting: string, action: 'start' | 'stop') => {
-    setZoomBusy(true);
-    if (!socket.current?.send({ type: action === 'start' ? 'rtms-start' : 'rtms-stop', meeting })) setZoomBusy(false);
+  const leaveRegie = useCallback(() => {
+    socket.current?.send({ type: 'regie-leave' });
   }, []);
 
   const value = useMemo<SyncValue>(
     () => ({
-      rtms,
+      regie,
       available,
       status,
       outputs,
@@ -220,14 +196,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       baseUrl: available ? window.location.origin : DEFAULT_BASE,
       startWatch,
       stopWatch,
-      zoomResult,
-      zoomBusy,
-      requestAuthUrl,
-      connectZoom,
-      disconnectZoom,
-      setRtms: setRtmsState,
+      openRegie,
+      leaveRegie,
     }),
-    [rtms, available, status, outputs, savedAt, watch, lastImport, startWatch, stopWatch, zoomResult, zoomBusy, requestAuthUrl, connectZoom, disconnectZoom, setRtmsState],
+    [regie, available, status, outputs, savedAt, watch, lastImport, startWatch, stopWatch, openRegie, leaveRegie],
   );
   return <SyncCtx.Provider value={value}>{children}</SyncCtx.Provider>;
 }

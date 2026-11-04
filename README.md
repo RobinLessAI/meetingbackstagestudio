@@ -6,7 +6,7 @@ Produktionspult für Online-Workshops: Der Chat kommt live aus deinem Zoom-Meeti
 
 | Live | Simuliert (Demo) |
 | --- | --- |
-| Chat aus dem laufenden Zoom-Meeting über Zoom Realtime Media Streams (RTMS) | Teilnehmerliste, Handzeichen, Sprecherstatus |
+| Chat aus dem laufenden Zoom-Meeting über das Regie-Fenster (Zoom Meeting SDK, kostenfrei) | Teilnehmerliste, Handzeichen, Sprecherstatus |
 | Weltkarte, Umfrage, Wortwolke, Chat-Highlight aus diesem Chat | Spotlight und „Alle stummschalten“ (wirken nicht in Zoom) |
 | Ausgabe der Grafiken an OBS (Browserquelle, transparent) | Galerie-Videobilder, Audiopegel, Stream-Deck-Tasten |
 | Automatisches Speichern einer eigenen Veranstaltung | NDI, SRT, SDI, Dante |
@@ -51,25 +51,21 @@ Weitere Optionen: `stil=einblendung|vollbild`, `hintergrund=transparent|dunkel`,
 
 ## Live-Chat aus Zoom einrichten (einmalig)
 
-Der Chat kommt über **Zoom Realtime Media Streams (RTMS)**. Den Start deines Meetings erfährt der Server über eine **WebSocket-Verbindung**, die er selbst zu Zoom aufbaut. Dafür braucht es keine öffentliche Adresse und keinen Tunnel-Dienst. Der Chat kommt danach direkt von Zoom.
+Der Chat kommt über ein **Regie-Fenster**: MeetingBackstage öffnet ein Browserfenster mit dem **Zoom Meeting SDK**, das deinem Meeting als sichtbarer Teilnehmer **„MeetingBackstage (Regie)“** beitritt, ohne Kamera und Mikrofon. Jede Chat-Nachricht an alle geht sofort an die App. Das ist kostenfrei; Realtime Media Streams (RTMS) werden nicht verwendet.
 
-1. **Zoom-App anlegen:** marketplace.zoom.us → Develop → Build App → **General App** → **User-managed**.
-2. **Ereignisse abonnieren:** „Funktionen → Zugriff“ → Event Subscription → Methode **WebSocket** → Ereignisse **RTMS started in Meeting** und **RTMS stopped in Meeting** → Save. Zoom zeigt danach eine Adresse `wss://ws.zoom.us/ws?subscriptionId=…`.
-3. **RTMS-Zugang:** RTMS muss für dein Konto freigeschaltet sein. Laut Zoom-Dokumentation beantragst du ihn bei Bedarf im Zoom Developer Forum.
-4. **Zugangsdaten eintragen:** `.env.example` nach `.env.local` kopieren (Mac: `cp .env.example .env.local` und `open -e .env.local`). Eintragen: Client-ID, Client-Geheimnis und die Subscription ID (oder die komplette wss-Adresse). Danach den Server neu starten.
-5. **Meeting starten.** Sobald Zoom den Datenstrom startet, zeigt die App „Live aus Zoom“. Je nach Zoom-Einstellung startet er automatisch oder muss im Meeting für die App gestartet werden.
+1. **Meeting SDK einschalten:** marketplace.zoom.us → Manage → deine App → „Funktionen“ → „Einbetten“ (Embed) → **Meeting SDK** einschalten → Speichern. Es geht auch eine neue **General App** (User-managed) nur dafür.
+2. **Zugangsdaten eintragen:** In `.env.local` stehen Client-ID und Client-Geheimnis dieser App (Mac: `open -e .env.local`). Andere Einträge (Subscription ID, Redirect, Webhook) werden nicht mehr gebraucht.
+3. **Installieren:** `npm install` lädt das Zoom Meeting SDK (einmalig nach dem Update), danach `npm start`.
 
-**Start per Meeting-Link (falls der automatische Start nicht greift):**
-1. In der Zoom-App unter „Anwendungsbereiche“ `meeting:update:participant_rtms_app_status` hinzufügen.
-2. In `.env.local` `ZOOM_REDIRECT_URI` setzen: dieselbe Adresse wie „OAuth Weiterleitungs-URL“ in der Zoom-App.
-3. In MeetingBackstage unter „Integrationen“ auf „Bei Zoom erlauben“ klicken, danach die Adresse aus dem Browser (mit `?code=`) einfügen und „Verbinden“ wählen. Das ist nur einmal nötig.
-4. Pro Meeting: Meeting-Link einfügen und „Chat-Datenstrom starten“. Es tritt kein zusätzlicher Teilnehmer bei.
+**Pro Meeting:**
+1. Meeting in Zoom als Host starten.
+2. In MeetingBackstage unter „Integrationen“ (oder oben im Chat) den Meeting-Link einfügen und **„Regie beitreten“** klicken. Es öffnet sich das Regie-Fenster.
+3. In Zoom die Regie aus dem Warteraum **zulassen**, falls ein Warteraum aktiv ist.
+4. Das Regie-Fenster offen lassen. Beenden mit „Regie verlassen“ oder durch Schließen des Fensters.
 
-Die Seite „Integrationen“ zeigt den Stand jedes Schritts.
+Grenzen: Ohne eine von Zoom geprüfte und veröffentlichte App tritt die Regie nur Meetings deines **eigenen Zoom-Kontos** bei. Die Regie ist für alle sichtbar und belegt einen Teilnehmerplatz. Private Nachrichten werden nicht übernommen. Wenn Zoom den Beitritt wegen des Kenncodes ablehnt, den Kenncode im Feld „Kenncode“ eintragen.
 
-**Alternative mit Webhook:** Statt WebSocket kann Zoom den Start auch per Webhook an `/zoom/webhook` melden. Dann braucht es einen Tunnel (z. B. ngrok) und `ZOOM_WEBHOOK_SECRET_TOKEN` in `.env.local`.
-
-**Notlösung ohne RTMS:** In der App unter „Integrationen“ den Zoom-Ordner beobachten lassen. Nach jedem Klick auf „Chat speichern“ in Zoom übernimmt MeetingBackstage die neuen Nachrichten (nicht live). Nur Nachrichten an alle werden übernommen.
+**Notlösung ohne Regie:** In der App unter „Integrationen“ den Zoom-Ordner beobachten lassen. Nach jedem Klick auf „Chat speichern“ in Zoom übernimmt MeetingBackstage die neuen Nachrichten (nicht live). Nur Nachrichten an alle werden übernommen.
 
 ## Regeln der Chat-Auswertung
 
@@ -87,18 +83,19 @@ Die Seite „Integrationen“ zeigt den Stand jedes Schritts.
 | `npm run server` | Nur den Server starten (nutzt den letzten Build) |
 | `npm run dev` | Entwicklungsserver mit Hot Reload (http://localhost:5173); dazu `npm run server` in einem zweiten Terminal |
 | `npm run typecheck` | TypeScript prüfen |
-| `npm test` | Tests: Chat-Auswertung, Zoom-Chat-Format, Server, RTMS-Ablauf (Node 22.18 oder neuer) |
+| `npm test` | Tests: Chat-Auswertung, Zoom-Chat-Format, Server, Regie-Ablauf (Node 22.18 oder neuer) |
 | `npm run map:generate` | Weltkarte aus Natural-Earth-Daten neu erzeugen |
 
-Der RTMS-Test prüft den Ablauf gegen einen nachgebildeten Zoom-Server nach der Zoom-Dokumentation. Er ersetzt nicht den ersten Test mit einem echten Meeting; Meldungen dazu stehen im Terminal des Servers.
+Der Regie-Test prüft Signatur, Chat-Format und den Weg Regie-Fenster → Server → Steuerung. Er ersetzt nicht den ersten Test mit einem echten Meeting; Meldungen dazu (auch die ersten Chat-Rohdaten von Zoom) stehen im Terminal des Servers.
 
 ## Aufbau
 
 ```
 meetingbackstagestudio/
 ├── server/
-│   ├── server.mjs        # lokaler Server: App, OBS-Abgleich, Speichern, Webhook
-│   └── rtms.mjs          # Zoom RTMS: Webhook-Prüfung, Handshakes, Chat-Datenstrom
+│   ├── server.mjs        # lokaler Server: App, OBS-Abgleich, Speichern, Regie, Zoom-Ordner
+│   └── meetingSdk.mjs    # Beitritts-Signatur und Chat-Format des Zoom Meeting SDK
+├── public/regie.*        # Regie-Fenster (tritt dem Meeting über das Meeting SDK bei)
 ├── ausgabe.html          # OBS-Ausgabeseite
 ├── src/
 │   ├── ausgabe/          # Darstellung für OBS (transparent, 1920 × 1080)
@@ -115,4 +112,5 @@ meetingbackstagestudio/
 - Kartendaten: [Natural Earth](https://www.naturalearthdata.com) (gemeinfrei) über `world-atlas`.
 - Schriften: Barlow, Barlow Semi Condensed, IBM Plex Mono (SIL Open Font License), lokal eingebunden.
 - Symbole: Lucide (ISC). WebSocket: `ws` (MIT).
+- Zoom Meeting SDK für Web (`@zoom/meetingsdk`), es gelten die Nutzungsbedingungen von Zoom.
 - Personen und Inhalte der Beispieldaten sind erfunden.

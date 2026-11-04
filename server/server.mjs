@@ -4,6 +4,8 @@
 // - gleicht die Grafiken per WebSocket zwischen Steuerung und OBS-Browserquellen ab
 // - speichert den Stand der Veranstaltung in daten/veranstaltung.json
 // - beobachtet auf Wunsch den Zoom-Ordner und meldet neu gespeicherte Chat-Dateien
+// - stellt das Regie-Fenster bereit, das dem Meeting über das Zoom Meeting SDK
+//   als zusätzlicher Teilnehmer beitritt und den Chat live weitergibt
 //
 // Start: npm start (baut die App und startet den Server)
 import http from 'node:http';
@@ -13,9 +15,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
-import { createRtms, urlValidationResponse, verifyWebhook } from './rtms.mjs';
-import { createZoomEventSocket, parseSubscriptionId } from './zoomEvents.mjs';
-import { createZoomApi } from './zoomApi.mjs';
+import { meetingSignature, normalizeSdkChat, parseMeetingLink } from './meetingSdk.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -35,12 +35,18 @@ function loadEnvFile(file) {
 loadEnvFile(process.env.MB_ENV_FILE ?? path.join(ROOT, '.env.local'));
 const ZOOM_CLIENT_ID = process.env.ZOOM_CLIENT_ID ?? '';
 const ZOOM_CLIENT_SECRET = process.env.ZOOM_CLIENT_SECRET ?? '';
-const ZOOM_WEBHOOK_SECRET_TOKEN = process.env.ZOOM_WEBHOOK_SECRET_TOKEN ?? '';
-// Mit Subscription ID kommen Zoom-Ereignisse per WebSocket (ohne Tunnel), sonst per Webhook.
-const ZOOM_WS_SUBSCRIPTION_ID = parseSubscriptionId(process.env.ZOOM_WS_SUBSCRIPTION_ID);
-const ZOOM_ACCOUNT_ID = process.env.ZOOM_ACCOUNT_ID ?? '';
-const EVENT_CHANNEL = ZOOM_WS_SUBSCRIPTION_ID ? 'websocket' : 'webhook';
-const ZOOM_REDIRECT_URI = process.env.ZOOM_REDIRECT_URI ?? '';
+// Dateien des Zoom Meeting SDK (Web) aus node_modules, lokal ausgeliefert.
+const SDK_DIST = process.env.MB_ZOOM_SDK_DIR
+  ? path.resolve(process.env.MB_ZOOM_SDK_DIR)
+  : path.join(ROOT, 'node_modules', '@zoom', 'meetingsdk', 'dist');
+const SDK_MAIN = (() => {
+  try {
+    return fs.readdirSync(SDK_DIST).find((f) => /^zoom-meeting-[\d.]+\.min\.js$/.test(f)) ?? null;
+  } catch {
+    return null;
+  }
+})();
+const REGIE_NAME = 'MeetingBackstage (Regie)';
 
 const PORT = Number(process.env.PORT ?? 4300);
 const HOST = '127.0.0.1';
@@ -57,6 +63,15 @@ const MIME = {
   '.ico': 'image/x-icon',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.wasm': 'application/wasm',
+  '.cur': 'image/x-icon',
+  '.gif': 'image/gif',
+  '.jpg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.txt': 'text/plain; charset=utf-8',
 };
 
 const log = (...args) => console.log(`[${new Date().toLocaleTimeString('de-DE')}]`, ...args);
@@ -81,113 +96,67 @@ async function writeSave(state) {
   return payload.savedAt;
 }
 
-// ----------------------------------------------------- Live-Chat aus Zoom
-const zoomApi = createZoomApi({
-  clientId: ZOOM_CLIENT_ID,
-  clientSecret: ZOOM_CLIENT_SECRET,
-  redirectUri: ZOOM_REDIRECT_URI,
-  dataDir: DATA_DIR,
-  log,
-  oauthBase: process.env.MB_ZOOM_OAUTH_BASE,
-  apiBase: process.env.MB_ZOOM_API_URL,
-});
+// ----------------------------------------------- Live-Chat über das Regie-Fenster
 const liveChat = []; // zuletzt empfangene Nachrichten, damit eine neu geladene Steuerung nichts verpasst
-const rtms = createRtms({
-  clientId: ZOOM_CLIENT_ID,
-  clientSecret: ZOOM_CLIENT_SECRET,
-  log,
-  onChat: (chat) => {
-    const message = {
-      key: `rtms:${chat.streamId}:${chat.seq}`,
-      senderName: chat.sender,
-      text: chat.text,
-      at: chat.at,
-    };
-    liveChat.push(message);
-    if (liveChat.length > 2000) liveChat.shift();
-    broadcast('steuerung', { type: 'live-chat', messages: [message] });
-  },
-  onStatus: (status) => broadcast('steuerung', { type: 'rtms-status', status: rtmsStatus(status) }),
-});
+const liveKeys = new Set();
+let regie = { state: 'bereit', meeting: null, since: null, messages: 0, error: null };
+let rawLogged = 0;
 
 /** Status für die App, inklusive der Frage, ob alles eingerichtet ist. */
-function rtmsStatus(status = rtms.status()) {
+function regieStatus() {
   return {
-    ...status,
-    configured: Boolean(ZOOM_CLIENT_ID && ZOOM_CLIENT_SECRET && (ZOOM_WS_SUBSCRIPTION_ID || ZOOM_WEBHOOK_SECRET_TOKEN)),
-    missing: [
-      !ZOOM_CLIENT_ID && 'ZOOM_CLIENT_ID',
-      !ZOOM_CLIENT_SECRET && 'ZOOM_CLIENT_SECRET',
-      !ZOOM_WS_SUBSCRIPTION_ID && !ZOOM_WEBHOOK_SECRET_TOKEN && 'ZOOM_WS_SUBSCRIPTION_ID',
-    ].filter(Boolean),
-    channel: EVENT_CHANNEL,
-    account: zoomApi?.status() ?? null,
-    eventSocket: eventSocket?.status() ?? null,
-    lastWebhookAt,
+    ...regie,
+    name: REGIE_NAME,
+    configured: Boolean(ZOOM_CLIENT_ID && ZOOM_CLIENT_SECRET && SDK_MAIN),
+    sdkInstalled: Boolean(SDK_MAIN),
+    missing: [!ZOOM_CLIENT_ID && 'ZOOM_CLIENT_ID', !ZOOM_CLIENT_SECRET && 'ZOOM_CLIENT_SECRET'].filter(Boolean),
   };
 }
-let lastWebhookAt = null;
-let eventSocket = null;
 
-/** Gemeinsame Verarbeitung für Webhook und WebSocket. */
-function handleZoomEvent(body) {
-  lastWebhookAt = Date.now();
-  log(`Zoom-Ereignis empfangen: ${body.event ?? 'unbekannt'}`);
-  if (body.event === 'meeting.rtms_started') rtms.start(body.payload ?? {});
-  else if (body.event === 'meeting.rtms_stopped') rtms.stop(body.payload ?? {});
-  broadcast('steuerung', { type: 'rtms-status', status: rtmsStatus() });
+function setRegie(patch) {
+  regie = { ...regie, ...patch };
+  broadcast('steuerung', { type: 'regie-status', status: regieStatus() });
 }
 
-function readBody(req, limit = 1024 * 1024) {
-  return new Promise((resolve, reject) => {
-    let size = 0;
-    const chunks = [];
-    req.on('data', (c) => {
-      size += c.length;
-      if (size > limit) {
-        reject(new Error('zu groß'));
-        req.destroy();
-      } else chunks.push(c);
-    });
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-    req.on('error', reject);
-  });
+function handleRegieChat(data) {
+  // Die ersten Nachrichten im Rohformat protokollieren, falls Zoom das Format ändert.
+  if (rawLogged < 3) {
+    rawLogged += 1;
+    log(`Regie: Chat-Rohdaten von Zoom: ${JSON.stringify(data).slice(0, 400)}`);
+  }
+  const chat = normalizeSdkChat(data);
+  if (!chat) return;
+  if (chat.private) {
+    log(`Regie: private Nachricht von ${chat.senderName} nicht übernommen.`);
+    return;
+  }
+  if (liveKeys.has(chat.key)) return;
+  liveKeys.add(chat.key);
+  const message = { key: chat.key, senderName: chat.senderName, text: chat.text, at: chat.at };
+  liveChat.push(message);
+  if (liveChat.length > 2000) liveKeys.delete(liveChat.shift().key);
+  regie.messages += 1;
+  broadcast('steuerung', { type: 'live-chat', messages: [message] });
+  broadcast('steuerung', { type: 'regie-status', status: regieStatus() });
 }
 
-async function handleWebhook(req, res) {
-  let raw;
-  try {
-    raw = await readBody(req);
-  } catch {
-    res.writeHead(413).end();
-    return;
-  }
-  if (!verifyWebhook(ZOOM_WEBHOOK_SECRET_TOKEN, raw, req.headers)) {
-    log('Webhook mit ungültiger Signatur abgelehnt.');
-    res.writeHead(401).end();
-    return;
-  }
-  let body;
-  try {
-    body = JSON.parse(raw);
-  } catch {
-    res.writeHead(400).end();
-    return;
-  }
-  lastWebhookAt = Date.now();
-  if (body.event === 'endpoint.url_validation') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(urlValidationResponse(ZOOM_WEBHOOK_SECRET_TOKEN, body.payload?.plainToken ?? '')));
-    log('Zoom hat die Webhook-Adresse erfolgreich geprüft.');
-    broadcast('steuerung', { type: 'rtms-status', status: rtmsStatus() });
-    return;
-  }
-  // Zoom erwartet eine sofortige Antwort; die Verbindung wird danach aufgebaut.
-  res.writeHead(200).end();
-  handleZoomEvent(body);
+/** Beitrittsdaten für das Regie-Fenster (Signatur wird hier erzeugt, das Geheimnis bleibt lokal). */
+function regieJoin(meetingInput, passcodeInput) {
+  const st = regieStatus();
+  if (!st.sdkInstalled) throw new Error('Das Zoom Meeting SDK fehlt. Bitte im Terminal „npm install“ ausführen und neu starten.');
+  if (st.missing.length) throw new Error(`In .env.local fehlt: ${st.missing.join(', ')}.`);
+  const { meetingId, passcode } = parseMeetingLink(meetingInput);
+  if (!meetingId) throw new Error('Keine gültige Meeting-ID erkannt. Bitte den Zoom-Link oder die 9- bis 11-stellige Nummer einfügen.');
+  return {
+    sdkKey: ZOOM_CLIENT_ID,
+    signature: meetingSignature({ clientId: ZOOM_CLIENT_ID, clientSecret: ZOOM_CLIENT_SECRET, meetingNumber: meetingId }),
+    meetingNumber: meetingId,
+    passWord: String(passcodeInput ?? '').trim() || passcode,
+    userName: REGIE_NAME,
+  };
 }
 
-/** Anfragen über den Tunnel (fremder Hostname) dürfen nur den Webhook erreichen. */
+/** Nur Anfragen an localhost beantworten (Schutz gegen DNS-Rebinding). */
 function isLocalHost(hostHeader) {
   const host = String(hostHeader ?? '').replace(/:\d+$/, '');
   return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
@@ -206,21 +175,32 @@ function sendFile(res, file) {
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://localhost');
-  if (url.pathname === '/zoom/webhook' && req.method === 'POST') {
-    handleWebhook(req, res);
-    return;
-  }
   if (!isLocalHost(req.headers.host)) {
     res.writeHead(404).end();
     return;
   }
   if (url.pathname === '/api/status') {
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(JSON.stringify({ ok: true, ...counts(), savedAt: saved?.savedAt ?? null, rtms: rtmsStatus() }));
+    res.end(JSON.stringify({ ok: true, ...counts(), savedAt: saved?.savedAt ?? null, regie: regieStatus() }));
     return;
   }
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     res.writeHead(405).end();
+    return;
+  }
+  // Zoom Meeting SDK aus node_modules (zoom-meeting.min.js zeigt auf die installierte Version).
+  if (url.pathname.startsWith('/zoom-sdk/')) {
+    let rel = decodeURIComponent(url.pathname.slice('/zoom-sdk/'.length));
+    if (rel === 'zoom-meeting.min.js' && SDK_MAIN) rel = SDK_MAIN;
+    const file = path.normalize(path.join(SDK_DIST, rel));
+    if (!file.startsWith(SDK_DIST + path.sep)) {
+      res.writeHead(403).end();
+      return;
+    }
+    fs.stat(file, (err, stat) => {
+      if (err || !stat.isFile()) res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Nicht gefunden');
+      else sendFile(res, file);
+    });
     return;
   }
   if (!fs.existsSync(path.join(DIST, 'index.html'))) {
@@ -231,6 +211,7 @@ const server = http.createServer((req, res) => {
   let pathname = decodeURIComponent(url.pathname);
   if (pathname === '/' || pathname === '') pathname = '/index.html';
   if (pathname === '/ausgabe') pathname = '/ausgabe.html';
+  if (pathname === '/regie') pathname = '/regie.html';
   const file = path.normalize(path.join(DIST, pathname));
   if (!file.startsWith(DIST + path.sep)) {
     res.writeHead(403).end();
@@ -247,14 +228,18 @@ const server = http.createServer((req, res) => {
 
 // ------------------------------------------------------------- WebSocket
 const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE });
-const roles = new Map(); // ws -> 'steuerung' | 'ausgabe'
+const roles = new Map(); // ws -> 'steuerung' | 'ausgabe' | 'regie'
 
 function counts() {
   let steuerungen = 0;
   let ausgaben = 0;
-  for (const role of roles.values()) role === 'ausgabe' ? ausgaben++ : steuerungen++;
+  for (const role of roles.values()) {
+    if (role === 'ausgabe') ausgaben++;
+    else if (role === 'steuerung') steuerungen++;
+  }
   return { steuerungen, ausgaben };
 }
+const hasRole = (role) => [...roles.values()].includes(role);
 
 const send = (ws, msg) => ws.readyState === ws.OPEN && ws.send(JSON.stringify(msg));
 const broadcast = (role, msg) => {
@@ -283,12 +268,12 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 wss.on('connection', (ws, rolle) => {
-  const role = rolle === 'ausgabe' ? 'ausgabe' : 'steuerung';
+  const role = rolle === 'ausgabe' || rolle === 'regie' ? rolle : 'steuerung';
   roles.set(ws, role);
   if (role === 'ausgabe') {
     if (lastSnapshot) send(ws, { type: 'snapshot', snapshot: lastSnapshot });
-  } else {
-    send(ws, { type: 'hello', saved, ...counts(), watch: watchStatus(), rtms: rtmsStatus() });
+  } else if (role === 'steuerung') {
+    send(ws, { type: 'hello', saved, ...counts(), watch: watchStatus(), regie: regieStatus() });
     if (liveChat.length) send(ws, { type: 'live-chat', messages: liveChat });
   }
   broadcastCounts();
@@ -298,6 +283,10 @@ wss.on('connection', (ws, rolle) => {
     try {
       msg = JSON.parse(String(data));
     } catch {
+      return;
+    }
+    if (role === 'regie') {
+      handleRegieMessage(ws, msg);
       return;
     }
     if (role !== 'steuerung') return;
@@ -314,38 +303,9 @@ wss.on('connection', (ws, rolle) => {
           send(ws, { type: 'error', message: `Speichern fehlgeschlagen: ${e.message}` });
         }
         break;
-      case 'zoom-connect':
-        try {
-          await zoomApi.connect(msg.input);
-          send(ws, { type: 'zoom-result', ok: true, action: 'connect', message: 'Mit Zoom verbunden.' });
-        } catch (e) {
-          send(ws, { type: 'zoom-result', ok: false, action: 'connect', message: e.message });
-        }
-        broadcast('steuerung', { type: 'rtms-status', status: rtmsStatus() });
+      case 'regie-leave':
+        broadcast('regie', { type: 'regie-leave' });
         break;
-      case 'zoom-disconnect':
-        await zoomApi.disconnect();
-        broadcast('steuerung', { type: 'rtms-status', status: rtmsStatus() });
-        break;
-      case 'zoom-auth-url':
-        send(ws, { type: 'zoom-auth-url', url: zoomApi.authorizeUrl() });
-        break;
-      case 'rtms-start':
-      case 'rtms-stop': {
-        const action = msg.type === 'rtms-start' ? 'start' : 'stop';
-        try {
-          const { meetingId } = await zoomApi.setRtms(msg.meeting, action);
-          send(ws, {
-            type: 'zoom-result',
-            ok: true,
-            action,
-            message: action === 'start' ? `Zoom startet den Chat-Datenstrom für Meeting ${meetingId} …` : `Chat-Datenstrom für Meeting ${meetingId} gestoppt.`,
-          });
-        } catch (e) {
-          send(ws, { type: 'zoom-result', ok: false, action, message: e.message });
-        }
-        break;
-      }
       case 'chat-watch':
         startWatch(msg.folder);
         break;
@@ -356,9 +316,46 @@ wss.on('connection', (ws, rolle) => {
   });
   ws.on('close', () => {
     roles.delete(ws);
+    if (role === 'regie' && !hasRole('regie')) {
+      log('Regie-Fenster geschlossen.');
+      setRegie({ state: 'bereit', since: null, error: null });
+    }
     broadcastCounts();
   });
 });
+
+const REGIE_STATES = new Set(['verbindet', 'wartet', 'verbunden', 'fehler', 'bereit']);
+
+function handleRegieMessage(ws, msg) {
+  switch (msg.type) {
+    case 'regie-hello':
+      try {
+        const join = regieJoin(msg.meeting, msg.passcode);
+        send(ws, { type: 'regie-join', join });
+        log(`Regie: tritt Meeting ${join.meetingNumber} als „${REGIE_NAME}“ bei …`);
+        setRegie({ state: 'verbindet', meeting: join.meetingNumber, since: null, error: null });
+      } catch (e) {
+        send(ws, { type: 'regie-error', message: e.message });
+        setRegie({ state: 'fehler', error: e.message });
+      }
+      break;
+    case 'regie-status': {
+      if (!REGIE_STATES.has(msg.state)) return;
+      const error = msg.state === 'fehler' ? String(msg.error ?? 'Unbekannter Fehler').slice(0, 300) : null;
+      if (msg.state !== regie.state || error !== regie.error) {
+        log(`Regie: ${msg.state}${error ? ` – ${error}` : ''}`);
+        setRegie({ state: msg.state, error, since: msg.state === 'verbunden' ? Date.now() : regie.since });
+      }
+      break;
+    }
+    case 'regie-chat':
+      handleRegieChat(msg.data);
+      break;
+    case 'regie-log':
+      log(`Regie: ${String(msg.text ?? '').slice(0, 400)}`);
+      break;
+  }
+}
 
 // ------------------------------------------------- Zoom-Ordner beobachten
 const DEFAULT_FOLDERS = [
@@ -462,35 +459,20 @@ server.listen(PORT, HOST, () => {
   console.log(`  Steuerung:         ${base}/`);
   console.log(`  OBS-Browserquelle: ${base}/ausgabe.html?grafik=programm`);
   console.log('  Weitere Ausgabe-Adressen stehen in der App unter „Audio & Ausgabe“.');
-  const st = rtmsStatus();
+  const st = regieStatus();
   console.log(
-    !st.configured
-      ? `  Zoom-Live-Chat:    noch nicht eingerichtet (fehlt in .env.local: ${st.missing.join(', ')})`
-      : EVENT_CHANNEL === 'websocket'
-        ? '  Zoom-Live-Chat:    eingerichtet, Verbindung per WebSocket (kein Tunnel nötig)'
-        : '  Zoom-Live-Chat:    eingerichtet, Webhook-Pfad /zoom/webhook (über den Tunnel erreichbar machen)',
+    !st.sdkInstalled
+      ? '  Zoom-Live-Chat:    Zoom Meeting SDK fehlt, bitte „npm install“ ausführen'
+      : st.missing.length
+        ? `  Zoom-Live-Chat:    noch nicht eingerichtet (fehlt in .env.local: ${st.missing.join(', ')})`
+        : `  Zoom-Live-Chat:    bereit, Regie-Fenster tritt als „${REGIE_NAME}“ bei`,
   );
   console.log(`  Beenden mit ${process.platform === 'darwin' ? 'ctrl + C' : 'Strg + C'}`);
   console.log('');
-  if (st.configured && EVENT_CHANNEL === 'websocket') {
-    eventSocket = createZoomEventSocket({
-      clientId: ZOOM_CLIENT_ID,
-      clientSecret: ZOOM_CLIENT_SECRET,
-      accountId: ZOOM_ACCOUNT_ID,
-      subscriptionId: ZOOM_WS_SUBSCRIPTION_ID,
-      wsBase: process.env.MB_ZOOM_WS_URL,
-      oauthUrl: process.env.MB_ZOOM_OAUTH_URL,
-      log,
-      onEvent: handleZoomEvent,
-      onStatus: () => broadcast('steuerung', { type: 'rtms-status', status: rtmsStatus() }),
-    });
-  }
 });
 
 const shutdown = () => {
   stopWatch(false);
-  rtms.close();
-  eventSocket?.close();
   wss.clients.forEach((ws) => ws.close());
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 500).unref();

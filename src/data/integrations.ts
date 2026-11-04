@@ -22,30 +22,30 @@ export const INTEGRATIONS: Integration[] = [
     category: 'Konferenzplattform',
     status: 'demo',
     summary:
-      'Der Chat kommt live über Zoom Realtime Media Streams (RTMS), Einrichtung oben. Teilnehmerliste, Handzeichen, Spotlight und Stummschalten sind weiterhin simuliert.',
+      'Der Chat kommt live über ein Regie-Fenster, das dem Meeting über das Zoom Meeting SDK als „MeetingBackstage (Regie)“ beitritt (Einrichtung oben). Teilnehmerliste, Handzeichen, Spotlight und Stummschalten sind weiterhin simuliert.',
     today: [
-      'Live: Chat-Nachrichten aus dem laufenden Meeting über RTMS, sobald die Zoom-App eingerichtet ist.',
+      'Live: Chat-Nachrichten an alle aus dem laufenden Meeting, solange das Regie-Fenster im Meeting ist.',
+      'Notlösung: Chat-Export über „Chat speichern“ und den beobachteten Zoom-Ordner.',
       'Simuliert: Teilnehmende, Handzeichen, Sprecherstatus, Spotlight und „Alle stummschalten“.',
       'Grafiken gehen über die OBS-Adressen hinaus, nicht in Zoom selbst.',
     ],
     requires: [
       {
         label: 'Live-Chat (eingebaut)',
-        text: 'Zoom General App (vom Nutzer verwaltet) mit RTMS, Ereignissen meeting.rtms_started und meeting.rtms_stopped sowie dem Bereich meeting:read:meeting_chat. RTMS muss für das Konto freigeschaltet sein; Zoom vergibt den Zugang auf Anfrage.',
+        text: 'Zoom-App im Marketplace mit eingeschaltetem Meeting SDK; Client-ID und Client-Geheimnis in .env.local. Kostenfrei, ohne Realtime Media Streams.',
       },
       {
-        label: 'Erreichbarkeit',
-        text: 'Zoom meldet den Meeting-Start an eine öffentliche HTTPS-Adresse. Für den eigenen Rechner reicht ein Tunnel, z. B. ngrok mit fester Adresse oder Cloudflare Tunnel.',
+        label: 'Grenzen',
+        text: 'Ohne veröffentlichte und von Zoom geprüfte App tritt die Regie nur Meetings deines eigenen Zoom-Kontos bei. Sie ist für alle sichtbar und belegt einen Teilnehmerplatz.',
       },
       {
         label: 'Steuerung (später)',
-        text: 'Spotlight, „Alle stummschalten“ und Handzeichen mit Uhrzeit bietet eine Zoom App, die direkt in deinem Zoom-Client läuft (Zoom Apps SDK). Ein eigener Bot-Teilnehmer über das Meeting SDK ist laut Zoom nicht vorgesehen.',
+        text: 'Spotlight, „Alle stummschalten“ und Handzeichen mit Uhrzeit wären mit Co-Host-Rechten für die Regie oder über eine Zoom App im Zoom-Client möglich.',
       },
     ],
     questions: [
-      'Ist RTMS für dein Zoom-Konto freigeschaltet?',
-      'Wie werden Teilnehmende über die Auswertung des Chats informiert?',
-      'Sollen später auch Webinare unterstützt werden (eigene Ereignisse webinar.rtms_started)?',
+      'Wie werden Teilnehmende darüber informiert, dass die Regie den Chat auswertet?',
+      'Sollen später auch Meetings anderer Konten unterstützt werden (Zoom-Prüfung der App nötig)?',
     ],
   },
   {

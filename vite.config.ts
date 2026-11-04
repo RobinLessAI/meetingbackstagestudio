@@ -6,6 +6,7 @@ import react from '@vitejs/plugin-react';
 const proxy = {
   '/sync': { target: 'ws://127.0.0.1:4300', ws: true },
   '/api': 'http://127.0.0.1:4300',
+  '/zoom-sdk': 'http://127.0.0.1:4300',
 };
 
 // Relative Pfade, damit der Build auch aus einem Unterordner geöffnet werden kann.

@@ -5,8 +5,7 @@ import { clock } from '../lib/time.ts';
 import { useCommands } from '../state/commands.ts';
 import type { MessageTags } from '../state/derive.ts';
 import { useStore } from '../state/store.tsx';
-import { LiveChatBadge } from './LiveChat.tsx';
-import { MeetingStart } from './MeetingStart.tsx';
+import { LiveChatBadge, RegieStart } from './LiveChat.tsx';
 import { useSync } from '../sync/SyncProvider.tsx';
 import { ROLE_LABEL } from './people.tsx';
 import { DemoTag, Empty, Switch } from './ui.tsx';
@@ -151,9 +150,9 @@ export function ChatPanel() {
           <span className="subtle tabular">{state.chat.length} Nachrichten</span>
         </div>
       </header>
-      {sync.rtms?.account?.connected && sync.rtms.state !== 'verbunden' && (
+      {sync.regie?.configured && sync.regie.state !== 'verbunden' && (
         <div className="chat__start">
-          <MeetingStart compact />
+          <RegieStart compact />
         </div>
       )}
       <div className="chat__filters">
