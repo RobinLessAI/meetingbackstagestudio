@@ -7,7 +7,9 @@ export interface SyncSocket {
   close: () => void;
 }
 
-export function syncUrl(rolle: 'steuerung' | 'ausgabe'): string {
+export type SyncRole = 'steuerung' | 'ausgabe' | 'vorschau';
+
+export function syncUrl(rolle: SyncRole): string {
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
   return `${proto}://${window.location.host}/sync?rolle=${rolle}`;
 }
@@ -18,7 +20,7 @@ export const canUseLocalServer = () =>
   window.location.protocol.startsWith('http');
 
 export function openSyncSocket(
-  rolle: 'steuerung' | 'ausgabe',
+  rolle: SyncRole,
   handlers: {
     onMessage: (msg: any) => void;
     onStatus: (status: SocketStatus) => void;

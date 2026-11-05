@@ -5,7 +5,8 @@ import { LockedBanner, MuteAllBanner, MuteAllDialog, Toasts } from './components
 import { SHORTCUTS, useDeckActions } from './state/deckActions.ts';
 import { useAutoDemo } from './state/simulation.ts';
 import { StoreProvider, useStore } from './state/store.tsx';
-import { SyncProvider } from './sync/SyncProvider.tsx';
+import { SyncProvider, useSync } from './sync/SyncProvider.tsx';
+import type { DeckActionId } from './state/types.ts';
 import { DEFAULT_VIEW, UiProvider, useUi, VIEWS } from './state/ui.tsx';
 import { ObsView } from './views/ObsView.tsx';
 import { AudioView } from './views/AudioView.tsx';
@@ -74,11 +75,32 @@ function useShortcuts() {
   }, []);
 }
 
+/** Aktionen vom Stream Deck (über http://localhost:4300/aktion/…) wie einen Tastendruck ausführen. */
+function useRemoteActions() {
+  const actions = useDeckActions();
+  const { notify } = useStore();
+  const { setActionHandler } = useSync();
+  const latest = useRef(actions);
+  latest.current = actions;
+  useEffect(() => {
+    setActionHandler((id) => {
+      const action = latest.current[id as DeckActionId];
+      if (!action) {
+        notify(`Stream Deck: unbekannte Aktion „${id}“`, 'fehler');
+        return;
+      }
+      action.run();
+    });
+    return () => setActionHandler(null);
+  }, [setActionHandler, notify]);
+}
+
 function Shell() {
   const { view, views, go, showDemo } = useUi();
   const { state } = useStore();
   useAutoDemo();
   useShortcuts();
+  useRemoteActions();
 
   useEffect(() => {
     document.documentElement.dataset.motion = state.settings.motion;

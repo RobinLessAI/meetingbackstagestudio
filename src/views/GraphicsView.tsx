@@ -41,7 +41,7 @@ export function GraphicsView() {
           <span className="eyebrow">Live Grafiken</span>
           <h1 className="view__title">
             {page.label}
-            {page.id !== 'chat' && state.program.graphic === page.id && <span className="tab__live">eingeblendet</span>}
+            {page.id !== 'chat' && state.program.graphic === page.id && <span className="tab__live">im Programm</span>}
           </h1>
           <p className="view__lead">{page.lead}</p>
         </div>

@@ -37,9 +37,14 @@ export function GraphicHeader({
           onClick={() => commands.toggleGraphic(kind)}
           aria-pressed={shown}
           disabled={!!derived.locked}
-          title={derived.locked ?? 'Einblenden in der Vorschau und in der OBS-Ausgabe „Programm“'}
+          title={
+            derived.locked ??
+            (shown
+              ? 'Läuft in der OBS-Quelle „Programm“. Klicken nimmt die Grafik wieder heraus.'
+              : 'Zeigt diese Grafik in der OBS-Quelle „Programm“ (ersetzt eine andere eingeblendete Grafik).')
+          }
         >
-          {shown ? 'Eingeblendet' : 'Einblenden'}
+          {shown ? 'Im Programm' : 'Ins Programm'}
         </Button>
         <Button icon={Maximize2} onClick={() => setPresentation(kind)}>
           Präsentation

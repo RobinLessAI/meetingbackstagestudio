@@ -8,6 +8,7 @@
 //   als zusätzlicher Teilnehmer beitritt und den Chat live weitergibt
 //
 // Start: npm start (baut die App und startet den Server)
+import crypto from 'node:crypto';
 import http from 'node:http';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
@@ -96,6 +97,43 @@ async function writeSave(state) {
   return payload.savedAt;
 }
 
+// ------------------------------------------- Aktionen für Stream Deck & Co.
+// Ein Stream Deck (oder jedes andere Gerät auf diesem Rechner) ruft z. B.
+// http://localhost:4300/aktion/karte-anzeigen?schluessel=… auf. Der Schlüssel
+// verhindert, dass beliebige Webseiten im Browser Aktionen auslösen.
+const ACTION_KEY_FILE = path.join(DATA_DIR, 'aktion-schluessel.txt');
+const ACTION_KEY = (() => {
+  try {
+    const k = fs.readFileSync(ACTION_KEY_FILE, 'utf8').trim();
+    if (/^[a-f0-9]{8,}$/.test(k)) return k;
+  } catch {
+    /* neu erzeugen */
+  }
+  const k = crypto.randomBytes(5).toString('hex');
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(ACTION_KEY_FILE, k, { mode: 0o600 });
+  } catch {
+    /* dann nur für diesen Start gültig */
+  }
+  return k;
+})();
+
+function handleAction(req, res, id) {
+  const url = new URL(req.url ?? '/', 'http://localhost');
+  const json = (status, body) => {
+    res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify(body));
+  };
+  if (url.searchParams.get('schluessel') !== ACTION_KEY) return json(403, { ok: false, fehler: 'Schlüssel fehlt oder ist falsch.' });
+  if (!/^[a-z0-9-]{2,40}$/.test(id)) return json(400, { ok: false, fehler: 'Unbekannte Aktion.' });
+  // Nur an eine Steuerung schicken (die zuletzt geöffnete), sonst würde doppelt umgeschaltet.
+  const target = [...roles.entries()].filter(([, r]) => r === 'steuerung').map(([ws]) => ws).pop();
+  if (!target) return json(409, { ok: false, fehler: 'Die Steuerung ist nicht geöffnet. Bitte http://localhost:' + PORT + ' im Browser öffnen.' });
+  send(target, { type: 'aktion', id });
+  json(200, { ok: true, aktion: id });
+}
+
 // ----------------------------------------------- Live-Chat über das Regie-Fenster
 const liveChat = []; // zuletzt empfangene Nachrichten, damit eine neu geladene Steuerung nichts verpasst
 const liveKeys = new Set();
@@ -179,6 +217,10 @@ const server = http.createServer((req, res) => {
     res.writeHead(404).end();
     return;
   }
+  if (url.pathname.startsWith('/aktion/') && (req.method === 'GET' || req.method === 'POST')) {
+    handleAction(req, res, decodeURIComponent(url.pathname.slice('/aktion/'.length)));
+    return;
+  }
   if (url.pathname === '/api/status') {
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(JSON.stringify({ ok: true, ...counts(), savedAt: saved?.savedAt ?? null, regie: regieStatus() }));
@@ -243,7 +285,8 @@ const hasRole = (role) => [...roles.values()].includes(role);
 
 const send = (ws, msg) => ws.readyState === ws.OPEN && ws.send(JSON.stringify(msg));
 const broadcast = (role, msg) => {
-  for (const [ws, r] of roles) if (r === role) send(ws, msg);
+  // Vorschau-Fenster in der App erhalten dasselbe wie OBS-Ausgaben, zählen aber nicht mit.
+  for (const [ws, r] of roles) if (r === role || (role === 'ausgabe' && r === 'vorschau')) send(ws, msg);
 };
 const broadcastCounts = () => broadcast('steuerung', { type: 'clients', ...counts() });
 
@@ -268,12 +311,12 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 wss.on('connection', (ws, rolle) => {
-  const role = rolle === 'ausgabe' || rolle === 'regie' ? rolle : 'steuerung';
+  const role = rolle === 'ausgabe' || rolle === 'regie' || rolle === 'vorschau' ? rolle : 'steuerung';
   roles.set(ws, role);
-  if (role === 'ausgabe') {
+  if (role === 'ausgabe' || role === 'vorschau') {
     if (lastSnapshot) send(ws, { type: 'snapshot', snapshot: lastSnapshot });
   } else if (role === 'steuerung') {
-    send(ws, { type: 'hello', saved, ...counts(), watch: watchStatus(), regie: regieStatus() });
+    send(ws, { type: 'hello', saved, ...counts(), watch: watchStatus(), regie: regieStatus(), aktionSchluessel: ACTION_KEY });
     if (liveChat.length) send(ws, { type: 'live-chat', messages: liveChat });
   }
   broadcastCounts();

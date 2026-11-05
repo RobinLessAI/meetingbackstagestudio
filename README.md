@@ -51,6 +51,12 @@ Der Server ist nur auf diesem Rechner erreichbar. Eine eigene Veranstaltung („
 
 Weitere Optionen: `stil=einblendung|vollbild`, `hintergrund=transparent|dunkel`, `sichtbar=programm` (nur zeigen, wenn eingeblendet), `debug=1` (Verbindungsstatus anzeigen). In der Steuerung blendet „Einblenden“ eine Grafik in der Ausgabe „Programm“ ein.
 
+## Programm und Stream Deck
+
+Am einfachsten ist eine einzige OBS-Browserquelle **„Programm“** (`ausgabe.html?grafik=programm`) über dem Zoom-Bild. Sie ist durchsichtig, bis du in der App bei einer Grafik auf **„Ins Programm“** klickst; eine andere Grafik ersetzt die laufende, „Im Programm“ oder „Ausblenden“ nimmt sie heraus. Die kleine Vorschau links unten (und groß unter „OBS-Ausgabe“) zeigt genau, was die Quelle gerade zeigt.
+
+Stream Deck: Aktion „Website“ mit „GET-Anfrage im Hintergrund“ und einer Adresse wie `http://localhost:4300/aktion/karte-anzeigen?schluessel=…`. Alle Adressen mit deinem Schlüssel stehen in der App unter „OBS-Ausgabe → Fernsteuerung“ (der Schlüssel liegt in `daten/aktion-schluessel.txt`). Tastenkürzel: K Weltkarte, U Umfrage, W Wortwolke, H Chat-Highlight, X ausblenden (nur wenn das App-Fenster vorne ist). Spotlight und Stummschalten haben bereits Adressen (`naechste-hand`, `spotlight-leeren`, `alle-stumm`), wirken aber erst mit der Zoom-Steuerung in einem späteren Schritt.
+
 ## Live-Chat aus Zoom einrichten (einmalig)
 
 Der Chat kommt über ein **Regie-Fenster**: MeetingBackstage öffnet ein Browserfenster mit dem **Zoom Meeting SDK**, das deinem Meeting als sichtbarer Teilnehmer **„MeetingBackstage (Regie)“** beitritt, ohne Kamera und Mikrofon. Jede Chat-Nachricht an alle geht sofort an die App. Das ist kostenfrei; Realtime Media Streams (RTMS) werden nicht verwendet.

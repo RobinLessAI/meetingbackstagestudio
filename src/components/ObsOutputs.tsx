@@ -6,11 +6,16 @@ import { copyText } from './LiveChat.tsx';
 import { Badge, Button, DemoTag, IconButton, Panel } from './ui.tsx';
 
 export const OBS_OUTPUTS: Array<{ id: string; label: string; desc: string; params: Record<string, string> }> = [
-  { id: 'programm', label: 'Programm', desc: 'Zeigt die gerade eingeblendete Grafik als Einblendung, sonst nichts. Für die Hauptszene über dem Zoom-Bild.', params: { grafik: 'programm' } },
-  { id: 'karte', label: 'Weltkarte', desc: 'Vollbild, immer sichtbar.', params: { grafik: 'karte' } },
-  { id: 'umfrage', label: 'Umfrage', desc: 'Vollbild, immer sichtbar.', params: { grafik: 'umfrage' } },
-  { id: 'wortwolke', label: 'Wortwolke', desc: 'Vollbild, immer sichtbar.', params: { grafik: 'wortwolke' } },
-  { id: 'highlight', label: 'Chat-Highlight', desc: 'Bauchbinde unten links, transparent.', params: { grafik: 'highlight', stil: 'einblendung' } },
+  {
+    id: 'programm',
+    label: 'Programm (empfohlen)',
+    desc: 'Eine Quelle für alles: zeigt nur, was du in der App „Ins Programm“ schickst, sonst ist sie leer.',
+    params: { grafik: 'programm' },
+  },
+  { id: 'karte', label: 'Weltkarte', desc: 'Immer sichtbar, Vollbild. Ein- und ausblenden über OBS-Szenen.', params: { grafik: 'karte' } },
+  { id: 'umfrage', label: 'Umfrage', desc: 'Immer sichtbar, Vollbild. Ein- und ausblenden über OBS-Szenen.', params: { grafik: 'umfrage' } },
+  { id: 'wortwolke', label: 'Wortwolke', desc: 'Immer sichtbar, Vollbild. Ein- und ausblenden über OBS-Szenen.', params: { grafik: 'wortwolke' } },
+  { id: 'highlight', label: 'Chat-Highlight', desc: 'Immer sichtbar, als Bauchbinde. Ein- und ausblenden über OBS-Szenen.', params: { grafik: 'highlight', stil: 'einblendung' } },
 ];
 
 /** OBS-Adresse für eine bestimmte Grafik (Vollbild). */

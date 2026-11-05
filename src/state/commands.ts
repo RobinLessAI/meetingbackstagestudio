@@ -204,7 +204,7 @@ export function useCommands() {
         const state = s();
         if (state.program.graphic === graphic) {
           dispatch({ type: 'program/graphic', graphic: null });
-          notify(`${GRAPHIC_LABEL[graphic]} ausgeblendet`, 'info');
+          notify(`${GRAPHIC_LABEL[graphic]} aus dem Programm genommen`, 'info');
           return;
         }
         if (graphic === 'highlight' && !state.highlightId) {
@@ -212,7 +212,7 @@ export function useCommands() {
           return;
         }
         dispatch({ type: 'program/graphic', graphic });
-        notify(`${GRAPHIC_LABEL[graphic]} in der Vorschau eingeblendet`, 'erfolg');
+        notify(`${GRAPHIC_LABEL[graphic]} ist im Programm`, 'erfolg');
       },
 
       hideGraphic: () => {

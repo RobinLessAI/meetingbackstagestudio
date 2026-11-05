@@ -26,6 +26,7 @@ import { useSync } from '../sync/SyncProvider.tsx';
 import { GRAPHIC_PAGES } from '../views/graphics/pages.ts';
 import { useGraphicCounts } from '../views/graphics/counts.ts';
 import { regieLabel } from './LiveChat.tsx';
+import { ProgramMonitor } from './ProgramMonitor.tsx';
 import { DemoTag, Dialog, Kbd, Switch } from './ui.tsx';
 
 const ICONS: Record<ViewId, LucideIcon> = {
@@ -137,7 +138,7 @@ export function Sidebar() {
                           <span>{p.label}</span>
                           <span className="nav__end">
                             {p.id !== 'chat' && state.program.graphic === p.id && (
-                              <span className="nav__live" title="Eingeblendet" aria-label="eingeblendet" />
+                              <span className="nav__live" title="Im Programm" aria-label="im Programm" />
                             )}
                             {n ? (
                               <span className="nav__count nav__count--warn" aria-label={`${n} zur Prüfung`}>
@@ -155,6 +156,9 @@ export function Sidebar() {
           );
         })}
       </ul>
+      <div className="sidebar__program">
+        <ProgramMonitor compact />
+      </div>
       {showDemo && (
         <div className="sidebar__foot">
           <DemoTag>Demo-Bereiche sichtbar</DemoTag>
@@ -224,7 +228,7 @@ export function TopBar() {
         <button type="button" className="topbar__chip topbar__chip--accent" onClick={() => go('grafiken', { graphicTab: state.program.graphic! })}>
           <Sparkles size={14} aria-hidden />
           <span className="topbar__chip-value">{GRAPHIC_LABEL[state.program.graphic]}</span>
-          <span className="topbar__chip-label">eingeblendet</span>
+          <span className="topbar__chip-label">im Programm</span>
         </button>
       )}
 

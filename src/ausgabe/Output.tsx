@@ -71,7 +71,8 @@ export function Output({ options }: { options: OutputOptions }) {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    const socket = openSyncSocket('ausgabe', {
+    // Die Programm-Vorschau in der App zählt nicht als OBS-Quelle.
+    const socket = openSyncSocket(new URLSearchParams(window.location.search).get('vorschau') === '1' ? 'vorschau' : 'ausgabe', {
       onStatus: setStatus,
       onMessage: (msg) => {
         if (msg.type === 'snapshot' && msg.snapshot?.v === 1) setSnapshot(msg.snapshot);

@@ -302,3 +302,40 @@ button.topbar__chip:hover { background: var(--hover); color: var(--text); }
   .nav__chevron { display: none; }
   .graphics-tabs { display: flex; }
 }
+
+/* ------------------------------------------------ Programm-Vorschau */
+.sidebar__program { margin-top: auto; }
+.program-monitor { display: flex; flex-direction: column; gap: 8px; }
+.program-monitor__head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.program-monitor__tally { width: 9px; height: 9px; border-radius: 50%; background: var(--line-strong); flex: none; }
+.program-monitor__tally.is-on { background: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+.program-monitor__title { font-family: var(--font-cond); font-weight: 600; font-size: var(--fs-sm); letter-spacing: 0.06em; text-transform: uppercase; }
+.program-monitor__state { color: var(--text-2); font-size: var(--fs-sm); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.program-monitor__link { margin-left: auto; display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: var(--r-sm); background: none; color: var(--text-3); cursor: pointer; }
+.program-monitor__link:hover { background: var(--hover); color: var(--text); }
+.program-monitor__link:focus-visible { outline: none; box-shadow: var(--focus); }
+.program-monitor__screen {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  max-width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  /* Schachbrett zeigt, dass die Ausgabe durchsichtig ist */
+  background: repeating-conic-gradient(#15181c 0% 25%, #101215 0% 50%) 50% / 16px 16px;
+}
+.program-monitor__screen iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; color-scheme: normal; }
+.program-monitor__local { position: absolute; inset: 0; border: 0; border-radius: 0; background: transparent; padding: 0; }
+.program-monitor--compact .program-monitor__screen { border-radius: 3px; }
+.program-monitor__off { align-self: flex-start; }
+.program-intro { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.program-steps { margin: 0 0 12px; padding-left: 1.2em; display: flex; flex-direction: column; gap: 8px; color: var(--text-2); }
+.program-steps strong { color: var(--text); }
+.remote-table__group th { padding-top: 14px; font-family: var(--font-cond); font-size: var(--fs-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
+.remote__key { width: 1%; white-space: nowrap; }
+@media (max-width: 1180px) {
+  .sidebar__program { display: none; }
+}
+@media (max-width: 900px) {
+  .program-intro { grid-template-columns: minmax(0, 1fr); }
+}

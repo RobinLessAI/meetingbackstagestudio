@@ -48,6 +48,10 @@ interface SyncValue {
   openRegie: (meeting: string, passcode: string) => boolean;
   /** Lässt das Regie-Fenster das Meeting verlassen. */
   leaveRegie: () => void;
+  /** Schlüssel für Aktions-Adressen (Stream Deck), null ohne Server. */
+  actionKey: string | null;
+  /** Empfänger für Aktionen, die über den Server ankommen (Stream Deck). */
+  setActionHandler: (handler: ((id: string) => void) | null) => void;
 }
 
 const SyncCtx = createContext<SyncValue | null>(null);
@@ -62,6 +66,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [watch, setWatch] = useState<WatchStatus>({ active: false, folder: null, file: null, error: null });
   const [lastImport, setLastImport] = useState<SyncValue['lastImport']>(null);
   const [regie, setRegie] = useState<RegieStatus | null>(null);
+  const [actionKey, setActionKey] = useState<string | null>(null);
+  const actionHandler = useRef<((id: string) => void) | null>(null);
   const socket = useRef<SyncSocket | null>(null);
   const regieRef = useRef<RegieStatus | null>(null);
   regieRef.current = regie;
@@ -78,6 +84,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         setSavedAt(msg.saved?.savedAt ?? null);
         if (msg.watch) setWatch(msg.watch);
         if (msg.regie) setRegie(msg.regie);
+        if (msg.aktionSchluessel) setActionKey(msg.aktionSchluessel);
         const saved = msg.saved?.state as Partial<AppState> | undefined;
         // Eine eigene Veranstaltung nach Neuladen oder Absturz automatisch wiederherstellen.
         const untouched = stateRef.current === initialState.current || stateRef.current.dataMode === 'demo';
@@ -114,6 +121,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         if (messages.length) dispatch({ type: 'chat/import', messages });
         break;
       }
+      case 'aktion':
+        actionHandler.current?.(String(msg.id ?? ''));
+        break;
       case 'clients':
         setOutputs(msg.ausgaben ?? 0);
         break;
@@ -184,6 +194,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     const win = window.open(`/regie.html?${q.toString()}`, 'mb-regie', 'width=1180,height=780');
     return Boolean(win);
   }, []);
+  const setActionHandler = useCallback((handler: ((id: string) => void) | null) => {
+    actionHandler.current = handler;
+  }, []);
   const leaveRegie = useCallback(() => {
     socket.current?.send({ type: 'regie-leave' });
   }, []);
@@ -202,8 +215,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       stopWatch,
       openRegie,
       leaveRegie,
+      actionKey,
+      setActionHandler,
     }),
-    [regie, available, status, outputs, savedAt, watch, lastImport, startWatch, stopWatch, openRegie, leaveRegie],
+    [regie, available, status, outputs, savedAt, watch, lastImport, startWatch, stopWatch, openRegie, leaveRegie, actionKey, setActionHandler],
   );
   return <SyncCtx.Provider value={value}>{children}</SyncCtx.Provider>;
 }
