@@ -101,11 +101,25 @@
       isShowJoiningErrorDialog: false,
       theme: 'dark',
       success: function () {
+        // Für die Fehlersuche: SDK-Version und Browser ins Terminal schreiben.
+        try {
+          send({ type: 'regie-log', text: `Zoom Web SDK ${Z.getWebSDKVersion ? JSON.stringify(Z.getWebSDKVersion()) : '?'} · ${navigator.userAgent}` });
+        } catch (e) {
+          /* nur Hinweis */
+        }
         if (!sdkReady) {
           sdkReady = true;
           Z.inMeetingServiceListener('onReceiveChatMsg', function (data) {
             send({ type: 'regie-chat', data: safeData(data) });
           });
+          // Eigene gesendete Nachrichten und Chat-Fehler ebenfalls protokollieren (Fehlersuche Verschlüsselung).
+          try {
+            Z.inMeetingServiceListener('onChatMsgSent', function (data) {
+              send({ type: 'regie-log', text: `Chat gesendet: ${JSON.stringify(safeData(data)).slice(0, 300)}` });
+            });
+          } catch (e) {
+            /* Ereignis gibt es nicht in jeder Version */
+          }
           Z.inMeetingServiceListener('onUserIsInWaitingRoom', function () {
             status('wartet');
           });
