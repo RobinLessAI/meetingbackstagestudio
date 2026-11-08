@@ -11,10 +11,8 @@ import { GraphicHeader } from './shared.tsx';
 export function HighlightTab() {
   const { state, derived, dispatch, notify } = useStore();
   const message = state.chat.find((m) => m.id === state.highlightId) ?? null;
-  const candidates = state.chat
-    .filter((m) => !derived.tags[m.id]?.team && m.text.trim().split(/\s+/).length >= 3)
-    .slice(-10)
-    .reverse();
+  // Alle Chat-Nachrichten, neueste zuerst (auch kurze wie „TEST“ und Team-Beiträge).
+  const candidates = state.chat.filter((m) => m.text.trim()).slice(-200).reverse();
 
   return (
     <div className="graphic">
@@ -43,9 +41,9 @@ export function HighlightTab() {
           </Panel>
           <HighlightStyleEditor />
         </div>
-        <Panel eyebrow="Schnellauswahl" title="Letzte Beiträge mit Inhalt" flush>
+        <Panel eyebrow="Auswahl · neueste zuerst" title={`Alle Chat-Nachrichten (${candidates.length})`} flush>
           {candidates.length === 0 ? (
-            <Empty icon={MessageSquareQuote} title="Keine passenden Beiträge" compact />
+            <Empty icon={MessageSquareQuote} title="Noch keine Chat-Nachrichten" compact />
           ) : (
             <ul className="pick-list">
               {candidates.map((m) => (
@@ -61,6 +59,7 @@ export function HighlightTab() {
                   >
                     <span className="pick-list__who">
                       {m.senderName} <span className="subtle tabular">{clock(m.at, false)}</span>
+                      {derived.tags[m.id]?.team && <span className="subtle"> · Team</span>}
                     </span>
                     <span className="pick-list__text">{m.text}</span>
                   </button>
