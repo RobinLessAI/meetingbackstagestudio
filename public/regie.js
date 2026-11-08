@@ -43,6 +43,7 @@
       3004: 'Falscher Kenncode. Trage den Kenncode des Meetings in MeetingBackstage ein und öffne die Regie erneut.',
       3008: 'Das Meeting hat noch nicht begonnen. Starte zuerst das Meeting als Host.',
       3001: 'Meeting nicht gefunden. Prüfe Link oder Meeting-ID.',
+      3707: 'Zoom findet diese Meeting-ID nicht. Kopiere den Link des laufenden Meetings neu (in Zoom: Info-Symbol oben links → Link kopieren) und ersetze damit den alten Eintrag. Gehört das Meeting zu einem anderen Zoom-Konto als die Zoom-App im Marketplace, lehnt Zoom den Beitritt ebenfalls so ab.',
       3000: 'Zoom hat den Beitritt abgelehnt.',
       63: 'Die Zoom-App darf nur Meetings deines eigenen Zoom-Kontos betreten. Ist das Meeting von deinem Konto?',
     };
