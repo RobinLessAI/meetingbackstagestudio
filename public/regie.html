@@ -57,6 +57,11 @@
         font: inherit;
         cursor: pointer;
       }
+      .mb-regie__version {
+        margin: 16px 0 0;
+        color: #8a949f;
+        font: 12px/1.4 ui-monospace, Menlo, monospace;
+      }
       .mb-regie[hidden] {
         display: none;
       }
@@ -78,16 +83,11 @@
           ankommen soll.
         </p>
         <button type="button" id="mb-retry" hidden>Erneut versuchen</button>
+        <p class="mb-regie__version" id="mb-version">Version wird geladen …</p>
       </div>
     </main>
 
-    <script src="/zoom-sdk/lib/vendor/react.min.js"></script>
-    <script src="/zoom-sdk/lib/vendor/react-dom.min.js"></script>
-    <script src="/zoom-sdk/lib/vendor/redux.min.js"></script>
-    <script src="/zoom-sdk/lib/vendor/redux-thunk.min.js"></script>
-    <script src="/zoom-sdk/lib/vendor/react-redux.min.js"></script>
-    <script src="/zoom-sdk/lib/vendor/lodash.min.js"></script>
-    <script src="/zoom-sdk/zoom-meeting.min.js"></script>
-    <script src="./regie.js"></script>
+    <!-- Das Zoom SDK lädt regie.js passend zur installierten Version (/zoom-sdk/<version>/…). -->
+    <script src="./regie.js?stand=4"></script>
   </body>
 </html>

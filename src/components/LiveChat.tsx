@@ -197,6 +197,12 @@ export function ZoomLiveChatSetup() {
             <pre>{ENV_TEMPLATE}</pre>
             <p className="field-hint">Die Werte stehen in deiner Zoom-App im Marketplace. Nicht in Chats oder E-Mails weitergeben.</p>
           </div>
+          {regie?.appVersion && (
+            <p className="subtle mono version-line">
+              Version {regie.appVersion}
+              {regie.sdkVersion ? ` · Zoom SDK ${regie.sdkVersion}` : ''}
+            </p>
+          )}
         </div>
         <div className="stack">
           <h3 className="eyebrow">Regie für ein Meeting</h3>

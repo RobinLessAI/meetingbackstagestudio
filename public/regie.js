@@ -4,6 +4,8 @@
 (function () {
   'use strict';
 
+  /** Stand dieses Fensters; muss mit REGIE_STAND in server/server.mjs übereinstimmen. */
+  const REGIE_STAND = 4;
   const params = new URLSearchParams(window.location.search);
   const ui = {
     box: document.getElementById('mb-regie'),
@@ -23,6 +25,14 @@
     ui.error.hidden = !error;
     ui.error.textContent = error || '';
     ui.retry.hidden = !error;
+  }
+
+  /** Version unten im Fenster und im Fenstertitel anzeigen. */
+  function showVersion(v) {
+    const text = `MeetingBackstage ${v.app} · Zoom SDK ${v.sdk || '?'} · Regie-Fenster Stand ${REGIE_STAND}`;
+    const el = document.getElementById('mb-version');
+    if (el) el.textContent = text;
+    document.title = `MeetingBackstage Regie · SDK ${v.sdk || '?'}`;
   }
 
   function send(msg) {
@@ -61,6 +71,37 @@
     }
   }
 
+  /** Zoom SDK und seine React-/Redux-Dateien aus /zoom-sdk/<version>/ nacheinander laden. */
+  function loadSdk(version) {
+    if (window.ZoomMtg) return Promise.resolve();
+    const base = `/zoom-sdk/${version}`;
+    const files = [
+      'lib/vendor/react.min.js',
+      'lib/vendor/react-dom.min.js',
+      'lib/vendor/redux.min.js',
+      'lib/vendor/redux-thunk.min.js',
+      'lib/vendor/react-redux.min.js',
+      'lib/vendor/lodash.min.js',
+      'zoom-meeting.min.js',
+    ];
+    return files.reduce(
+      (chain, file) =>
+        chain.then(
+          () =>
+            new Promise((resolve, reject) => {
+              const s = document.createElement('script');
+              s.src = `${base}/${file}`;
+              s.onload = () => resolve();
+              s.onerror = () => reject(new Error(`${file} nicht gefunden`));
+              document.body.appendChild(s);
+            }),
+        ),
+      Promise.resolve(),
+    );
+  }
+
+  let sdkVersion = '';
+
   function initSdk(join) {
     const Z = window.ZoomMtg;
     if (!Z) {
@@ -70,7 +111,7 @@
     }
     show('Verbinde mit dem Meeting …');
     try {
-      Z.setZoomJSLib(window.location.origin + '/zoom-sdk/lib', '/av');
+      Z.setZoomJSLib(`${window.location.origin}/zoom-sdk/${sdkVersion}/lib`, '/av');
       if (!sdkReady) {
         Z.preLoadWasm();
         Z.prepareWebSDK();
@@ -184,7 +225,24 @@
       } catch (err) {
         return;
       }
-      if (msg.type === 'regie-join') initSdk(msg.join);
+      if (msg.version) showVersion(msg.version);
+      if (msg.version && msg.version.regieStand !== REGIE_STAND) {
+        show(
+          'Veraltete Version im Browser-Zwischenspeicher.',
+          'Bitte dieses Fenster mit cmd + shift + R neu laden (Windows: Strg + Umschalt + R). Danach „Regie beitreten“ erneut klicken.',
+        );
+        return;
+      }
+      if (msg.type === 'regie-join') {
+        sdkVersion = (msg.version && msg.version.sdk) || '';
+        show('Lade Zoom …');
+        loadSdk(sdkVersion)
+          .then(() => initSdk(msg.join))
+          .catch((e) => {
+            show('Zoom konnte nicht geladen werden.', `${e.message}. Bitte im Terminal „npm install“ ausführen und den Server neu starten.`);
+            status('fehler', `Zoom Meeting SDK konnte nicht geladen werden (${e.message}).`);
+          });
+      }
       else if (msg.type === 'regie-error') show('Beitritt nicht möglich.', msg.message);
       else if (msg.type === 'regie-leave' && window.ZoomMtg) {
         window.ZoomMtg.leaveMeeting({});

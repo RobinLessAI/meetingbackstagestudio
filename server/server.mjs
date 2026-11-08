@@ -48,6 +48,35 @@ const SDK_MAIN = (() => {
   }
 })();
 const REGIE_NAME = 'MeetingBackstage (Regie)';
+/** Stand des Regie-Fensters; muss mit REGIE_STAND in public/regie.js übereinstimmen. */
+const REGIE_STAND = 4;
+const SDK_VERSION = SDK_MAIN?.match(/zoom-meeting-([\d.]+)\.min\.js/)?.[1] ?? null;
+/** Programmversion und Git-Stand (z. B. „0.1.0 · 6489819“), damit Updates erkennbar sind. */
+const APP_VERSION = (() => {
+  let version = '';
+  try {
+    version = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version ?? '';
+  } catch {
+    /* ohne Versionsnummer */
+  }
+  try {
+    const head = fs.readFileSync(path.join(ROOT, '.git', 'HEAD'), 'utf8').trim();
+    const ref = head.startsWith('ref: ') ? head.slice(5) : null;
+    let hash = ref ? '' : head;
+    if (ref) {
+      try {
+        hash = fs.readFileSync(path.join(ROOT, '.git', ref), 'utf8').trim();
+      } catch {
+        const packed = fs.readFileSync(path.join(ROOT, '.git', 'packed-refs'), 'utf8');
+        hash = packed.split('\n').find((l) => l.endsWith(` ${ref}`))?.split(' ')[0] ?? '';
+      }
+    }
+    if (hash) version += ` · ${hash.slice(0, 7)}`;
+  } catch {
+    /* kein Git-Ordner */
+  }
+  return version || 'unbekannt';
+})();
 
 const PORT = Number(process.env.PORT ?? 4300);
 const HOST = '127.0.0.1';
@@ -145,6 +174,8 @@ function regieStatus() {
   return {
     ...regie,
     name: REGIE_NAME,
+    appVersion: APP_VERSION,
+    sdkVersion: SDK_VERSION,
     configured: Boolean(ZOOM_CLIENT_ID && ZOOM_CLIENT_SECRET && SDK_MAIN),
     sdkInstalled: Boolean(SDK_MAIN),
     missing: [!ZOOM_CLIENT_ID && 'ZOOM_CLIENT_ID', !ZOOM_CLIENT_SECRET && 'ZOOM_CLIENT_SECRET'].filter(Boolean),
@@ -249,6 +280,8 @@ const server = http.createServer((req, res) => {
   // Zoom Meeting SDK aus node_modules (zoom-meeting.min.js zeigt auf die installierte Version).
   if (url.pathname.startsWith('/zoom-sdk/')) {
     let rel = decodeURIComponent(url.pathname.slice('/zoom-sdk/'.length));
+    // /zoom-sdk/<version>/… : Versionsnummer im Pfad, damit nach einem Update nichts Altes aus dem Browser-Cache kommt.
+    if (SDK_VERSION && rel.startsWith(`${SDK_VERSION}/`)) rel = rel.slice(SDK_VERSION.length + 1);
     if (rel === 'zoom-meeting.min.js' && SDK_MAIN) rel = SDK_MAIN;
     const file = path.normalize(path.join(SDK_DIST, rel));
     if (!file.startsWith(SDK_DIST + path.sep)) {
@@ -390,11 +423,11 @@ function handleRegieMessage(ws, msg) {
     case 'regie-hello':
       try {
         const join = regieJoin(msg.meeting, msg.passcode);
-        send(ws, { type: 'regie-join', join });
+        send(ws, { type: 'regie-join', join, version: { app: APP_VERSION, sdk: SDK_VERSION, regieStand: REGIE_STAND } });
         log(`Regie: tritt Meeting ${join.meetingNumber} als „${REGIE_NAME}“ bei …`);
         setRegie({ state: 'verbindet', meeting: join.meetingNumber, since: null, error: null });
       } catch (e) {
-        send(ws, { type: 'regie-error', message: e.message });
+        send(ws, { type: 'regie-error', message: e.message, version: { app: APP_VERSION, sdk: SDK_VERSION, regieStand: REGIE_STAND } });
         setRegie({ state: 'fehler', error: e.message });
       }
       break;
@@ -515,6 +548,7 @@ server.listen(PORT, HOST, () => {
   const base = `http://localhost:${PORT}`;
   console.log('');
   console.log('  MeetingBackstage Studio läuft');
+  console.log(`  Version:           ${APP_VERSION}${SDK_VERSION ? ` · Zoom SDK ${SDK_VERSION}` : ''}`);
   console.log(`  Steuerung:         ${base}/`);
   console.log(`  OBS-Browserquelle: ${base}/ausgabe.html?grafik=programm`);
   console.log('  Weitere Ausgabe-Adressen stehen in der App unter „OBS-Ausgabe“.');

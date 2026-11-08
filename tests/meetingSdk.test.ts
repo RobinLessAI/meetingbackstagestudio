@@ -117,7 +117,10 @@ test('Server liefert das Zoom SDK aus und meldet die Regie als eingerichtet', as
   const js = await fetch(`http://127.0.0.1:${PORT}/zoom-sdk/zoom-meeting.min.js`);
   assert.equal(js.status, 200);
   assert.equal(await js.text(), 'window.ZoomMtg={};');
-  const wasm = await fetch(`http://127.0.0.1:${PORT}/zoom-sdk/lib/av/test.wasm`);
+  assert.equal(status.regie.sdkVersion, '9.9.9');
+  assert.match(status.regie.appVersion, /^0\.1\.0/);
+  assert.equal(await (await fetch(`http://127.0.0.1:${PORT}/zoom-sdk/9.9.9/zoom-meeting.min.js`)).text(), 'window.ZoomMtg={};');
+  const wasm = await fetch(`http://127.0.0.1:${PORT}/zoom-sdk/9.9.9/lib/av/test.wasm`);
   assert.equal(wasm.headers.get('content-type'), 'application/wasm');
   assert.equal((await fetch(`http://127.0.0.1:${PORT}/zoom-sdk/..%2F.env.local`)).status, 403);
 });

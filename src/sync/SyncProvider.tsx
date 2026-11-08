@@ -28,6 +28,9 @@ export interface RegieStatus {
   messages: number;
   error: string | null;
   name: string;
+  /** Programmversion mit Git-Stand und installierte Zoom-SDK-Version. */
+  appVersion?: string;
+  sdkVersion?: string | null;
 }
 
 interface SyncValue {
