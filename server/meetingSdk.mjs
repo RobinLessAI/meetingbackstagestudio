@@ -36,28 +36,44 @@ export function meetingSignature({ clientId, clientSecret, meetingNumber, role =
 }
 
 const firstString = (...values) => values.find((v) => typeof v === 'string' && v.trim() !== '');
-const EVERYONE = /^(everyone|alle|jeder|all)$/i;
+const EVERYONE = /^(everyone|alle|an alle|jeder|all|hallo allerseits!?)$/i;
 
 /**
- * Chat-Nachricht aus dem SDK-Ereignis onReceiveChatMsg lesen. Zoom dokumentiert das
- * Format nicht verbindlich, daher werden die bekannten Varianten akzeptiert.
- * Gibt null zurück, wenn kein Text erkennbar ist. private = an einzelne Person gerichtet.
+ * Chat-Nachricht aus dem SDK-Ereignis onReceiveChatMsg lesen.
+ *
+ * Zoom Web SDK 6.x liefert (ggf. eingepackt in { data: … }):
+ *   { sender, senderId, timestamp, receiver, receiverId, type: 'text' | 'file',
+ *     content: { text, messageId, chatType, … } }
+ * Ältere Versionen nutzen andere Felder; die werden weiterhin akzeptiert.
+ * Gibt null zurück, wenn kein Text erkennbar ist (z. B. Dateien). private = an einzelne Person gerichtet.
  */
-export function normalizeSdkChat(data, now = Date.now()) {
-  if (!data || typeof data !== 'object') return null;
-  const c = data.content && typeof data.content === 'object' ? data.content : data.data && typeof data.data === 'object' ? data.data : data;
-  const text = firstString(c.message, c.text, typeof c.content === 'string' ? c.content : undefined, c.msg, data.message, data.text);
+export function normalizeSdkChat(raw, now = Date.now()) {
+  if (!raw || typeof raw !== 'object') return null;
+  // Einpackung { data: {...} } entfernen
+  const data =
+    raw.data && typeof raw.data === 'object' && (raw.data.content || raw.data.sender || raw.data.text || raw.data.message) ? raw.data : raw;
+  if (data.type === 'file') return null;
+  const content = data.content && typeof data.content === 'object' ? data.content : {};
+  const text = firstString(content.text, content.message, typeof data.content === 'string' ? data.content : undefined, data.text, data.message, data.msg);
   if (!text) return null;
   const senderName =
-    firstString(c.senderName, c.sender?.name, c.sender?.displayName, typeof c.sender === 'string' ? c.sender : undefined, data.senderName) ??
-    'Unbekannt';
-  const receiverName = firstString(c.receiverName, c.receiver?.name, typeof c.receiver === 'string' ? c.receiver : undefined, data.receiverName);
-  const receiverId = c.receiverId ?? c.receiver?.userId ?? data.receiverId;
-  const toEveryone = receiverName ? EVERYONE.test(receiverName.trim()) : receiverId === undefined || receiverId === null || Number(receiverId) === 0;
-  let at = Number(c.timestamp ?? c.time ?? c.t ?? data.timestamp ?? 0);
+    firstString(
+      typeof data.sender === 'string' ? data.sender : undefined,
+      data.sender?.name,
+      data.sender?.displayName,
+      data.senderName,
+      content.senderName,
+      content.sender?.name,
+    ) ?? 'Unbekannt';
+  const receiverName = firstString(typeof data.receiver === 'string' ? data.receiver : undefined, data.receiver?.name, data.receiverName, content.receiverName);
+  const rawReceiverId = data.receiverId ?? data.receiver?.userId ?? content.receiverId;
+  const hasReceiverId = rawReceiverId !== undefined && rawReceiverId !== null && rawReceiverId !== '';
+  // Die Empfänger-ID ist verlässlicher als der (übersetzte) Name: 0 = an alle.
+  const toEveryone = hasReceiverId ? Number(rawReceiverId) === 0 : receiverName ? EVERYONE.test(receiverName.trim()) : true;
+  let at = Number(data.timestamp ?? content.t ?? content.timestamp ?? data.time ?? 0);
   if (at > 0 && at < 1e12) at *= 1000; // Sekunden statt Millisekunden
   if (!(at > 0) || Math.abs(at - now) > 24 * 3600_000) at = now;
-  const id = c.msgId ?? c.messageId ?? c.id ?? data.msgId ?? data.id;
+  const id = content.messageId ?? content.msgId ?? data.msgId ?? data.messageId ?? data.id;
   const key = id
     ? `sdk:${id}`
     : `sdk:${crypto.createHash('sha1').update(`${senderName}|${text}|${Math.floor(at / 1000)}`).digest('hex').slice(0, 16)}`;

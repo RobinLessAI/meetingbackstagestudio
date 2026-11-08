@@ -194,7 +194,11 @@ function handleRegieChat(data) {
     log(`Regie: Chat-Rohdaten von Zoom: ${JSON.stringify(data).slice(0, 400)}`);
   }
   const chat = normalizeSdkChat(data);
-  if (!chat) return;
+  if (!chat) {
+    // Nicht erkannte Nachrichten immer zeigen, damit sich das Format nachvollziehen lässt.
+    log(`Regie: Chat-Nachricht nicht erkannt: ${JSON.stringify(data).slice(0, 400)}`);
+    return;
+  }
   if (chat.private) {
     log(`Regie: private Nachricht von ${chat.senderName} nicht übernommen.`);
     return;

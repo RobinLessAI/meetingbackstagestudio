@@ -106,6 +106,23 @@ test('Chat-Nachrichten aus verschiedenen SDK-Formaten lesen', () => {
   assert.equal(c.private, false);
   assert.match(c.key, /^sdk:[0-9a-f]{16}$/);
 
+  // Format von Zoom Web SDK 6.x, auch eingepackt in { data }; Empfänger „an alle“ ist übersetzt
+  const v6 = {
+    sender: 'Robin Weniger',
+    senderId: 16778240,
+    timestamp: now,
+    receiver: 'Hallo allerseits!',
+    receiverId: 0,
+    type: 'text',
+    content: { text: 'Grüße aus Werl', messageId: 'm6', chatType: 1 },
+  };
+  for (const raw of [v6, { data: v6 }]) {
+    const d = normalizeSdkChat(raw, now);
+    assert.deepEqual([d.senderName, d.text, d.private, d.key], ['Robin Weniger', 'Grüße aus Werl', false, 'sdk:m6']);
+  }
+  assert.equal(normalizeSdkChat({ ...v6, receiverId: 16779264, receiver: 'MeetingBackstage (Regie)' }, now).private, true);
+  assert.equal(normalizeSdkChat({ ...v6, type: 'file' }, now), null);
+
   assert.equal(normalizeSdkChat({ sender: 'Ana' }, now), null);
   assert.equal(normalizeSdkChat(null, now), null);
 });
