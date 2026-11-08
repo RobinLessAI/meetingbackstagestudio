@@ -87,8 +87,12 @@
     Z.init({
       leaveUrl: window.location.origin + '/regie.html?verlassen=1',
       disableCORP: !window.crossOriginIsolated,
-      isSupportAV: false,
+      // Audio/Video-Unterstützung muss an bleiben: Das SDK nutzt sie als Bedingung für die
+      // aktuelle Chat-Verschlüsselung (AES-GCM). Ohne sie kommen Nachrichten nur als
+      // „[This is an encrypted message]“ an. Mikrofon und Kamera werden trotzdem nicht genutzt.
+      isSupportAV: true,
       disableJoinAudio: true,
+      audioPanelAlwaysOpen: false,
       disablePreview: true,
       disableInvite: true,
       disableRecord: true,
