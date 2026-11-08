@@ -201,13 +201,29 @@ function isLocalHost(hostHeader) {
 }
 
 // -------------------------------------------------------------- Auslieferung
-function sendFile(res, file) {
+const ASSETS_DIR = path.join(DIST, 'assets') + path.sep;
+
+/**
+ * Nur gebaute Dateien mit Prüfsumme im Namen (dist/assets) dürfen lange im Browser bleiben.
+ * Alles andere (Regie-Fenster, Zoom SDK) wird bei jedem Laden auf Änderungen geprüft,
+ * damit ein Update sofort wirkt.
+ */
+function sendFile(res, file, req) {
   const ext = path.extname(file).toLowerCase();
-  res.writeHead(200, {
+  const stat = fs.statSync(file);
+  const lastModified = stat.mtime.toUTCString();
+  const immutable = file.startsWith(ASSETS_DIR);
+  const headers = {
     'Content-Type': MIME[ext] ?? 'application/octet-stream',
-    'Cache-Control': ext === '.html' ? 'no-store' : 'public, max-age=31536000, immutable',
+    'Cache-Control': ext === '.html' ? 'no-store' : immutable ? 'public, max-age=31536000, immutable' : 'no-cache',
+    'Last-Modified': lastModified,
     'X-Content-Type-Options': 'nosniff',
-  });
+  };
+  if (!immutable && ext !== '.html' && req?.headers['if-modified-since'] === lastModified) {
+    res.writeHead(304, headers).end();
+    return;
+  }
+  res.writeHead(200, headers);
   fs.createReadStream(file).pipe(res);
 }
 
@@ -241,7 +257,7 @@ const server = http.createServer((req, res) => {
     }
     fs.stat(file, (err, stat) => {
       if (err || !stat.isFile()) res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Nicht gefunden');
-      else sendFile(res, file);
+      else sendFile(res, file, req);
     });
     return;
   }
@@ -264,7 +280,7 @@ const server = http.createServer((req, res) => {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Nicht gefunden');
       return;
     }
-    sendFile(res, file);
+    sendFile(res, file, req);
   });
 });
 
