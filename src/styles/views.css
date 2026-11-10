@@ -1069,3 +1069,10 @@ a.icon-btn { text-decoration: none; }
 .chat-popup__status svg { flex: none; color: var(--accent); align-self: center; }
 .chat-popup .chat { position: static; flex: 1; min-height: 0; height: auto; max-height: none; }
 .chat-popup .msg__hl { opacity: 1; } /* im Chat-Fenster immer sichtbar */
+
+/* Auswahlliste für das Highlight (Seite und Pop-up) */
+.pick { display: flex; flex-direction: column; min-height: 0; }
+.pick__search { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line); color: var(--text-3); }
+.pick__search .input { flex: 1; height: 30px; }
+.pick--fill { flex: 1; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--panel); overflow: hidden; }
+.pick--fill .pick-list { flex: 1; max-height: none; }

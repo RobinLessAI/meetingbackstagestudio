@@ -4,7 +4,7 @@ import { Eye, EyeOff, MessageSquareQuote, X } from 'lucide-react';
 import { useCommands } from '../state/commands.ts';
 import { useStore } from '../state/store.tsx';
 import { useUi } from '../state/ui.tsx';
-import { ChatPanel } from './ChatPanel.tsx';
+import { HighlightPickList } from './HighlightPickList.tsx';
 import { Button } from './ui.tsx';
 
 // Das Fenster wird von der Steuerung selbst befüllt (React-Portal). Dadurch teilen sich
@@ -57,7 +57,7 @@ export function ChatPopupWindow() {
     popup = win;
     const doc = win.document;
     doc.head.innerHTML = '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">';
-    doc.title = 'MeetingBackstage · Chat';
+    doc.title = 'MeetingBackstage · Chat-Highlight';
     doc.body.innerHTML = '';
     copyStyles(doc);
     syncRootAttributes(doc);
@@ -112,7 +112,7 @@ function ChatPopupContent({ onClose }: { onClose: () => void }) {
               Highlight: <strong>{highlight.senderName}</strong> <span className="subtle">„{highlight.text.slice(0, 60)}{highlight.text.length > 60 ? '…' : ''}“</span>
             </span>
           ) : (
-            <span className="subtle">Kein Highlight gewählt. Bei einer Nachricht „Als Highlight“ klicken.</span>
+            <span className="subtle">Kein Highlight gewählt. Auf eine Nachricht klicken.</span>
           )}
         </div>
         <div className="row">
@@ -136,7 +136,7 @@ function ChatPopupContent({ onClose }: { onClose: () => void }) {
           </Button>
         </div>
       </header>
-      <ChatPanel />
+      <HighlightPickList fill />
     </>
   );
 }

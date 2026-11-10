@@ -1,18 +1,19 @@
 import { useId } from 'react';
-import { MessageSquareQuote, RotateCcw, X } from 'lucide-react';
+import { ExternalLink, RotateCcw, X } from 'lucide-react';
+import { focusChatPopup } from '../../components/ChatPopup.tsx';
+import { HighlightPickList } from '../../components/HighlightPickList.tsx';
 import { HighlightCard } from '../../components/graphics/HighlightCard.tsx';
-import { Button, Empty, Field, Panel, Segmented, Switch } from '../../components/ui.tsx';
+import { Button, Field, Panel, Segmented, Switch } from '../../components/ui.tsx';
 import { DEFAULT_HIGHLIGHT_STYLE, HIGHLIGHT_PRESETS } from '../../data/highlightStyle.ts';
 import type { HighlightStyle } from '../../state/types.ts';
-import { clock } from '../../lib/time.ts';
 import { useStore } from '../../state/store.tsx';
+import { useUi } from '../../state/ui.tsx';
 import { GraphicHeader } from './shared.tsx';
 
 export function HighlightTab() {
-  const { state, derived, dispatch, notify } = useStore();
+  const { state, dispatch } = useStore();
+  const { chatPopupOpen, setChatPopupOpen } = useUi();
   const message = state.chat.find((m) => m.id === state.highlightId) ?? null;
-  // Alle Chat-Nachrichten, neueste zuerst (auch kurze wie „TEST“ und Team-Beiträge).
-  const candidates = state.chat.filter((m) => m.text.trim()).slice(-200).reverse();
 
   return (
     <div className="graphic">
@@ -41,32 +42,17 @@ export function HighlightTab() {
           </Panel>
           <HighlightStyleEditor />
         </div>
-        <Panel eyebrow="Auswahl · neueste zuerst" title={`Alle Chat-Nachrichten (${candidates.length})`} flush>
-          {candidates.length === 0 ? (
-            <Empty icon={MessageSquareQuote} title="Noch keine Chat-Nachrichten" compact />
-          ) : (
-            <ul className="pick-list">
-              {candidates.map((m) => (
-                <li key={m.id}>
-                  <button
-                    type="button"
-                    className={state.highlightId === m.id ? 'is-active' : ''}
-                    aria-pressed={state.highlightId === m.id}
-                    onClick={() => {
-                      dispatch({ type: 'highlight/set', id: m.id });
-                      notify(`Chat-Highlight gewählt: ${m.senderName}`, 'info');
-                    }}
-                  >
-                    <span className="pick-list__who">
-                      {m.senderName} <span className="subtle tabular">{clock(m.at, false)}</span>
-                      {derived.tags[m.id]?.team && <span className="subtle"> · Team</span>}
-                    </span>
-                    <span className="pick-list__text">{m.text}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+        <Panel
+          eyebrow="Auswahl · neueste zuerst"
+          title={`Alle Chat-Nachrichten (${state.chat.length})`}
+          actions={
+            <Button size="sm" icon={ExternalLink} onClick={() => focusChatPopup() || setChatPopupOpen(true)}>
+              {chatPopupOpen ? 'Fenster nach vorne' : 'Als Pop-up öffnen'}
+            </Button>
+          }
+          flush
+        >
+          <HighlightPickList />
         </Panel>
       </div>
     </div>

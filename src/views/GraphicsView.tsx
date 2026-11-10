@@ -1,6 +1,3 @@
-import { ExternalLink } from 'lucide-react';
-import { focusChatPopup } from '../components/ChatPopup.tsx';
-import { Button } from '../components/ui.tsx';
 import { useStore } from '../state/store.tsx';
 import { useUi } from '../state/ui.tsx';
 import { CloudTab } from './graphics/CloudTab.tsx';
@@ -17,7 +14,7 @@ import { useGraphicCounts } from './graphics/counts.ts';
  * Ausgewählt wird über das Ausklappmenü in der Leiste; auf schmalen Bildschirmen über die Leiste oben.
  */
 export function GraphicsView() {
-  const { graphicTab, setGraphicTab, chatPopupOpen, setChatPopupOpen } = useUi();
+  const { graphicTab, setGraphicTab } = useUi();
   const { state } = useStore();
   const counts = useGraphicCounts();
   const page = GRAPHIC_PAGES.find((p) => p.id === graphicTab) ?? GRAPHIC_PAGES[0];
@@ -48,11 +45,6 @@ export function GraphicsView() {
             {state.program.graphic === page.id && <span className="tab__live">im Programm</span>}
           </h1>
           <p className="view__lead">{page.lead}</p>
-        </div>
-        <div className="view__head-side">
-          <Button icon={ExternalLink} variant={chatPopupOpen ? 'secondary' : 'primary'} onClick={() => focusChatPopup() || setChatPopupOpen(true)}>
-            {chatPopupOpen ? 'Chat-Fenster nach vorne holen' : 'Chat-Fenster öffnen'}
-          </Button>
         </div>
       </header>
 
