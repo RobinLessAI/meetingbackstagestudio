@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react';
-import { Bookmark, BookmarkPlus, Check, ExternalLink, LogIn, RefreshCw, Repeat, Trash2, Unplug, X } from 'lucide-react';
+import { Bookmark, BookmarkPlus, Check, ExternalLink, LogIn, Play, RefreshCw, Repeat, Trash2, Unplug, X } from 'lucide-react';
+import { openInZoomApp } from '../lib/zoomLink.ts';
 import { Badge, Button, Segmented } from '../components/ui.tsx';
 import { filterMeetings, type MeetingFilter } from './meetingFilter.ts';
 import { CategoryChips, CategoryFilter, CategoryPicker, matchesCategory, useCategories } from './meetingCategories.tsx';
@@ -49,6 +50,25 @@ export function MeetingLists({ onJoin, onUse, currentLink, disabled }: {
         <SavedMeetings onJoin={onJoin} onUse={onUse} currentLink={currentLink} disabled={disabled} />
       )}
     </section>
+  );
+}
+
+/** Öffnet das Meeting in der Zoom-App; als Gastgeber startet es damit. */
+function StartButton({ link }: { link: string }) {
+  const { notify } = useStore();
+  return (
+    <Button
+      size="sm"
+      icon={Play}
+      title="In deiner Zoom-App öffnen. Bist du dort als Gastgeber angemeldet, startet das Meeting."
+      onClick={() =>
+        openInZoomApp(link)
+          ? notify('Zoom-App wird geöffnet. Sobald das Meeting läuft, hier auf „Beitreten“ klicken, damit die Regie den Chat mitliest.', 'info')
+          : notify('In diesem Link wurde keine Meeting-ID gefunden.', 'fehler')
+      }
+    >
+      Starten
+    </Button>
   );
 }
 
@@ -102,7 +122,8 @@ function SavedMeetings({ onJoin, onUse, currentLink, disabled }: { onJoin: (l: s
                 <span className="subtle mono">ID {formatId(idFromLink(d.link))}{d.passcode ? ' · mit Kenncode' : ''}</span>
               </div>
               <div className="meet-item__actions">
-                <Button size="sm" variant="primary" icon={LogIn} disabled={disabled} onClick={() => onJoin(d.link, d.passcode)}>
+                <StartButton link={d.link} />
+                <Button size="sm" variant="primary" icon={LogIn} disabled={disabled} onClick={() => onJoin(d.link, d.passcode)} title="„MeetingBackstage (Regie)“ tritt bei und liest den Chat mit">
                   Beitreten
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => onUse(d.link, d.passcode)} title="Nur ins Feld oben übernehmen">
@@ -350,7 +371,8 @@ function ZoomMeetings({ onJoin, disabled }: { onJoin: (l: string, p?: string) =>
               <span className="subtle">{when(m)} · ID {formatId(m.id)}</span>
             </div>
             <div className="meet-item__actions">
-              <Button size="sm" variant="primary" icon={LogIn} disabled={disabled} onClick={() => onJoin(m.link)}>
+              <StartButton link={m.link} />
+              <Button size="sm" variant="primary" icon={LogIn} disabled={disabled} onClick={() => onJoin(m.link)} title="„MeetingBackstage (Regie)“ tritt bei und liest den Chat mit">
                 Beitreten
               </Button>
               <CategoryPicker meetingId={m.id} />
