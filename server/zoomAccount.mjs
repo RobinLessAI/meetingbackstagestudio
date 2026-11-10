@@ -86,9 +86,12 @@ export function createZoomAccount({ clientId, clientSecret, redirectUri, dataDir
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
       const msg = String(body.message ?? '');
-      if (res.status === 400 && /scope/i.test(msg)) {
+      if ((res.status === 400 || res.status === 403) && /scope/i.test(msg)) {
+        // Zoom nennt die fehlenden Berechtigungen selbst, z. B. „scopes:[meeting:read:list_meetings, meeting:read:list_meetings:admin]“.
+        const named = msg.match(/scopes?:?\s*\[([^\]]+)\]/i)?.[1]?.split(',').map((x) => x.trim()).filter(Boolean) ?? [];
+        const needed = named.length ? named.join(' oder ') : 'meeting:read:list_meetings';
         throw new Error(
-          'Der Zoom-App fehlt eine Berechtigung. Im Marketplace unter „Scopes“ „meeting:read:list_meetings“ hinzufügen, dann hier „Trennen“ und neu verbinden.',
+          `Der Zoom-App fehlt eine Berechtigung (${needed}). Im Marketplace unter „Scopes“ hinzufügen, dann hier „Zoom-Konto trennen“ und neu verbinden.`,
         );
       }
       if (res.status === 401) throw new Error('Zoom hat die Anmeldung abgelehnt. Bitte „Trennen“ und neu verbinden.');
