@@ -6,6 +6,7 @@ import { DEFAULT_LOOKS, LOOK_PRESETS } from '../../data/graphicLooks.ts';
 import { useStore } from '../../state/store.tsx';
 import type { CloudLook, GraphicLooks, LookPosition, MapLook, PollLook } from '../../state/types.ts';
 import { buildSnapshot } from '../../sync/snapshot.ts';
+import { matches, TemplateBar } from '../../components/TemplateBar.tsx';
 
 type LookKind = keyof GraphicLooks;
 type AnyLook = MapLook & PollLook & CloudLook;
@@ -59,14 +60,32 @@ function RangeField({
   );
 }
 
-function Section({ title, children, open = false }: { title: string; children: ReactNode; open?: boolean }) {
+function Section({ title, children, open = false, onReset }: { title: string; children: ReactNode; open?: boolean; onReset?: () => void }) {
   return (
     <details className="look-section" open={open}>
       <summary>{title}</summary>
-      <div className="look-section__body">{children}</div>
+      <div className="look-section__body">
+        {children}
+        {onReset && (
+          <button type="button" className="look-section__reset" onClick={onReset}>
+            <RotateCcw size={13} aria-hidden /> Diesen Abschnitt auf Standard zurücksetzen
+          </button>
+        )}
+      </div>
     </details>
   );
 }
+
+/** Welche Werte zu welchem Abschnitt gehören (für das Zurücksetzen pro Abschnitt). */
+const SECTION_KEYS: Record<string, Array<keyof AnyLook>> = {
+  platzierung: ['position', 'width', 'height', 'marginX', 'marginY'],
+  box: ['background', 'backgroundOpacity', 'border', 'borderColor', 'corners', 'shadow', 'padding'],
+  text: ['font', 'scale', 'text', 'muted', 'accent', 'showTitle', 'title', 'titleAlign', 'showMeta'],
+  vollbild: ['fullBackground', 'fullColor', 'fullOpacity'],
+  karte: ['land', 'ocean', 'oceanOpacity', 'borders', 'pin', 'pinSize', 'showLabels', 'labelColor', 'showCounts'],
+  umfrage: ['barColor', 'trackColor', 'trackOpacity', 'highlightLeader', 'multiColor', 'showPercent', 'showCounts', 'showKeys', 'sortByVotes', 'barSize'],
+  wortwolke: ['colorMode', 'wordColor', 'maxWords', 'minSize', 'maxSize', 'weight', 'uppercase', 'gap'],
+};
 
 /**
  * Darstellung einer Grafik für OBS: Vorschau im 16:9-Rahmen (genau wie die Ausgabe)
@@ -77,6 +96,9 @@ export function LookPanel({ graphic }: { graphic: LookKind }) {
   const [mode, setMode] = useState<'einblendung' | 'vollbild'>('einblendung');
   const look = state.looks[graphic] as AnyLook;
   const set = (patch: Partial<AnyLook>) => dispatch({ type: 'look/update', graphic, patch });
+  const defaults = DEFAULT_LOOKS[graphic] as AnyLook;
+  const resetSection = (section: string) =>
+    set(Object.fromEntries(SECTION_KEYS[section].map((k) => [k, defaults[k]])) as Partial<AnyLook>);
   const titleId = useId();
   const snapshot = useMemo(() => buildSnapshot(state, derived), [state, derived]);
   const options: OutputOptions = {
@@ -95,7 +117,7 @@ export function LookPanel({ graphic }: { graphic: LookKind }) {
       title="Aussehen"
       actions={
         <Button size="sm" variant="ghost" icon={RotateCcw} onClick={() => set(DEFAULT_LOOKS[graphic] as Partial<AnyLook>)}>
-          Zurücksetzen
+          Alles auf Standard zurücksetzen
         </Button>
       }
       className="look-panel"
@@ -142,7 +164,14 @@ export function LookPanel({ graphic }: { graphic: LookKind }) {
             ))}
           </div>
 
-          <Section title="Platzierung der Einblendung" open>
+          <TemplateBar
+            kind={graphic}
+            current={look as unknown as Record<string, unknown>}
+            onApply={(data) => set(data as Partial<AnyLook>)}
+            isActive={(data) => matches(look as unknown as Record<string, unknown>, data)}
+          />
+
+          <Section title="Platzierung der Einblendung" open onReset={() => resetSection('platzierung')}>
             <div className="look-positions" role="group" aria-label="Position">
               {POSITIONS.map((p) => (
                 <button
@@ -173,7 +202,7 @@ export function LookPanel({ graphic }: { graphic: LookKind }) {
             </div>
           </Section>
 
-          <Section title="Box">
+          <Section title="Box" onReset={() => resetSection('box')}>
             <div className="hl-editor__colors">
               <ColorField label="Hintergrund" value={look.background} onChange={(background) => set({ background })} />
               <ColorField label="Rahmen" value={look.borderColor} onChange={(borderColor) => set({ borderColor })} />
@@ -205,7 +234,7 @@ export function LookPanel({ graphic }: { graphic: LookKind }) {
             </div>
           </Section>
 
-          <Section title="Text und Farben">
+          <Section title="Text und Farben" onReset={() => resetSection('text')}>
             <div className="hl-editor__colors">
               <ColorField label="Text" value={look.text} onChange={(text) => set({ text })} />
               <ColorField label="Nebentext" value={look.muted} onChange={(muted) => set({ muted })} />
@@ -242,7 +271,7 @@ export function LookPanel({ graphic }: { graphic: LookKind }) {
             </div>
           </Section>
 
-          <Section title="Vollbild-Hintergrund">
+          <Section title="Vollbild-Hintergrund" onReset={() => resetSection('vollbild')}>
             <Segmented<AnyLook['fullBackground']>
               label="Hintergrund"
               value={look.fullBackground}
@@ -263,7 +292,7 @@ export function LookPanel({ graphic }: { graphic: LookKind }) {
           </Section>
 
           {graphic === 'karte' && (
-            <Section title="Weltkarte" open>
+            <Section title="Weltkarte" open onReset={() => resetSection('karte')}>
               <div className="hl-editor__colors">
                 <ColorField label="Länder" value={look.land} onChange={(land) => set({ land })} />
                 <ColorField label="Meer" value={look.ocean} onChange={(ocean) => set({ ocean })} />
@@ -284,7 +313,7 @@ export function LookPanel({ graphic }: { graphic: LookKind }) {
           )}
 
           {graphic === 'umfrage' && (
-            <Section title="Umfrage" open>
+            <Section title="Umfrage" open onReset={() => resetSection('umfrage')}>
               <div className="hl-editor__colors">
                 <ColorField label="Balken" value={look.barColor} onChange={(barColor) => set({ barColor })} />
                 <ColorField label="Balken-Hintergrund" value={look.trackColor} onChange={(trackColor) => set({ trackColor })} />
@@ -306,7 +335,7 @@ export function LookPanel({ graphic }: { graphic: LookKind }) {
           )}
 
           {graphic === 'wortwolke' && (
-            <Section title="Wortwolke" open>
+            <Section title="Wortwolke" open onReset={() => resetSection('wortwolke')}>
               <Segmented<CloudLook['colorMode']>
                 label="Farben"
                 value={look.colorMode}

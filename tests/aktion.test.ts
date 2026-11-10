@@ -79,3 +79,27 @@ test('Programm-Vorschau erhält Momentaufnahmen, zählt aber nicht als OBS-Quell
   s.ws.close();
   v.ws.close();
 });
+
+test('Eigene Vorlagen werden gespeichert, geprüft und an alle Steuerungen verteilt', async () => {
+  const a = await open('steuerung');
+  const b = await open('steuerung');
+  await wait(100);
+  a.ws.send(
+    JSON.stringify({
+      type: 'vorlagen',
+      vorlagen: [
+        { id: 'v1', name: 'Kunde Hell', kind: 'umfrage', data: { barColor: '#ff0000' }, at: 1 },
+        { id: 'kaputt', kind: 'umfrage' },
+      ],
+    }),
+  );
+  await wait(200);
+  const got = b.messages.filter((m) => m.type === 'vorlagen').pop();
+  assert.deepEqual(got.vorlagen.map((t: any) => t.name), ['Kunde Hell']);
+  const file = JSON.parse(readFileSync(join(dir, 'vorlagen.json'), 'utf8'));
+  assert.equal(file[0].data.barColor, '#ff0000');
+  const c = await open('steuerung');
+  await wait(100);
+  assert.equal(c.messages.find((m) => m.type === 'hello').vorlagen[0].name, 'Kunde Hell');
+  [a, b, c].forEach((x) => x.ws.close());
+});

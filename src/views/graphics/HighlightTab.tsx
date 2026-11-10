@@ -2,6 +2,7 @@ import { useId } from 'react';
 import { ExternalLink, RotateCcw, X } from 'lucide-react';
 import { focusChatPopup } from '../../components/ChatPopup.tsx';
 import { HighlightPickList } from '../../components/HighlightPickList.tsx';
+import { matches, TemplateBar } from '../../components/TemplateBar.tsx';
 import { HighlightCard } from '../../components/graphics/HighlightCard.tsx';
 import { Button, Field, Panel, Segmented, Switch } from '../../components/ui.tsx';
 import { DEFAULT_HIGHLIGHT_STYLE, HIGHLIGHT_PRESETS } from '../../data/highlightStyle.ts';
@@ -79,7 +80,7 @@ function HighlightStyleEditor() {
       title="Gestaltung"
       actions={
         <Button size="sm" variant="ghost" icon={RotateCcw} onClick={() => set(DEFAULT_HIGHLIGHT_STYLE)}>
-          Zurücksetzen
+          Auf Standard zurücksetzen
         </Button>
       }
     >
@@ -104,6 +105,13 @@ function HighlightStyleEditor() {
             </button>
           ))}
         </div>
+
+        <TemplateBar
+          kind="highlight"
+          current={st as unknown as Record<string, unknown>}
+          onApply={(data) => set(data as Partial<HighlightStyle>)}
+          isActive={(data) => matches(st as unknown as Record<string, unknown>, data)}
+        />
 
         <div className="hl-editor__colors">
           {colors.map(([key, label]) => (

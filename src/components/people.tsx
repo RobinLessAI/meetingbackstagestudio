@@ -302,7 +302,9 @@ export function LockedBanner() {
 }
 
 export function Toasts() {
-  const { toasts, dismissToast } = useStore();
+  const { toasts, dismissToast, state } = useStore();
+  // Das Etikett „Demo“ nur bei Beispieldaten; bei einer eigenen Veranstaltung sind Meldungen echt.
+  const demo = state.dataMode === 'demo';
   return (
     <div className="toasts" aria-live="polite" aria-relevant="additions">
       {toasts.map((t) => {
@@ -311,7 +313,7 @@ export function Toasts() {
           <div key={t.id} className={`toast toast--${t.tone}`} role={t.tone === 'fehler' ? 'alert' : 'status'}>
             <Icon className="toast__icon" size={16} aria-hidden />
             <p className="toast__text">
-              <span className="toast__demo">Demo</span>
+              {demo && <span className="toast__demo">Demo</span>}
               {t.text}
             </p>
             <IconButton label="Meldung schließen" icon={X} onClick={() => dismissToast(t.id)} />

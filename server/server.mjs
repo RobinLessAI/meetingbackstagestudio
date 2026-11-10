@@ -116,6 +116,29 @@ try {
   saved = null;
 }
 
+// Eigene Vorlagen für das Aussehen (unabhängig von der Veranstaltung)
+const TEMPLATE_FILE = path.join(DATA_DIR, 'vorlagen.json');
+let templates = [];
+try {
+  const raw = JSON.parse(fs.readFileSync(TEMPLATE_FILE, 'utf8'));
+  if (Array.isArray(raw)) templates = raw;
+} catch {
+  templates = [];
+}
+
+async function writeTemplates(list) {
+  // Nur gültige Einträge, höchstens 200, damit die Datei überschaubar bleibt.
+  const clean = (Array.isArray(list) ? list : [])
+    .filter((t) => t && typeof t.id === 'string' && typeof t.name === 'string' && typeof t.kind === 'string' && t.data && typeof t.data === 'object')
+    .slice(0, 200)
+    .map((t) => ({ id: t.id.slice(0, 64), name: t.name.slice(0, 60), kind: t.kind.slice(0, 20), data: t.data, at: Number(t.at) || Date.now() }));
+  await fsp.mkdir(DATA_DIR, { recursive: true });
+  const tmp = `${TEMPLATE_FILE}.tmp`;
+  await fsp.writeFile(tmp, JSON.stringify(clean, null, 1));
+  await fsp.rename(tmp, TEMPLATE_FILE);
+  templates = clean;
+}
+
 async function writeSave(state) {
   await fsp.mkdir(DATA_DIR, { recursive: true });
   const payload = { savedAt: Date.now(), state };
@@ -369,7 +392,7 @@ wss.on('connection', (ws, rolle) => {
   if (role === 'ausgabe' || role === 'vorschau') {
     if (lastSnapshot) send(ws, { type: 'snapshot', snapshot: lastSnapshot });
   } else if (role === 'steuerung') {
-    send(ws, { type: 'hello', saved, ...counts(), watch: watchStatus(), regie: regieStatus(), aktionSchluessel: ACTION_KEY });
+    send(ws, { type: 'hello', saved, ...counts(), watch: watchStatus(), regie: regieStatus(), aktionSchluessel: ACTION_KEY, vorlagen: templates });
     if (liveChat.length) send(ws, { type: 'live-chat', messages: liveChat });
   }
   broadcastCounts();
@@ -390,6 +413,14 @@ wss.on('connection', (ws, rolle) => {
       case 'snapshot':
         lastSnapshot = msg.snapshot;
         broadcast('ausgabe', { type: 'snapshot', snapshot: lastSnapshot });
+        break;
+      case 'vorlagen':
+        try {
+          await writeTemplates(msg.vorlagen);
+          broadcast('steuerung', { type: 'vorlagen', vorlagen: templates });
+        } catch (e) {
+          send(ws, { type: 'error', message: `Vorlagen konnten nicht gespeichert werden: ${e.message}` });
+        }
         break;
       case 'save':
         try {

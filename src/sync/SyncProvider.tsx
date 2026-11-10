@@ -16,6 +16,15 @@ export interface WatchStatus {
   suggested?: string;
 }
 
+/** Eigene Vorlage für das Aussehen; „alle“ enthält Highlight und alle drei Grafiken. */
+export interface StyleTemplate {
+  id: string;
+  name: string;
+  kind: 'highlight' | 'karte' | 'umfrage' | 'wortwolke' | 'alle';
+  data: Record<string, unknown>;
+  at: number;
+}
+
 /** Live-Chat über das Regie-Fenster (Zoom Meeting SDK). */
 export interface RegieStatus {
   state: 'bereit' | 'verbindet' | 'wartet' | 'verbunden' | 'fehler';
@@ -51,6 +60,9 @@ interface SyncValue {
   openRegie: (meeting: string, passcode: string) => boolean;
   /** Lässt das Regie-Fenster das Meeting verlassen. */
   leaveRegie: () => void;
+  /** Eigene Vorlagen (im Ordner daten/ gespeichert, ohne Server nur im Browser). */
+  templates: StyleTemplate[];
+  saveTemplates: (list: StyleTemplate[]) => void;
   /** Schlüssel für Aktions-Adressen (Stream Deck), null ohne Server. */
   actionKey: string | null;
   /** Empfänger für Aktionen, die über den Server ankommen (Stream Deck). */
@@ -70,6 +82,14 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [lastImport, setLastImport] = useState<SyncValue['lastImport']>(null);
   const [regie, setRegie] = useState<RegieStatus | null>(null);
   const [actionKey, setActionKey] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<StyleTemplate[]>(() => {
+    if (available) return [];
+    try {
+      return JSON.parse(localStorage.getItem('mb-vorlagen') ?? '[]');
+    } catch {
+      return [];
+    }
+  });
   const actionHandler = useRef<((id: string) => void) | null>(null);
   const socket = useRef<SyncSocket | null>(null);
   const regieRef = useRef<RegieStatus | null>(null);
@@ -88,6 +108,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         if (msg.watch) setWatch(msg.watch);
         if (msg.regie) setRegie(msg.regie);
         if (msg.aktionSchluessel) setActionKey(msg.aktionSchluessel);
+        if (Array.isArray(msg.vorlagen)) setTemplates(msg.vorlagen);
         const saved = msg.saved?.state as Partial<AppState> | undefined;
         // Eine eigene Veranstaltung nach Neuladen oder Absturz automatisch wiederherstellen.
         const untouched = stateRef.current === initialState.current || stateRef.current.dataMode === 'demo';
@@ -124,6 +145,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         if (messages.length) dispatch({ type: 'chat/import', messages });
         break;
       }
+      case 'vorlagen':
+        if (Array.isArray(msg.vorlagen)) setTemplates(msg.vorlagen);
+        break;
       case 'aktion':
         actionHandler.current?.(String(msg.id ?? ''));
         break;
@@ -197,6 +221,20 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     const win = window.open(`/regie.html?${q.toString()}`, 'mb-regie', 'width=1180,height=780');
     return Boolean(win);
   }, []);
+  const saveTemplates = useCallback(
+    (list: StyleTemplate[]) => {
+      setTemplates(list);
+      if (available) socket.current?.send({ type: 'vorlagen', vorlagen: list });
+      else {
+        try {
+          localStorage.setItem('mb-vorlagen', JSON.stringify(list));
+        } catch {
+          /* Vorschau ohne Speicher */
+        }
+      }
+    },
+    [available],
+  );
   const setActionHandler = useCallback((handler: ((id: string) => void) | null) => {
     actionHandler.current = handler;
   }, []);
@@ -220,8 +258,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       leaveRegie,
       actionKey,
       setActionHandler,
+      templates,
+      saveTemplates,
     }),
-    [regie, available, status, outputs, savedAt, watch, lastImport, startWatch, stopWatch, openRegie, leaveRegie, actionKey, setActionHandler],
+    [regie, available, status, outputs, savedAt, watch, lastImport, startWatch, stopWatch, openRegie, leaveRegie, actionKey, setActionHandler, templates, saveTemplates],
   );
   return <SyncCtx.Provider value={value}>{children}</SyncCtx.Provider>;
 }
