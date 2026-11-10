@@ -24,6 +24,26 @@ import { useCommands } from '../../state/commands.ts';
 import { nextId, useStore } from '../../state/store.tsx';
 import type { PollDecision, PollOption, PollState } from '../../state/types.ts';
 import { GraphicHeader } from './shared.tsx';
+import { TemplateBar } from '../../components/TemplateBar.tsx';
+
+/** Inhalt einer Umfrage-Vorlage: Frage, Antworten und Darstellung. */
+interface PollTemplateData {
+  kind: PollState['kind'];
+  question: string;
+  options: string[];
+  labelStyle: PollState['labelStyle'];
+  chart?: PollState['chart'];
+}
+
+const toTemplate = (poll: Pick<PollState, 'kind' | 'question' | 'options' | 'labelStyle'> & { chart?: PollState['chart'] }): PollTemplateData => ({
+  kind: poll.kind,
+  question: poll.question,
+  options: poll.options.map((o) => o.text.trim()).filter(Boolean),
+  labelStyle: poll.labelStyle,
+  ...(poll.chart ? { chart: poll.chart } : {}),
+});
+const sameTemplate = (a: PollTemplateData, b: Record<string, unknown>) =>
+  a.question === b.question && a.kind === b.kind && JSON.stringify(a.options) === JSON.stringify(b.options);
 
 function PollEditor({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { state, dispatch, notify } = useStore();
@@ -69,6 +89,20 @@ function PollEditor({ open, onClose }: { open: boolean; onClose: () => void }) {
         </>
       }
     >
+      <TemplateBar
+        kind="umfrage-frage"
+        title="Umfrage-Vorlagen"
+        saveLabel="Diese Umfrage als Vorlage speichern"
+        current={toTemplate({ kind, question, options, labelStyle }) as unknown as Record<string, unknown>}
+        isActive={(data) => sameTemplate(toTemplate({ kind, question, options, labelStyle }), data)}
+        onApply={(data) => {
+          const t = data as unknown as PollTemplateData;
+          setKind(t.kind);
+          setQuestion(t.question);
+          setLabelStyle(t.labelStyle);
+          setOptions(t.options.map((text) => ({ id: nextId('o'), text })));
+        }}
+      />
       <Segmented<PollState['kind']>
         label="Art der Frage"
         value={kind}
@@ -217,11 +251,37 @@ export function PollTab() {
             onChange={(chart) => dispatch({ type: 'poll/update', patch: { chart } })}
             options={[
               { value: 'balken', label: 'Balken' },
-              { value: 'kreis', label: 'Kreis' },
+              { value: 'saeulen', label: 'Säulen' },
+              { value: 'kreis', label: 'Ring' },
+              { value: 'torte', label: 'Torte' },
+              { value: 'kacheln', label: 'Kacheln' },
             ]}
           />
         )}
       </div>
+
+      <TemplateBar
+        kind="umfrage-frage"
+        title="Umfrage-Vorlagen"
+        saveLabel="Aktuelle Umfrage als Vorlage speichern"
+        current={toTemplate(poll) as unknown as Record<string, unknown>}
+        isActive={(data) => sameTemplate(toTemplate(poll), data)}
+        confirmApply={
+          poll.status !== 'entwurf' ? 'Die aktuelle Umfrage wird ersetzt, bisherige Stimmen werden nicht mehr gezählt.' : undefined
+        }
+        onApply={(data) => {
+          const t = data as unknown as PollTemplateData;
+          dispatch({
+            type: 'poll/configure',
+            kind: t.kind,
+            question: t.question,
+            options: t.options.map((text) => ({ id: nextId('o'), text })),
+            labelStyle: t.labelStyle,
+          });
+          if (t.chart) dispatch({ type: 'poll/update', patch: { chart: t.chart } });
+          notify(`Umfrage „${t.question}“ aus Vorlage geladen. Zum Zählen auf „Starten“ klicken.`, 'erfolg');
+        }}
+      />
 
       <div className="poll-layout">
         <Panel eyebrow="Live-Vorschau" title={poll.question} className="poll-preview">

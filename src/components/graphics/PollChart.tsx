@@ -56,15 +56,68 @@ export function PollChart({
     );
   }
 
-  if (kind === 'kreis') {
+  if (kind === 'saeulen') {
+    return (
+      <ol className={`poll-cols poll-cols--${variant}`} aria-label="Ergebnisse als Säulendiagramm" style={vars}>
+        {analysis.totals.map((t, i) => (
+          <li key={t.option.id} className={`poll-col${leaders.has(t.option.id) ? ' is-leader' : ''}`}>
+            <span className="poll-col__val tabular">
+              {showPercent && <strong>{t.pct} %</strong>}
+              {showCounts && <span className="poll-bar__count">{t.count}</span>}
+            </span>
+            <div className="poll-col__track" aria-hidden>
+              <div className="poll-col__fill" style={{ height: `${Math.max(t.pct, 1)}%`, background: colorOf(t.option.id, i, 'var(--poll-bar, var(--text-3))') }} />
+            </div>
+            <span className="poll-col__label">
+              {showKeys && <span className="poll-key">{t.key}</span>}
+              <span className="poll-col__text">{t.option.text}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+    );
+  }
+
+  if (kind === 'kacheln') {
+    return (
+      <ol className={`poll-tiles poll-tiles--${variant}`} aria-label="Ergebnisse als Kacheln" style={vars}>
+        {analysis.totals.map((t, i) => (
+          <li
+            key={t.option.id}
+            className={`poll-tile${leaders.has(t.option.id) ? ' is-leader' : ''}`}
+            style={{ borderColor: colorOf(t.option.id, i, 'var(--line-strong)') }}
+          >
+            <span className="poll-tile__head">
+              {showKeys && <span className="poll-key">{t.key}</span>}
+              <span className="poll-tile__text">{t.option.text}</span>
+            </span>
+            {showPercent && <strong className="poll-tile__pct tabular">{t.pct} %</strong>}
+            {showCounts && (
+              <span className="poll-tile__count tabular">
+                {t.count} {t.count === 1 ? 'Stimme' : 'Stimmen'}
+              </span>
+            )}
+            <span className="poll-tile__bar" aria-hidden>
+              <span style={{ width: `${t.pct}%`, background: colorOf(t.option.id, i, 'var(--poll-bar, var(--text-3))') }} />
+            </span>
+          </li>
+        ))}
+      </ol>
+    );
+  }
+
+  if (kind === 'kreis' || kind === 'torte') {
     const total = analysis.totalVotes;
-    const R = 40;
+    // Ring: dünner Kreis mit Summe in der Mitte; Torte: ausgefüllte Segmente.
+    const pie = kind === 'torte';
+    const R = pie ? 22 : 40;
+    const stroke = pie ? 44 : 16;
     const C = 2 * Math.PI * R;
     let offset = 0;
     return (
       <div className={`poll-donut poll-donut--${variant}`} style={vars}>
-        <svg viewBox="0 0 100 100" role="img" aria-label={`Kreisdiagramm, ${total} Stimmen`}>
-          <circle cx="50" cy="50" r={R} className="poll-donut__track" />
+        <svg viewBox="0 0 100 100" role="img" aria-label={`${pie ? 'Tortendiagramm' : 'Ringdiagramm'}, ${total} Stimmen`}>
+          <circle cx="50" cy="50" r={R} className="poll-donut__track" strokeWidth={stroke} />
           {total > 0 &&
             analysis.totals.map((t, i) => {
               const len = (t.count / total) * C;
@@ -76,7 +129,7 @@ export function PollChart({
                   r={R}
                   fill="none"
                   stroke={colorOf(t.option.id, i, SHADES[i % SHADES.length])}
-                  strokeWidth="16"
+                  strokeWidth={stroke}
                   strokeDasharray={`${Math.max(0, len - 0.6)} ${C}`}
                   strokeDashoffset={-offset}
                   transform="rotate(-90 50 50)"
@@ -85,12 +138,16 @@ export function PollChart({
               offset += len;
               return el;
             })}
-          <text x="50" y="47" textAnchor="middle" className="poll-donut__total">
-            {total}
-          </text>
-          <text x="50" y="60" textAnchor="middle" className="poll-donut__unit">
-            Stimmen
-          </text>
+          {!pie && (
+            <>
+              <text x="50" y="47" textAnchor="middle" className="poll-donut__total">
+                {total}
+              </text>
+              <text x="50" y="60" textAnchor="middle" className="poll-donut__unit">
+                Stimmen
+              </text>
+            </>
+          )}
         </svg>
         <ul className="poll-legend">
           {analysis.totals.map((t, i) => (

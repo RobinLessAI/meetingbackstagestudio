@@ -13,6 +13,9 @@ export function TemplateBar({
   current,
   onApply,
   isActive,
+  title = 'Eigene Vorlagen',
+  saveLabel = 'Aktuelles Aussehen als Vorlage speichern',
+  confirmApply,
 }: {
   kind: StyleTemplate['kind'];
   /** Aktuelle Einstellungen, die beim Speichern übernommen werden. */
@@ -20,12 +23,21 @@ export function TemplateBar({
   onApply: (data: Record<string, unknown>) => void;
   /** Ob eine Vorlage den aktuellen Einstellungen entspricht (für die Markierung). */
   isActive?: (data: Record<string, unknown>) => boolean;
+  title?: string;
+  saveLabel?: string;
+  /** Rückfrage vor dem Anwenden (z. B. wenn eine laufende Umfrage ersetzt würde); undefined = sofort anwenden. */
+  confirmApply?: string;
 }) {
   const { templates, saveTemplates } = useSync();
   const { notify } = useStore();
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [pendingApply, setPendingApply] = useState<StyleTemplate | null>(null);
+  const apply = (t: StyleTemplate) => {
+    if (confirmApply) setPendingApply(t);
+    else onApply(t.data);
+  };
   const inputId = useId();
   const own = templates.filter((t) => t.kind === kind).sort((a, b) => a.name.localeCompare(b.name, 'de'));
 
@@ -50,14 +62,14 @@ export function TemplateBar({
     <div className="tpl">
       <div className="tpl__row" role="group" aria-label="Eigene Vorlagen">
         <span className="field-label tpl__label">
-          <Bookmark size={14} aria-hidden /> Eigene Vorlagen
+          <Bookmark size={14} aria-hidden /> {title}
         </span>
         {own.length === 0 && !naming && <span className="subtle">Noch keine gespeichert.</span>}
         {own.map((t) => {
           const active = isActive?.(t.data) ?? false;
           return (
             <span key={t.id} className={`tpl__item${active ? ' is-active' : ''}`}>
-              <button type="button" className="tpl__apply" aria-pressed={active} onClick={() => onApply(t.data)} title={`Vorlage „${t.name}“ anwenden`}>
+              <button type="button" className="tpl__apply" aria-pressed={active} onClick={() => apply(t)} title={`Vorlage „${t.name}“ anwenden`}>
                 {t.name}
               </button>
               {confirmDelete === t.id ? (
@@ -88,6 +100,24 @@ export function TemplateBar({
           );
         })}
       </div>
+      {pendingApply && (
+        <div className="tpl__form" role="alert">
+          <span>{confirmApply}</span>
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => {
+              onApply(pendingApply.data);
+              setPendingApply(null);
+            }}
+          >
+            „{pendingApply.name}“ laden
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setPendingApply(null)}>
+            Abbrechen
+          </Button>
+        </div>
+      )}
       {naming ? (
         <form
           className="tpl__form"
@@ -121,7 +151,7 @@ export function TemplateBar({
         </form>
       ) : (
         <Button size="sm" icon={BookmarkPlus} onClick={() => setNaming(true)}>
-          Aktuelles Aussehen als Vorlage speichern
+          {saveLabel}
         </Button>
       )}
     </div>

@@ -132,7 +132,8 @@ export interface PollState {
   gaps: Array<[number, number]>;
   countRule: 'letzte' | 'alle';
   decisions: Record<string, PollDecision>;
-  chart: 'balken' | 'kreis';
+  /** Darstellung: Balken (waagerecht), Säulen (senkrecht), Ring, Torte oder Kacheln mit großen Zahlen. */
+  chart: 'balken' | 'saeulen' | 'kreis' | 'torte' | 'kacheln';
 }
 
 export interface CloudFilters {

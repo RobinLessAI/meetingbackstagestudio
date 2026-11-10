@@ -20,7 +20,8 @@ export interface WatchStatus {
 export interface StyleTemplate {
   id: string;
   name: string;
-  kind: 'highlight' | 'karte' | 'umfrage' | 'wortwolke' | 'alle';
+  /** Aussehen je Grafik, „alle“ = Design aller Grafiken, „umfrage-frage“ = Frage mit Antworten. */
+  kind: 'highlight' | 'karte' | 'umfrage' | 'wortwolke' | 'alle' | 'umfrage-frage';
   data: Record<string, unknown>;
   at: number;
 }
