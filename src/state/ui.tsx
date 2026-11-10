@@ -3,6 +3,7 @@ import type { GraphicKind, ViewId } from './types.ts';
 
 /** Alle Bereiche. demo = nur simuliert, standardmäßig ausgeblendet. */
 export const VIEWS: Array<{ id: ViewId; label: string; short: string; demo?: boolean }> = [
+  { id: 'meeting', label: 'Meeting', short: 'Meeting' },
   { id: 'grafiken', label: 'Live Grafiken', short: 'Grafiken' },
   { id: 'ausgabe', label: 'OBS-Ausgabe', short: 'OBS' },
   { id: 'integrationen', label: 'Zoom & Einstellungen', short: 'Zoom' },
@@ -13,7 +14,7 @@ export const VIEWS: Array<{ id: ViewId; label: string; short: string; demo?: boo
   { id: 'audio', label: 'Audio & Ausgabe', short: 'Audio', demo: true },
 ];
 
-export const DEFAULT_VIEW: ViewId = 'grafiken';
+export const DEFAULT_VIEW: ViewId = 'meeting';
 
 const DEMO_KEY = 'mb-demo-bereiche';
 const readDemo = () => {

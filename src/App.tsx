@@ -10,6 +10,7 @@ import { SyncProvider, useSync } from './sync/SyncProvider.tsx';
 import type { DeckActionId } from './state/types.ts';
 import { DEFAULT_VIEW, UiProvider, useUi, VIEWS } from './state/ui.tsx';
 import { ObsView } from './views/ObsView.tsx';
+import { MeetingView } from './views/MeetingView.tsx';
 import { AudioView } from './views/AudioView.tsx';
 import { ControlView } from './views/ControlView.tsx';
 import { EventView } from './views/EventView.tsx';
@@ -139,6 +140,7 @@ function Shell() {
         {view === 'audio' && <AudioView />}
         {view === 'ausgabe' && <ObsView />}
         {view === 'integrationen' && <IntegrationsView />}
+        {view === 'meeting' && <MeetingView />}
       </main>
       <MuteAllDialog />
       <Presentation />

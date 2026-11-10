@@ -13,6 +13,7 @@ import {
   Star,
   Sun,
   Users,
+  Video,
   type LucideIcon,
 } from 'lucide-react';
 import { duration, timecode } from '../lib/time.ts';
@@ -30,6 +31,7 @@ import { ProgramMonitor } from './ProgramMonitor.tsx';
 import { DemoTag, Dialog, Kbd, Switch } from './ui.tsx';
 
 const ICONS: Record<ViewId, LucideIcon> = {
+  meeting: Video,
   veranstaltung: CalendarClock,
   teilnehmende: Users,
   galerie: LayoutGrid,
@@ -245,7 +247,7 @@ export function TopBar() {
       )}
 
       <div className="topbar__end">
-        <button type="button" className="demo-status" onClick={() => go('integrationen')} title="Zoom-Live-Chat und Einstellungen anzeigen">
+        <button type="button" className="demo-status" onClick={() => go('meeting')} title="Meeting verbinden oder Status anzeigen">
           {state.dataMode === 'demo' ? <DemoTag>Beispieldaten</DemoTag> : <span className="data-mode">Eigene Veranstaltung</span>}
           <span className={`demo-status__live demo-status__live--${live.tone}`}>{live.text}</span>
         </button>

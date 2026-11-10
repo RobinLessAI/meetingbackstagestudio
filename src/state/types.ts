@@ -344,6 +344,7 @@ export interface LogEntry {
 }
 
 export type ViewId =
+  | 'meeting'
   | 'veranstaltung'
   | 'teilnehmende'
   | 'galerie'

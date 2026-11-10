@@ -2,6 +2,7 @@ import { useId, useState, type ReactNode } from 'react';
 import { CircleCheck, CircleDashed, Copy, FolderSearch, LogOut, MonitorPlay, Radio, TriangleAlert } from 'lucide-react';
 import { clock } from '../lib/time.ts';
 import { useStore } from '../state/store.tsx';
+import { useUi } from '../state/ui.tsx';
 import { useSync, type RegieStatus } from '../sync/SyncProvider.tsx';
 import { Badge, Button, DemoTag, Field, Panel, Switch } from './ui.tsx';
 
@@ -10,7 +11,7 @@ export function regieLabel(r: RegieStatus | null, available: boolean): { text: s
   if (!r.configured) return { text: 'Live-Chat nicht eingerichtet', tone: 'warn' };
   switch (r.state) {
     case 'verbunden':
-      return { text: `Live aus Zoom · ${r.messages} Nachrichten`, tone: 'ok' };
+      return { text: `Live aus Zoom · ${r.messages} ${r.messages === 1 ? 'Nachricht' : 'Nachrichten'}`, tone: 'ok' };
     case 'verbindet':
       return { text: 'Regie tritt bei …', tone: 'warn' };
     case 'wartet':
@@ -148,6 +149,7 @@ export function RegieStart({ compact = false }: { compact?: boolean }) {
 /** Einrichtung und Status des Live-Chats aus Zoom (Regie-Fenster über das Meeting SDK). */
 export function ZoomLiveChatSetup() {
   const { regie, available, watch, startWatch, stopWatch, lastImport } = useSync();
+  const { go } = useUi();
   const { notify } = useStore();
   const [folder, setFolder] = useState('');
   const folderId = useId();
@@ -206,7 +208,12 @@ export function ZoomLiveChatSetup() {
         </div>
         <div className="stack">
           <h3 className="eyebrow">Regie für ein Meeting</h3>
-          <RegieStart />
+          <p className="muted">Den Meeting-Link gibst du auf der Startseite ein.</p>
+          <div className="row">
+            <Button variant="primary" icon={MonitorPlay} onClick={() => go('meeting')}>
+              Zur Seite „Meeting“
+            </Button>
+          </div>
           <div className="divider" />
           <h3 className="eyebrow">Notlösung: Chat-Export</h3>
           <p className="muted">

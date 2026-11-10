@@ -33,7 +33,7 @@ Ohne Git: auf GitHub „Code“ → „Download ZIP“, entpacken und im Termina
 
 **Neustart:** Die App startet immer ohne Beispieldaten. Bei jedem Start des Servers (`npm start`) werden die Antworten der letzten Sitzung gelöscht: Chat, bestätigte Orte, Stimmen, ausgeblendete Begriffe, Highlight und Programm; die Umfrage steht wieder auf Entwurf. Erhalten bleiben Titel, Team-Namen, Fragen, Umfrage-Antworten, Kartenausschnitt, Aussehen und Vorlagen. Nur ein Neuladen der Seite ohne Server-Neustart behält die Antworten (Schutz während des Workshops).
 
-Die App startet leer und zeigt nur drei Bereiche: **Live Grafiken** (Klick zeigt eine Übersicht aller vier Grafiken; Ausklappmenü mit Chat-Highlight, Umfrage, Weltkarte und Wortwolke; die Liste der Chat-Nachrichten öffnet sich beim Chat-Highlight über „Als Pop-up öffnen“ als eigenes Fenster), **OBS-Ausgabe** und **Zoom & Einstellungen**. Die simulierten Bereiche (Teilnehmende, Galerie, Steuerpult & Stream Deck, Audio, Veranstaltungsübersicht) lassen sich unter „Zoom & Einstellungen“ → „Weitere Bereiche (Demo) zeigen“ einblenden. Beispieldaten gibt es dort auf Knopfdruck.
+Die App startet leer mit der Seite **Meeting** (Zoom-Link eingeben) und zeigt daneben nur drei weitere Bereiche: **Live Grafiken** (Klick zeigt eine Übersicht aller vier Grafiken; Ausklappmenü mit Chat-Highlight, Umfrage, Weltkarte und Wortwolke; die Liste der Chat-Nachrichten öffnet sich beim Chat-Highlight über „Als Pop-up öffnen“ als eigenes Fenster), **OBS-Ausgabe** und **Zoom & Einstellungen**. Die simulierten Bereiche (Teilnehmende, Galerie, Steuerpult & Stream Deck, Audio, Veranstaltungsübersicht) lassen sich unter „Zoom & Einstellungen“ → „Weitere Bereiche (Demo) zeigen“ einblenden. Beispieldaten gibt es dort auf Knopfdruck.
 
 Der Server ist nur auf diesem Rechner erreichbar. Eine eigene Veranstaltung („Veranstaltung“ → „Neue Veranstaltung“) wird automatisch unter `daten/veranstaltung.json` gespeichert und nach einem Neustart wiederhergestellt.
 
@@ -69,7 +69,7 @@ Der Chat kommt über ein **Regie-Fenster**: MeetingBackstage öffnet ein Browser
 
 **Pro Meeting:**
 1. Meeting in Zoom als Host starten.
-2. In MeetingBackstage unter „Zoom & Einstellungen“ (oder oben im Chat-Fenster) den Meeting-Link einfügen und **„Regie beitreten“** klicken. Es öffnet sich das Regie-Fenster.
+2. MeetingBackstage öffnet mit der Seite **„Meeting“**: Zoom-Link einfügen und **„Meeting beitreten“** klicken. Es öffnet sich das Regie-Fenster; der Ablauf (beitreten, im Warteraum zulassen, verbunden) wird dort Schritt für Schritt angezeigt.
 3. In Zoom die Regie aus dem Warteraum **zulassen**, falls ein Warteraum aktiv ist.
 4. Das Regie-Fenster offen lassen. Beenden mit „Regie verlassen“ oder durch Schließen des Fensters.
 

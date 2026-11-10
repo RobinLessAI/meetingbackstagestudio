@@ -1159,3 +1159,32 @@ a.icon-btn { text-decoration: none; }
 .poll-tile.is-leader .poll-key { background: var(--accent); color: var(--accent-ink); }
 
 .pick__tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); font-size: var(--fs-sm); }
+
+/* ------------------------------------------------ Startseite Meeting */
+.meet { align-items: center; }
+.meet-card { width: min(720px, 100%); margin: 24px auto 0; display: flex; flex-direction: column; gap: 18px; padding: 32px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.meet-card__icon { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 12px; background: var(--accent-soft); color: var(--accent); }
+.meet-card__title { margin: 0; font-size: var(--fs-2xl); font-weight: 600; text-wrap: balance; }
+.meet-card__lead { margin: -6px 0 0; color: var(--text-2); max-width: 60ch; }
+.meet-card__note { margin: 0; }
+.meet-form { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
+.meet-form__label { font-weight: 600; }
+.meet-form__row { display: flex; gap: 8px; }
+.meet-form__input { flex: 1; min-width: 0; height: 48px; font-size: var(--fs-lg); }
+.meet-form .btn--lg { align-self: flex-start; }
+.meet-form__more { align-self: flex-start; border: 0; background: none; padding: 0; color: var(--text-3); font: inherit; font-size: var(--fs-sm); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.meet-form__more:hover { color: var(--text); }
+.meet-connected { display: flex; flex-direction: column; gap: 14px; }
+.meet-connected__line { margin: 0; display: flex; align-items: center; gap: 8px; color: var(--ok); font-weight: 600; }
+.meet-live { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); }
+.meet-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.meet-steps { list-style: none; margin: 4px 0 0; padding: 16px 0 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
+.meet-step { display: flex; gap: 12px; align-items: flex-start; color: var(--text-3); }
+.meet-step__dot { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line-strong); font-size: var(--fs-sm); font-weight: 600; }
+.meet-step__text { display: flex; flex-direction: column; gap: 2px; padding-top: 3px; }
+.meet-step.is-active { color: var(--text); }
+.meet-step.is-active .meet-step__dot { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.meet-step.is-done { color: var(--text-2); }
+.meet-step.is-done .meet-step__dot { border-color: var(--ok); background: var(--ok); color: var(--bg); }
+.meet-foot { text-align: center; }
+@media (max-width: 600px) { .meet-card { padding: 20px; } .meet-form__row { flex-wrap: wrap; } }
