@@ -1203,3 +1203,7 @@ a.icon-btn { text-decoration: none; }
 .meet-item__actions { display: flex; align-items: center; gap: 6px; }
 .meet-item__del { border-left: 0; border-radius: var(--r-sm); }
 .meet-add { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+
+.meet-filter { width: 100%; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--raised); }
+.meet-filter__search { display: flex; flex-direction: column; gap: 4px; flex: 1 1 180px; }
+.meet-filter__search .input { height: 30px; }

@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import { Bookmark, BookmarkPlus, Check, ExternalLink, LogIn, RefreshCw, Repeat, Trash2, Unplug, X } from 'lucide-react';
-import { Badge, Button } from '../components/ui.tsx';
+import { Badge, Button, Segmented } from '../components/ui.tsx';
+import { filterMeetings, type MeetingFilter } from './meetingFilter.ts';
 import { useStore } from '../state/store.tsx';
 import { useSync, type StyleTemplate, type ZoomMeeting } from '../sync/SyncProvider.tsx';
 
@@ -163,6 +164,27 @@ function ZoomMeetings({ onJoin, disabled }: { onJoin: (l: string, p?: string) =>
   const [pasted, setPasted] = useState('');
   const [busy, setBusy] = useState(false);
   const pasteId = useId();
+  const searchId = useId();
+  const [filter, setFilterState] = useState<MeetingFilter>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('mb-meeting-filter') ?? '{}') as Partial<MeetingFilter>;
+      return { art: 'alle', zeitraum: 'ab-heute', sortierung: 'datum-auf', ...saved, suche: '' };
+    } catch {
+      return { art: 'alle', zeitraum: 'ab-heute', sortierung: 'datum-auf', suche: '' };
+    }
+  });
+  const setFilter = (patch: Partial<MeetingFilter>) => {
+    setFilterState((f) => {
+      const next = { ...f, ...patch };
+      try {
+        localStorage.setItem('mb-meeting-filter', JSON.stringify({ ...next, suche: '' }));
+      } catch {
+        /* nur Komfort */
+      }
+      return next;
+    });
+  };
+  const shown = filterMeetings(zoomMeetings.meetings, filter);
   const account = regie?.account;
   const connected = !!account?.connected;
 
@@ -242,17 +264,73 @@ function ZoomMeetings({ onJoin, disabled }: { onJoin: (l: string, p?: string) =>
         <Button size="sm" icon={RefreshCw} loading={zoomMeetings.loading} onClick={loadZoomMeetings}>
           Aktualisieren
         </Button>
-        {zoomMeetings.at && <span className="subtle">{zoomMeetings.meetings.length} Meetings</span>}
         <Button size="sm" variant="ghost" icon={Unplug} onClick={disconnectZoom}>
           Zoom-Konto trennen
         </Button>
       </div>
       {zoomMeetings.error && <p className="callout callout--danger">{zoomMeetings.error}</p>}
-      {!zoomMeetings.loading && zoomMeetings.at && zoomMeetings.meetings.length === 0 && !zoomMeetings.error && (
-        <p className="subtle meet-list__empty">Keine geplanten Meetings gefunden.</p>
+      {zoomMeetings.meetings.length > 0 && (
+        <div className="meet-filter">
+          <Segmented<MeetingFilter['art']>
+            label="Art"
+            size="sm"
+            value={filter.art}
+            onChange={(art) => setFilter({ art })}
+            options={[
+              { value: 'alle', label: 'Alle' },
+              { value: 'wiederkehrend', label: 'Wiederkehrend' },
+              { value: 'einmalig', label: 'Einmalig' },
+            ]}
+          />
+          <Segmented<MeetingFilter['zeitraum']>
+            label="Zeitraum"
+            size="sm"
+            value={filter.zeitraum}
+            onChange={(zeitraum) => setFilter({ zeitraum })}
+            options={[
+              { value: 'heute', label: 'Heute' },
+              { value: 'woche', label: '7 Tage' },
+              { value: 'monat', label: '30 Tage' },
+              { value: 'ab-heute', label: 'Ab heute' },
+              { value: 'alle', label: 'Auch vergangene' },
+            ]}
+          />
+          <Segmented<MeetingFilter['sortierung']>
+            label="Sortierung"
+            size="sm"
+            value={filter.sortierung}
+            onChange={(sortierung) => setFilter({ sortierung })}
+            options={[
+              { value: 'datum-auf', label: 'Nächste zuerst' },
+              { value: 'datum-ab', label: 'Späteste zuerst' },
+              { value: 'name', label: 'Name A–Z' },
+            ]}
+          />
+          <div className="meet-filter__search">
+            <label htmlFor={searchId} className="field-label">
+              Suche
+            </label>
+            <input
+              id={searchId}
+              className="input input--sm"
+              type="search"
+              value={filter.suche}
+              placeholder="Name oder Meeting-ID"
+              onChange={(e) => setFilter({ suche: e.target.value })}
+            />
+          </div>
+        </div>
+      )}
+      {!zoomMeetings.loading && zoomMeetings.at && !zoomMeetings.error && (
+        <p className="subtle meet-list__empty">
+          {zoomMeetings.meetings.length === 0
+            ? 'Keine geplanten Meetings gefunden.'
+            : `${shown.length} von ${zoomMeetings.meetings.length} Meetings`}
+          {zoomMeetings.meetings.length > 0 && shown.length === 0 && ' – kein Meeting passt zum Filter.'}
+        </p>
       )}
       <ul className="meet-items">
-        {zoomMeetings.meetings.map((m) => (
+        {shown.map((m) => (
           <li key={`${m.type}-${m.id}`} className="meet-item">
             <div className="meet-item__main">
               <strong>
