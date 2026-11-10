@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import { Bookmark, BookmarkPlus, Check, ExternalLink, LogIn, RefreshCw, Repeat, Trash2, Unplug, X } from 'lucide-react';
 import { Badge, Button, Segmented } from '../components/ui.tsx';
 import { filterMeetings, type MeetingFilter } from './meetingFilter.ts';
+import { CategoryChips, CategoryFilter, CategoryPicker, matchesCategory, useCategories } from './meetingCategories.tsx';
 import { useStore } from '../state/store.tsx';
 import { useSync, type StyleTemplate, type ZoomMeeting } from '../sync/SyncProvider.tsx';
 
@@ -78,10 +79,14 @@ function SavedMeetings({ onJoin, onUse, currentLink, disabled }: { onJoin: (l: s
   const [passcode, setPasscode] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const ids = { name: useId(), link: useId(), pass: useId() };
-  const list = templates.filter((t) => t.kind === 'meeting').sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  const cats = useCategories();
+  const [catFilter, setCatFilter] = useState('');
+  const all = templates.filter((t) => t.kind === 'meeting').sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  const list = all.filter((t) => matchesCategory(cats.of(idFromLink((t.data as unknown as SavedMeetingData).link)), catFilter));
 
   return (
     <div className="meet-list">
+      {all.length > 0 && <CategoryFilter value={catFilter} onChange={setCatFilter} />}
       {list.length === 0 && !adding && (
         <p className="subtle meet-list__empty">Noch keine Veranstaltungen gespeichert. Lege deine regelmäßigen Workshops mit Zoom-Link an, dann reicht später ein Klick.</p>
       )}
@@ -91,7 +96,9 @@ function SavedMeetings({ onJoin, onUse, currentLink, disabled }: { onJoin: (l: s
           return (
             <li key={t.id} className="meet-item">
               <div className="meet-item__main">
-                <strong>{t.name}</strong>
+                <strong>
+                  {t.name} <CategoryChips meetingId={idFromLink(d.link)} />
+                </strong>
                 <span className="subtle mono">ID {formatId(idFromLink(d.link))}{d.passcode ? ' · mit Kenncode' : ''}</span>
               </div>
               <div className="meet-item__actions">
@@ -101,6 +108,7 @@ function SavedMeetings({ onJoin, onUse, currentLink, disabled }: { onJoin: (l: s
                 <Button size="sm" variant="ghost" onClick={() => onUse(d.link, d.passcode)} title="Nur ins Feld oben übernehmen">
                   Übernehmen
                 </Button>
+                <CategoryPicker meetingId={idFromLink(d.link)} />
                 {confirmDelete === t.id ? (
                   <>
                     <Button size="sm" variant="danger" icon={Check} onClick={() => { saveTemplates(templates.filter((x) => x.id !== t.id)); setConfirmDelete(null); }}>
@@ -184,7 +192,9 @@ function ZoomMeetings({ onJoin, disabled }: { onJoin: (l: string, p?: string) =>
       return next;
     });
   };
-  const shown = filterMeetings(zoomMeetings.meetings, filter);
+  const cats = useCategories();
+  const [catFilter, setCatFilter] = useState('');
+  const shown = filterMeetings(zoomMeetings.meetings, filter).filter((m) => matchesCategory(cats.of(m.id), catFilter));
   const account = regie?.account;
   const connected = !!account?.connected;
 
@@ -306,6 +316,7 @@ function ZoomMeetings({ onJoin, disabled }: { onJoin: (l: string, p?: string) =>
               { value: 'name', label: 'Name A–Z' },
             ]}
           />
+          <CategoryFilter value={catFilter} onChange={setCatFilter} />
           <div className="meet-filter__search">
             <label htmlFor={searchId} className="field-label">
               Suche
@@ -334,7 +345,7 @@ function ZoomMeetings({ onJoin, disabled }: { onJoin: (l: string, p?: string) =>
           <li key={`${m.type}-${m.id}`} className="meet-item">
             <div className="meet-item__main">
               <strong>
-                {m.topic} {m.recurring && <Badge tone="info">wiederkehrend</Badge>}
+                {m.topic} {m.recurring && <Badge tone="info">wiederkehrend</Badge>} <CategoryChips meetingId={m.id} />
               </strong>
               <span className="subtle">{when(m)} · ID {formatId(m.id)}</span>
             </div>
@@ -342,6 +353,7 @@ function ZoomMeetings({ onJoin, disabled }: { onJoin: (l: string, p?: string) =>
               <Button size="sm" variant="primary" icon={LogIn} disabled={disabled} onClick={() => onJoin(m.link)}>
                 Beitreten
               </Button>
+              <CategoryPicker meetingId={m.id} />
               <Button size="sm" variant="ghost" icon={BookmarkPlus} onClick={() => save(m.topic, { link: m.link })} title="Unter „Meine Veranstaltungen“ speichern">
                 Speichern
               </Button>

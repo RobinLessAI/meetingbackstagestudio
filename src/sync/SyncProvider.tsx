@@ -21,7 +21,7 @@ export interface StyleTemplate {
   id: string;
   name: string;
   /** Aussehen je Grafik, „alle“ = Design aller Grafiken, „umfrage-frage“ = Frage mit Antworten. */
-  kind: 'highlight' | 'karte' | 'umfrage' | 'wortwolke' | 'alle' | 'umfrage-frage' | 'meeting';
+  kind: 'highlight' | 'karte' | 'umfrage' | 'wortwolke' | 'alle' | 'umfrage-frage' | 'meeting' | 'kategorien';
   data: Record<string, unknown>;
   at: number;
 }
