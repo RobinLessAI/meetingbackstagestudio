@@ -31,6 +31,8 @@ Ohne Git: auf GitHub „Code“ → „Download ZIP“, entpacken und im Termina
 - **Steuerung:** http://localhost:4300 im Browser öffnen.
 - **OBS:** Adressen unter „OBS-Ausgabe“ kopieren (siehe unten).
 
+**Neustart:** Die App startet immer ohne Beispieldaten. Bei jedem Start des Servers (`npm start`) werden die Antworten der letzten Sitzung gelöscht: Chat, bestätigte Orte, Stimmen, ausgeblendete Begriffe, Highlight und Programm; die Umfrage steht wieder auf Entwurf. Erhalten bleiben Titel, Team-Namen, Fragen, Umfrage-Antworten, Kartenausschnitt, Aussehen und Vorlagen. Nur ein Neuladen der Seite ohne Server-Neustart behält die Antworten (Schutz während des Workshops).
+
 Die App startet leer und zeigt nur drei Bereiche: **Live Grafiken** (Klick zeigt eine Übersicht aller vier Grafiken; Ausklappmenü mit Chat-Highlight, Umfrage, Weltkarte und Wortwolke; die Liste der Chat-Nachrichten öffnet sich beim Chat-Highlight über „Als Pop-up öffnen“ als eigenes Fenster), **OBS-Ausgabe** und **Zoom & Einstellungen**. Die simulierten Bereiche (Teilnehmende, Galerie, Steuerpult & Stream Deck, Audio, Veranstaltungsübersicht) lassen sich unter „Zoom & Einstellungen“ → „Weitere Bereiche (Demo) zeigen“ einblenden. Beispieldaten gibt es dort auf Knopfdruck.
 
 Der Server ist nur auf diesem Rechner erreichbar. Eine eigene Veranstaltung („Veranstaltung“ → „Neue Veranstaltung“) wird automatisch unter `daten/veranstaltung.json` gespeichert und nach einem Neustart wiederhergestellt.

@@ -164,7 +164,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         break;
       case 'chat-file': {
         const parsed = parseZoomChat(String(msg.content ?? ''));
-        const messages = toChatMessages(parsed.messages);
+        // Nachrichten von vor dem Start dieser Sitzung (z. B. aus einem früheren Meeting) nicht übernehmen.
+        const since = (stateRef.current.session.startedAt ?? 0) - 60_000;
+        const messages = toChatMessages(parsed.messages).filter((m) => m.at >= since);
         const added = countNew(messages, stateRef.current.chat);
         if (added > 0) {
           dispatch({ type: 'chat/import', messages });

@@ -17,6 +17,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { meetingSignature, normalizeSdkChat, parseMeetingLink } from './meetingSdk.mjs';
+import { resetAnswers } from './resetAnswers.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -111,7 +112,12 @@ let lastSnapshot = null;
 let saved = null;
 try {
   saved = JSON.parse(fs.readFileSync(SAVE_FILE, 'utf8'));
-  log(`Gespeicherter Stand gefunden (${new Date(saved.savedAt).toLocaleString('de-DE')}).`);
+  // Jeder Neustart beginnt ohne Antworten; Einstellungen und Fragen bleiben.
+  if (saved?.state) {
+    saved = { savedAt: Date.now(), state: resetAnswers(saved.state) };
+    fs.writeFileSync(SAVE_FILE, JSON.stringify(saved));
+    log(`Veranstaltung „${saved.state.session?.title ?? ''}“ geladen, Antworten der letzten Sitzung zurückgesetzt.`);
+  }
 } catch {
   saved = null;
 }

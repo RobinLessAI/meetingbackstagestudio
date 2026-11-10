@@ -11,9 +11,6 @@ import {
   type ReactNode,
 } from 'react';
 import { createEmptyState } from '../data/event.ts';
-import { createInitialState } from '../data/sample.ts';
-// Ohne lokalen Server (reine Vorschau) mit Beispieldaten starten, damit etwas zu sehen ist.
-import { canUseLocalServer } from '../sync/socket.ts';
 import {
   analyzeCloud,
   analyzeMap,
@@ -66,7 +63,7 @@ let uid = 0;
 export const nextId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(uid++).toString(36)}`;
 
 export function StoreProvider({ children, initial }: { children: ReactNode; initial?: AppState }) {
-  const [state, dispatch] = useReducer(reducer, initial, (init) => init ?? (canUseLocalServer() ? createEmptyState() : createInitialState()));
+  const [state, dispatch] = useReducer(reducer, initial, (init) => init ?? createEmptyState());
   const stateRef = useRef(state);
   stateRef.current = state;
 
