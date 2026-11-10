@@ -3,6 +3,7 @@ import { useStore } from '../state/store.tsx';
 import { useUi } from '../state/ui.tsx';
 import { CloudTab } from './graphics/CloudTab.tsx';
 import { HighlightTab } from './graphics/HighlightTab.tsx';
+import { LookPanel } from './graphics/LookPanel.tsx';
 import { MapTab } from './graphics/MapTab.tsx';
 import { GRAPHIC_PAGES } from './graphics/pages.ts';
 import { PollTab } from './graphics/PollTab.tsx';
@@ -57,6 +58,7 @@ export function GraphicsView() {
           {page.id === 'umfrage' && <PollTab />}
           {page.id === 'wortwolke' && <CloudTab />}
           {page.id === 'highlight' && <HighlightTab />}
+          {(page.id === 'karte' || page.id === 'umfrage' || page.id === 'wortwolke') && <LookPanel graphic={page.id} />}
         </section>
       )}
     </div>

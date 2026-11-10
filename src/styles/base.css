@@ -109,7 +109,7 @@
   --highlight-bg: #ffffff;
 }
 
-:root[data-theme='light'] :is(.presentation, .highlight-stage, .stage__screen, .theme-dark) {
+:root[data-theme='light'] :is(.presentation, .highlight-stage, .stage__screen, .theme-dark, .out--embedded) {
   color-scheme: dark;
   --bg: #0d0f12;
   --panel: #14171b;

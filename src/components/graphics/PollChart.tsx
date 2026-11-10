@@ -1,5 +1,7 @@
+import type { CSSProperties } from 'react';
+import { PALETTE, withAlpha } from '../../lib/color.ts';
 import type { PollView } from '../../sync/snapshot.ts';
-import type { PollState } from '../../state/types.ts';
+import type { PollLook, PollState } from '../../state/types.ts';
 
 const SHADES = ['#c9d0d8', '#8f99a5', '#6b7480', '#4d555f', '#b3bcc6', '#7c8691'];
 
@@ -8,14 +10,31 @@ export function PollChart({
   data,
   variant = 'preview',
   chart,
+  look,
 }: {
   data: PollView;
   variant?: 'preview' | 'present' | 'overlay';
   chart?: PollState['chart'];
+  /** Eigene Farben und Anzeigeoptionen für die OBS-Ausgabe. */
+  look?: PollLook;
 }) {
   const kind = chart ?? data.chart;
-  const leaders = new Set(data.leaderIds);
-  const analysis = data;
+  const leaders = new Set(look && !look.highlightLeader ? [] : data.leaderIds);
+  const totals = look?.sortByVotes ? data.totals.slice().sort((a, b) => b.count - a.count) : data.totals;
+  const analysis = { ...data, totals };
+  const showPercent = look ? look.showPercent : true;
+  const showCounts = look ? look.showCounts : true;
+  const showKeys = look ? look.showKeys : true;
+  // Farbe je Antwort: führende in Akzentfarbe, sonst Grundfarbe oder bunt
+  const colorOf = (id: string, i: number, fallback: string) =>
+    leaders.has(id) ? 'var(--accent)' : look?.multiColor ? PALETTE[data.totals.findIndex((t) => t.option.id === id) % PALETTE.length] ?? PALETTE[i % PALETTE.length] : look ? look.barColor : fallback;
+  const vars = look
+    ? ({
+        '--poll-bar': look.barColor,
+        '--poll-track': withAlpha(look.trackColor, look.trackOpacity),
+        '--poll-bar-size': String(look.barSize / 100),
+      } as CSSProperties)
+    : undefined;
 
   if (data.kind === 'offen') {
     const answers = data.openAnswers.slice().reverse();
@@ -43,7 +62,7 @@ export function PollChart({
     const C = 2 * Math.PI * R;
     let offset = 0;
     return (
-      <div className={`poll-donut poll-donut--${variant}`}>
+      <div className={`poll-donut poll-donut--${variant}`} style={vars}>
         <svg viewBox="0 0 100 100" role="img" aria-label={`Kreisdiagramm, ${total} Stimmen`}>
           <circle cx="50" cy="50" r={R} className="poll-donut__track" />
           {total > 0 &&
@@ -56,7 +75,7 @@ export function PollChart({
                   cy="50"
                   r={R}
                   fill="none"
-                  stroke={leaders.has(t.option.id) ? 'var(--accent)' : SHADES[i % SHADES.length]}
+                  stroke={colorOf(t.option.id, i, SHADES[i % SHADES.length])}
                   strokeWidth="16"
                   strokeDasharray={`${Math.max(0, len - 0.6)} ${C}`}
                   strokeDashoffset={-offset}
@@ -78,13 +97,15 @@ export function PollChart({
             <li key={t.option.id} className={leaders.has(t.option.id) ? 'is-leader' : ''}>
               <span
                 className="poll-legend__swatch"
-                style={{ background: leaders.has(t.option.id) ? 'var(--accent)' : SHADES[i % SHADES.length] }}
+                style={{ background: colorOf(t.option.id, i, SHADES[i % SHADES.length]) }}
               />
-              <span className="poll-key">{t.key}</span>
+              {showKeys && <span className="poll-key">{t.key}</span>}
               <span className="poll-legend__text">{t.option.text}</span>
-              <span className="poll-legend__val tabular">
-                {t.count} · {t.pct} %
-              </span>
+              {(showCounts || showPercent) && (
+                <span className="poll-legend__val tabular">
+                  {[showCounts && t.count, showPercent && `${t.pct} %`].filter((x) => x !== false).join(' · ')}
+                </span>
+              )}
             </li>
           ))}
         </ul>
@@ -93,21 +114,23 @@ export function PollChart({
   }
 
   return (
-    <ol className={`poll-bars poll-bars--${variant}`} aria-label="Ergebnisse als Balkendiagramm">
-      {analysis.totals.map((t) => (
+    <ol className={`poll-bars poll-bars--${variant}${look && showCounts ? ' poll-bars--counts' : ''}`} aria-label="Ergebnisse als Balkendiagramm" style={vars}>
+      {analysis.totals.map((t, i) => (
         <li key={t.option.id} className={`poll-bar${leaders.has(t.option.id) ? ' is-leader' : ''}`}>
           <div className="poll-bar__label">
-            <span className="poll-key">{t.key}</span>
+            {showKeys && <span className="poll-key">{t.key}</span>}
             <span className="poll-bar__text">{t.option.text}</span>
             <span className="poll-bar__val tabular">
-              <strong>{t.pct} %</strong>
-              <span className="poll-bar__count">
-                {t.count} {t.count === 1 ? 'Stimme' : 'Stimmen'}
-              </span>
+              {showPercent && <strong>{t.pct} %</strong>}
+              {showCounts && (
+                <span className="poll-bar__count">
+                  {t.count} {t.count === 1 ? 'Stimme' : 'Stimmen'}
+                </span>
+              )}
             </span>
           </div>
           <div className="poll-bar__track" aria-hidden>
-            <div className="poll-bar__fill" style={{ width: `${t.pct}%` }} />
+            <div className="poll-bar__fill" style={{ width: `${t.pct}%`, background: look ? colorOf(t.option.id, i, look.barColor) : undefined }} />
           </div>
         </li>
       ))}

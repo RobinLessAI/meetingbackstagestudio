@@ -2,7 +2,7 @@
 // der Grafiken nötig ist, und wird bei jeder Änderung an den Server geschickt.
 import type { CloudTerm } from '../lib/words.ts';
 import type { MapPin, PollAnalysis, PollTotal } from '../state/derive.ts';
-import type { AppState, GraphicKind, HighlightStyle, MapState, PollState, Reaction } from '../state/types.ts';
+import type { AppState, GraphicKind, GraphicLooks, HighlightStyle, MapState, PollState, Reaction } from '../state/types.ts';
 
 export interface PollView {
   kind: PollState['kind'];
@@ -32,6 +32,7 @@ export interface OutputSnapshot {
   cloud: { prompt: string; terms: CloudTerm[]; messages: number };
   highlight: HighlightView | null;
   highlightStyle?: HighlightStyle;
+  looks?: GraphicLooks;
 }
 
 export function pollView(poll: PollState, a: PollAnalysis): PollView {
@@ -70,5 +71,6 @@ export function buildSnapshot(
     cloud: { prompt: state.cloud.prompt, terms: derived.cloud.visible, messages: derived.cloud.messageCount },
     highlight: h ? { text: h.text, senderName: h.senderName, at: h.at } : null,
     highlightStyle: state.highlightStyle,
+    looks: state.looks,
   };
 }

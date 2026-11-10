@@ -18,6 +18,7 @@ import './styles/base.css';
 import './styles/components.css';
 import './styles/layout.css';
 import './styles/views.css';
+import './styles/ausgabe.css';
 
 import { App } from './App.tsx';
 import { applyTheme, readTheme } from './state/theme.ts';

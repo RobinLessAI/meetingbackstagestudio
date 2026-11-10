@@ -6,8 +6,12 @@ import type {
   CloudState,
   DeckState,
   GalleryState,
+  CloudLook,
   GraphicKind,
+  GraphicLooks,
   HighlightStyle,
+  MapLook,
+  PollLook,
   LocationDecision,
   LogEntry,
   MapState,
@@ -68,6 +72,7 @@ export type Action =
   | { type: 'cloud/pause' | 'cloud/resume' | 'cloud/reset'; at: number }
   | { type: 'highlight/set'; id: string | null }
   | { type: 'highlight/style'; patch: Partial<HighlightStyle> }
+  | { type: 'look/update'; graphic: keyof GraphicLooks; patch: Partial<MapLook & PollLook & CloudLook> }
   | { type: 'program/graphic'; graphic: GraphicKind | null }
   | { type: 'program/reaction'; reaction: Reaction | null }
   | { type: 'gallery/update'; patch: Partial<GalleryState> }
@@ -332,6 +337,8 @@ export function reducer(s: AppState, a: Action): AppState {
       return { ...s, highlightId: a.id };
     case 'highlight/style':
       return { ...s, highlightStyle: { ...s.highlightStyle, ...a.patch } };
+    case 'look/update':
+      return { ...s, looks: { ...s.looks, [a.graphic]: { ...s.looks[a.graphic], ...a.patch } } };
     case 'program/graphic':
       return { ...s, program: { ...s.program, graphic: a.graphic } };
     case 'program/reaction':

@@ -1,16 +1,10 @@
 import type { CSSProperties } from 'react';
 import { MessageSquareQuote } from 'lucide-react';
 import { DEFAULT_HIGHLIGHT_STYLE } from '../../data/highlightStyle.ts';
+import { withAlpha } from '../../lib/color.ts';
 import { clock } from '../../lib/time.ts';
 import type { HighlightStyle } from '../../state/types.ts';
 import type { HighlightView } from '../../sync/snapshot.ts';
-
-/** #rrggbb und Deckkraft (0–100) als rgb()-Farbe. */
-function withAlpha(hex: string, opacity: number): string {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-  const n = m ? parseInt(m[1], 16) : 0;
-  return `rgb(${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255} / ${Math.max(0, Math.min(100, opacity)) / 100})`;
-}
 
 const FONTS: Record<HighlightStyle['font'], string> = {
   standard: 'var(--font-ui)',

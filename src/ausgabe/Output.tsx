@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
+import { boxVars, fullBackground, lookVars, placement } from '../components/graphics/look.ts';
+import { normalizeLooks } from '../data/graphicLooks.ts';
 import { HighlightCard } from '../components/graphics/HighlightCard.tsx';
 import { PollChart } from '../components/graphics/PollChart.tsx';
 import { WordCloud } from '../components/graphics/WordCloud.tsx';
 import { WorldMap } from '../components/graphics/WorldMap.tsx';
-import type { GraphicKind } from '../state/types.ts';
+import type { GraphicKind, GraphicLook, GraphicLooks } from '../state/types.ts';
 import type { OutputSnapshot } from '../sync/snapshot.ts';
 import { openSyncSocket, type SocketStatus } from '../sync/socket.ts';
 
@@ -33,9 +35,13 @@ export function readOptions(search: string): OutputOptions {
   return { grafik, stil, sichtbar, hintergrund, hintergrundFest, debug: p.get('debug') === '1' };
 }
 
-function title(s: OutputSnapshot, g: GraphicKind) {
+function title(s: OutputSnapshot, g: GraphicKind, look?: GraphicLook) {
+  if (look?.title.trim()) return look.title.trim();
   return g === 'karte' ? s.map.question : g === 'umfrage' ? s.poll.question : g === 'wortwolke' ? s.cloud.prompt : 'Aus dem Chat';
 }
+
+const lookOf = (looks: GraphicLooks, g: GraphicKind): GraphicLook | undefined =>
+  g === 'karte' || g === 'umfrage' || g === 'wortwolke' ? looks[g] : undefined;
 
 function meta(s: OutputSnapshot, g: GraphicKind) {
   if (g === 'karte') return `${s.map.people} ${s.map.people === 1 ? 'Person' : 'Personen'} an ${s.map.pins.length} ${s.map.pins.length === 1 ? 'Ort' : 'Orten'}`;
@@ -47,21 +53,25 @@ function meta(s: OutputSnapshot, g: GraphicKind) {
   return '';
 }
 
-function GraphicBody({ s, g, full }: { s: OutputSnapshot; g: GraphicKind; full: boolean }) {
+function GraphicBody({ s, g, full, looks }: { s: OutputSnapshot; g: GraphicKind; full: boolean; looks: GraphicLooks }) {
   if (g === 'karte') {
+    const l = looks.karte;
+    // Seitenverhältnis der Karte passend zur eingestellten Boxgröße
+    const aspect = full ? 2.3 : l.height > 0 ? Math.max(0.6, (l.width * 16) / (l.height * 9 * 0.82)) : 1.2;
     return (
       <WorldMap
         pins={s.map.pins}
         view={s.map.view}
         mapStyle={s.map.style ?? 'gefuellt'}
         variant="present"
-        aspect={full ? 2.3 : 1.2}
-        renderWidth={full ? 1250 : 440}
+        aspect={aspect}
+        renderWidth={full ? 1250 : Math.round(19.2 * l.width * 0.9)}
+        look={l}
       />
     );
   }
-  if (g === 'umfrage') return <PollChart data={s.poll} variant={full ? 'present' : 'overlay'} />;
-  if (g === 'wortwolke') return <WordCloud terms={full ? s.cloud.terms : s.cloud.terms.slice(0, 20)} variant={full ? 'present' : 'overlay'} />;
+  if (g === 'umfrage') return <PollChart data={s.poll} variant={full ? 'present' : 'overlay'} look={looks.umfrage} />;
+  if (g === 'wortwolke') return <WordCloud terms={s.cloud.terms} variant={full ? 'present' : 'overlay'} look={looks.wortwolke} />;
   return <HighlightCard message={s.highlight} variant={full ? 'present' : 'overlay'} style={s.highlightStyle} />;
 }
 
@@ -89,6 +99,28 @@ export function Output({ options }: { options: OutputOptions }) {
     return () => window.clearInterval(t);
   }, [reaction]);
 
+  return <OutputView snapshot={snapshot} options={options} now={now} status={status} />;
+}
+
+/**
+ * Zeichnet eine Momentaufnahme wie in OBS. Wird von der OBS-Seite und von der
+ * Vorschau in der App (embedded) genutzt, damit beide exakt gleich aussehen.
+ */
+export function OutputView({
+  snapshot,
+  options,
+  now = Date.now(),
+  status = 'verbunden',
+  embedded = false,
+}: {
+  snapshot: OutputSnapshot | null;
+  options: OutputOptions;
+  now?: number;
+  status?: SocketStatus;
+  embedded?: boolean;
+}) {
+  const reaction = snapshot?.program.reaction;
+  const looks = normalizeLooks(snapshot?.looks);
   const g: GraphicKind | null = !snapshot
     ? null
     : options.grafik === 'programm'
@@ -97,34 +129,47 @@ export function Output({ options }: { options: OutputOptions }) {
         ? options.grafik
         : null;
   const full = options.stil === 'vollbild';
-  // Weltkarte „Nur Umrisse“: ohne festen Hintergrund in der Adresse transparent ausgeben.
-  const background =
-    !options.hintergrundFest && g === 'karte' && snapshot?.map.style === 'umrisse' ? 'transparent' : options.hintergrund;
+  const look = g ? lookOf(looks, g) : undefined;
+  // Hintergrund: Adresse (hintergrund=…) hat Vorrang, sonst die Darstellung der Grafik im Vollbild.
+  let background = options.hintergrund;
+  let backgroundStyle: CSSProperties | undefined;
+  if (!options.hintergrundFest && look && full) {
+    const custom = fullBackground(look);
+    if (custom === 'transparent') background = 'transparent';
+    else if (custom) {
+      background = 'transparent';
+      backgroundStyle = { background: custom };
+    } else background = g === 'karte' && snapshot?.map.style === 'umrisse' ? 'transparent' : 'dunkel';
+  }
   const showReaction = options.grafik === 'programm' && reaction && now - reaction.at < 5000;
 
   return (
-    <div className={`out out--${background}`}>
+    <div className={`out out--${background}${embedded ? ' out--embedded' : ''}`} style={backgroundStyle}>
       {snapshot && g && full && (
-        <section className="out-full" key={`full-${g}`}>
-          <h1 className="out-full__title">{title(snapshot, g)}</h1>
+        <section className={`out-full${look ? ' out-look' : ''}`} key={`full-${g}`} style={look ? lookVars(look) : undefined}>
+          {(!look || look.showTitle) && <h1 className="out-full__title">{title(snapshot, g, look)}</h1>}
           <div className={`out-full__body out-full__body--${g}${g === 'highlight' ? ` is-${snapshot.highlightStyle?.position ?? 'links'}` : ''}`}>
-            <GraphicBody s={snapshot} g={g} full />
+            <GraphicBody s={snapshot} g={g} full looks={looks} />
           </div>
-          {meta(snapshot, g) && <p className="out-full__meta">{meta(snapshot, g)}</p>}
+          {(!look || look.showMeta) && meta(snapshot, g) && <p className="out-full__meta">{meta(snapshot, g)}</p>}
         </section>
       )}
       {snapshot && g && !full && g === 'highlight' && (
         <section className={`out-lower out-lower--${snapshot.highlightStyle?.position ?? 'links'}`} key="lower">
-          <GraphicBody s={snapshot} g={g} full={false} />
+          <GraphicBody s={snapshot} g={g} full={false} looks={looks} />
         </section>
       )}
       {snapshot && g && !full && g !== 'highlight' && (
-        <section className={`out-side out-side--${g}`} key={`side-${g}`}>
-          <p className="out-side__title">{title(snapshot, g)}</p>
+        <section
+          className={`out-side out-side--${g}${look ? ' out-look' : ''}${look && look.height === 0 ? ' out-side--auto' : ''}`}
+          key={`side-${g}-${look?.position ?? ''}`}
+          style={look ? { ...lookVars(look), ...boxVars(look), ...placement(look) } : undefined}
+        >
+          {(!look || look.showTitle) && <p className="out-side__title">{title(snapshot, g, look)}</p>}
           <div className="out-side__body">
-            <GraphicBody s={snapshot} g={g} full={false} />
+            <GraphicBody s={snapshot} g={g} full={false} looks={looks} />
           </div>
-          {meta(snapshot, g) && <p className="out-side__meta">{meta(snapshot, g)}</p>}
+          {(!look || look.showMeta) && meta(snapshot, g) && <p className="out-side__meta">{meta(snapshot, g)}</p>}
         </section>
       )}
       {showReaction && (

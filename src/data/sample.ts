@@ -1,3 +1,4 @@
+import { DEFAULT_LOOKS } from './graphicLooks.ts';
 import { DEFAULT_HIGHLIGHT_STYLE } from './highlightStyle.ts';
 import type {
   AppState,
@@ -234,6 +235,7 @@ export function createInitialState(now: number = Date.now()): AppState {
     },
     highlightId: idOf('aylin', 'Wie haltet ihr die Energie hoch, wenn die Hälfte im Raum sitzt und die andere Hälfte online ist?'),
     highlightStyle: DEFAULT_HIGHLIGHT_STYLE,
+    looks: DEFAULT_LOOKS,
     program: { graphic: null, reaction: null },
     gallery: {
       layout: 'zentrum',

@@ -1,4 +1,5 @@
-import { useId, useMemo } from 'react';
+import { useId, useMemo, type CSSProperties } from 'react';
+import { inkFor, withAlpha } from '../../lib/color.ts';
 import {
   DE_COUNTRY_PATH,
   DE_STATES_PATH,
@@ -16,7 +17,7 @@ import {
 } from '../../data/worldMap.ts';
 import { project } from '../../lib/projection.ts';
 import type { MapPin } from '../../state/derive.ts';
-import type { MapState } from '../../state/types.ts';
+import type { MapLook, MapState } from '../../state/types.ts';
 
 type View = MapState['view'];
 
@@ -160,6 +161,7 @@ export function WorldMap({
   onSelect,
   aspect = 2,
   renderWidth,
+  look,
 }: {
   pins: MapPin[];
   view: View;
@@ -171,15 +173,32 @@ export function WorldMap({
   aspect?: number;
   /** Erwartete Breite in Pixeln; bestimmt, wie groß Pins und Beschriftungen erscheinen. */
   renderWidth?: number;
+  /** Eigene Farben und Größen für die OBS-Ausgabe. */
+  look?: MapLook;
 }) {
   const vb = useMemo(() => viewBoxFor(view, aspect), [view, aspect]);
   // Größen in Bildschirmpixeln, umgerechnet über eine typische Darstellungsbreite.
   const refWidth = renderWidth ?? (variant === 'present' ? 1250 : variant === 'overlay' ? 320 : 760);
   const px = vb[2] / refWidth;
-  const pinBase = (variant === 'present' ? 10 : variant === 'overlay' ? 6 : 7.5) * px;
+  const pinBase = (variant === 'present' ? 10 : variant === 'overlay' ? 6 : 7.5) * px * (look ? look.pinSize / 100 : 1);
   const clusters = useMemo(() => clusterPins(pins, pinBase * 2.1), [pins, pinBase]);
   const detailed = view !== 'welt';
-  const showLabels = variant !== 'overlay' && (detailed || variant === 'present');
+  const showLabels = (look ? look.showLabels : true) && variant !== 'overlay' && (detailed || variant === 'present');
+  const showCounts = look ? look.showCounts : true;
+  const lookStyle = look
+    ? ({
+        '--map-land': look.land,
+        '--map-ocean': look.ocean,
+        '--map-ocean-opacity': String(look.oceanOpacity / 100),
+        '--map-grid': withAlpha(look.land, 30),
+        '--map-borders': look.borders,
+        '--map-states': look.borders,
+        '--map-outline': look.land,
+        '--map-label': look.labelColor,
+        '--accent': look.pin,
+        '--accent-ink': inkFor(look.pin),
+      } as CSSProperties)
+    : undefined;
   const fontSize = (variant === 'present' ? 19 : 12.5) * px;
   const radius = (c: PinCluster) => pinBase * (1 + Math.sqrt(c.count - 1) * 0.42);
   const labels = useMemo(
@@ -199,6 +218,7 @@ export function WorldMap({
   return (
     <svg
       className={`worldmap worldmap--${variant}${outline ? ' worldmap--umrisse' : ''}`}
+      style={lookStyle}
       viewBox={vb.join(' ')}
       preserveAspectRatio="xMidYMid meet"
       role="img"
@@ -264,7 +284,7 @@ export function WorldMap({
             <title>{label}</title>
             <circle cx={c.x} cy={c.y} r={r * 1.9} className="worldmap__halo" />
             <circle cx={c.x} cy={c.y} r={r} className="worldmap__dot" strokeWidth={r * 0.22} />
-            {c.count > 1 && (
+            {showCounts && c.count > 1 && (
               <text x={c.x} y={c.y} className="worldmap__count" fontSize={r * 1.15} dy="0.36em">
                 {c.count}
               </text>

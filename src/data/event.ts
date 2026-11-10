@@ -1,4 +1,5 @@
 import type { AppState } from '../state/types.ts';
+import { normalizeLooks } from './graphicLooks.ts';
 import { createInitialState } from './sample.ts';
 
 export interface NewEventInput {
@@ -64,5 +65,6 @@ export function normalizeState(raw: Partial<AppState>): AppState {
     poll: { ...base.poll, ...(raw.poll ?? {}) },
     program: { ...base.program, ...(raw.program ?? {}) },
     highlightStyle: { ...base.highlightStyle, ...(raw.highlightStyle ?? {}) },
+    looks: normalizeLooks(raw.looks),
   } as AppState;
 }

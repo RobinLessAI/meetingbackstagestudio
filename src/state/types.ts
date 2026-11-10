@@ -153,6 +153,104 @@ export interface CloudState extends CollectWindow {
 
 export type GraphicKind = 'karte' | 'umfrage' | 'wortwolke' | 'highlight';
 
+/** Position einer Einblendung im Bild (3 × 3 Raster). */
+export type LookPosition =
+  | 'oben-links'
+  | 'oben-mitte'
+  | 'oben-rechts'
+  | 'mitte-links'
+  | 'mitte'
+  | 'mitte-rechts'
+  | 'unten-links'
+  | 'unten-mitte'
+  | 'unten-rechts';
+
+/** Gemeinsame Darstellung von Weltkarte, Umfrage und Wortwolke in der OBS-Ausgabe. Farben als #rrggbb. */
+export interface GraphicLook {
+  // Einblendung (Programm bzw. stil=einblendung)
+  position: LookPosition;
+  /** Breite und Höhe der Einblendung in Prozent des Bildes; Höhe 0 = automatisch. */
+  width: number;
+  height: number;
+  /** Abstand zum Bildrand in Prozent. */
+  marginX: number;
+  marginY: number;
+  // Box
+  background: string;
+  backgroundOpacity: number;
+  border: boolean;
+  borderColor: string;
+  corners: 'eckig' | 'rund' | 'stark';
+  shadow: boolean;
+  /** Innenabstand in Prozent der Standardgröße. */
+  padding: number;
+  // Text
+  font: 'standard' | 'schmal' | 'serif';
+  /** Schrift- und Elementgröße in Prozent. */
+  scale: number;
+  text: string;
+  muted: string;
+  accent: string;
+  showTitle: boolean;
+  /** Eigener Titel; leer = Frage aus der Grafik. */
+  title: string;
+  titleAlign: 'links' | 'mitte';
+  showMeta: boolean;
+  // Vollbild
+  fullBackground: 'dunkel' | 'farbe' | 'transparent';
+  fullColor: string;
+  fullOpacity: number;
+}
+
+export interface MapLook extends GraphicLook {
+  land: string;
+  ocean: string;
+  oceanOpacity: number;
+  borders: string;
+  pin: string;
+  /** Größe der Punkte in Prozent. */
+  pinSize: number;
+  showLabels: boolean;
+  labelColor: string;
+  showCounts: boolean;
+}
+
+export interface PollLook extends GraphicLook {
+  barColor: string;
+  trackColor: string;
+  trackOpacity: number;
+  /** Führende Antwort in Akzentfarbe hervorheben. */
+  highlightLeader: boolean;
+  /** Jede Antwort in eigener Farbe. */
+  multiColor: boolean;
+  showPercent: boolean;
+  showCounts: boolean;
+  showKeys: boolean;
+  /** Nach Stimmen sortieren statt in Antwort-Reihenfolge. */
+  sortByVotes: boolean;
+  /** Balkenstärke in Prozent. */
+  barSize: number;
+}
+
+export interface CloudLook extends GraphicLook {
+  colorMode: 'akzent' | 'einfarbig' | 'bunt';
+  wordColor: string;
+  maxWords: number;
+  /** Größe der kleinsten und größten Begriffe in Prozent. */
+  minSize: number;
+  maxSize: number;
+  weight: 'normal' | 'fett';
+  uppercase: boolean;
+  /** Abstand zwischen Begriffen in Prozent. */
+  gap: number;
+}
+
+export interface GraphicLooks {
+  karte: MapLook;
+  umfrage: PollLook;
+  wortwolke: CloudLook;
+}
+
 /** Aussehen der Chat-Highlight-Einblendung (Bauchbinde). Farben als #rrggbb. */
 export interface HighlightStyle {
   background: string;
@@ -286,6 +384,8 @@ export interface AppState {
   cloud: CloudState;
   highlightId: string | null;
   highlightStyle: HighlightStyle;
+  /** Darstellung von Weltkarte, Umfrage und Wortwolke in OBS. */
+  looks: GraphicLooks;
   program: ProgramState;
   gallery: GalleryState;
   deck: DeckState;
