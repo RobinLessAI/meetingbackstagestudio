@@ -1076,3 +1076,34 @@ a.icon-btn { text-decoration: none; }
 .pick__search .input { flex: 1; height: 30px; }
 .pick--fill { flex: 1; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--panel); overflow: hidden; }
 .pick--fill .pick-list { flex: 1; max-height: none; }
+
+/* ------------------------------------------------ Übersicht Live Grafiken */
+.dash { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.dash-card { display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--panel); min-width: 0; }
+.dash-card.is-on-air { border-color: var(--accent-line); box-shadow: inset 0 0 0 1px var(--accent-line); }
+.dash-card__head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.dash-card__head > svg { color: var(--text-3); flex: none; }
+.dash-card.is-on-air .dash-card__head > svg { color: var(--accent); }
+.dash-card__title { margin: 0; font-size: var(--fs-lg); font-weight: 600; flex: 1; min-width: 0; }
+.dash-card__title button { all: unset; cursor: pointer; }
+.dash-card__title button:hover { text-decoration: underline; }
+.dash-card__title button:focus-visible { box-shadow: var(--focus); border-radius: 3px; }
+.dash-card__stage {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  cursor: pointer;
+  background: repeating-conic-gradient(#2b3036 0% 25%, #22262b 0% 50%) 50% / 16px 16px;
+}
+.dash-card__stage { text-align: left; font: inherit; color: inherit; } /* Knopf soll die Ausgabe nicht zentrieren */
+.dash-card__stage:hover { border-color: var(--accent-line); }
+.dash-card__stage:focus-visible { outline: none; box-shadow: var(--focus); }
+.dash-card__stage .out * { pointer-events: none; }
+.dash-card__meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--fs-sm); }
+.dash-card__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 1000px) { .dash { grid-template-columns: minmax(0, 1fr); } }

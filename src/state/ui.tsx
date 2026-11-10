@@ -25,7 +25,8 @@ const readDemo = () => {
 };
 
 /** Unterseiten von „Live Grafiken“: der Chat und die vier Grafiken. */
-export type GraphicTab = GraphicKind;
+/** „uebersicht“ = Dashboard mit allen vier Grafiken (Klick auf „Live Grafiken“). */
+export type GraphicTab = 'uebersicht' | GraphicKind;
 
 const NAV_OPEN_KEY = 'mb-grafiken-offen';
 
@@ -62,7 +63,7 @@ const readHash = (): ViewId => {
 
 export function UiProvider({ children }: { children: ReactNode }) {
   const [view, setView] = useState<ViewId>(readHash);
-  const [graphicTab, setGraphicTab] = useState<GraphicTab>('karte');
+  const [graphicTab, setGraphicTab] = useState<GraphicTab>('uebersicht');
   const [chatPopupOpen, setChatPopupOpen] = useState(false);
   const [graphicsOpen, setGraphicsOpenState] = useState(() => {
     try {

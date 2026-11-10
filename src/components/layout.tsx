@@ -86,7 +86,7 @@ export function Sidebar() {
           const isGraphics = v.id === 'grafiken';
           // Aufgeklappt zeigen die Unterpunkte ihre Zahlen selbst.
           const c = isGraphics && graphicsOpen ? undefined : counts[v.id];
-          const active = view === v.id && !(isGraphics && graphicsOpen);
+          const active = view === v.id && !(isGraphics && graphicTab !== 'uebersicht');
           return (
             <li key={v.id}>
               <a
@@ -96,7 +96,13 @@ export function Sidebar() {
                 aria-expanded={isGraphics ? graphicsOpen : undefined}
                 onClick={(e) => {
                   e.preventDefault();
-                  if (isGraphics) setGraphicsOpen(view !== v.id || !graphicsOpen);
+                  if (isGraphics) {
+                    // Klick zeigt die Übersicht und klappt das Menü auf; auf der Übersicht klappt er es zu.
+                    const onOverview = view === v.id && graphicTab === 'uebersicht';
+                    setGraphicsOpen(onOverview ? !graphicsOpen : true);
+                    go(v.id, { graphicTab: 'uebersicht' });
+                    return;
+                  }
                   go(v.id);
                 }}
                 title={`${v.label} (Alt+${i + 1})`}

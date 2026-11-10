@@ -1,10 +1,10 @@
 import { CloudIcon, MapPin, MessageSquareQuote, Vote, type LucideIcon } from 'lucide-react';
-import type { GraphicTab } from '../../state/ui.tsx';
+import type { GraphicKind } from '../../state/types.ts';
 
-/** Unterseiten von „Live Grafiken“ in der Reihenfolge des Ausklappmenüs. Der Chat öffnet sich als eigenes Fenster. */
-export const GRAPHIC_PAGES: Array<{ id: GraphicTab; label: string; icon: LucideIcon; lead: string }> = [
-  { id: 'karte', label: 'Weltkarte', icon: MapPin, lead: 'Orte aus dem Chat. Eindeutige Orte erscheinen auf der Karte, unklare landen in der Prüfliste.' },
-  { id: 'umfrage', label: 'Umfrage', icon: Vote, lead: 'Antworten wie „A“ oder „2“ aus dem Chat. Pro Person zählt die zuletzt abgegebene gültige Stimme.' },
-  { id: 'wortwolke', label: 'Wortwolke', icon: CloudIcon, lead: 'Begriffe aus dem Chat, gefiltert nach Füllwörtern und unangemessenen Begriffen.' },
+/** Unterseiten von „Live Grafiken“ in der Reihenfolge des Ausklappmenüs. „Live Grafiken“ selbst zeigt die Übersicht. */
+export const GRAPHIC_PAGES: Array<{ id: GraphicKind; label: string; icon: LucideIcon; lead: string }> = [
   { id: 'highlight', label: 'Chat-Highlight', icon: MessageSquareQuote, lead: 'Eine einzelne Chat-Nachricht groß einblenden. Die Liste der Chat-Nachrichten lässt sich als Pop-up öffnen, z. B. neben Zoom.' },
+  { id: 'umfrage', label: 'Umfrage', icon: Vote, lead: 'Antworten wie „A“ oder „2“ aus dem Chat. Pro Person zählt die zuletzt abgegebene gültige Stimme.' },
+  { id: 'karte', label: 'Weltkarte', icon: MapPin, lead: 'Orte aus dem Chat. Eindeutige Orte erscheinen auf der Karte, unklare landen in der Prüfliste.' },
+  { id: 'wortwolke', label: 'Wortwolke', icon: CloudIcon, lead: 'Begriffe aus dem Chat, gefiltert nach Füllwörtern und unangemessenen Begriffen.' },
 ];
