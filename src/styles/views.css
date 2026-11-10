@@ -1188,3 +1188,18 @@ a.icon-btn { text-decoration: none; }
 .meet-step.is-done .meet-step__dot { border-color: var(--ok); background: var(--ok); color: var(--bg); }
 .meet-foot { text-align: center; }
 @media (max-width: 600px) { .meet-card { padding: 20px; } .meet-form__row { flex-wrap: wrap; } }
+
+/* Meine Meetings */
+.meet-lists { width: min(720px, 100%); margin: 16px auto 0; display: flex; flex-direction: column; gap: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); overflow: hidden; }
+.meet-lists__tabs { padding: 0 16px; }
+.meet-list { display: flex; flex-direction: column; gap: 12px; padding: 16px; align-items: flex-start; }
+.meet-list > * { max-width: 100%; }
+.meet-list__empty { margin: 0; }
+.meet-list__bar { gap: 10px; }
+.meet-items { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 6px; }
+.meet-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--raised); }
+.meet-item__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.meet-item__main strong { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.meet-item__actions { display: flex; align-items: center; gap: 6px; }
+.meet-item__del { border-left: 0; border-radius: var(--r-sm); }
+.meet-add { width: 100%; display: flex; flex-direction: column; gap: 8px; }

@@ -21,7 +21,7 @@ export interface StyleTemplate {
   id: string;
   name: string;
   /** Aussehen je Grafik, „alle“ = Design aller Grafiken, „umfrage-frage“ = Frage mit Antworten. */
-  kind: 'highlight' | 'karte' | 'umfrage' | 'wortwolke' | 'alle' | 'umfrage-frage';
+  kind: 'highlight' | 'karte' | 'umfrage' | 'wortwolke' | 'alle' | 'umfrage-frage' | 'meeting';
   data: Record<string, unknown>;
   at: number;
 }
@@ -41,6 +41,27 @@ export interface RegieStatus {
   /** Programmversion mit Git-Stand und installierte Zoom-SDK-Version. */
   appVersion?: string;
   sdkVersion?: string | null;
+  /** Verbindung zum Zoom-Konto (für „Meetings aus Zoom“). */
+  account?: { connected: boolean; redirectConfigured: boolean; scope: string };
+}
+
+/** Meeting aus dem eigenen Zoom-Konto. */
+export interface ZoomMeeting {
+  id: string;
+  topic: string;
+  start: string | null;
+  duration: number | null;
+  timezone: string | null;
+  recurring: boolean;
+  type: number | 'pmi';
+  link: string;
+}
+
+export interface ZoomMeetingsState {
+  loading: boolean;
+  meetings: ZoomMeeting[];
+  error: string | null;
+  at: number | null;
 }
 
 interface SyncValue {
@@ -61,6 +82,12 @@ interface SyncValue {
   openRegie: (meeting: string, passcode: string) => boolean;
   /** Lässt das Regie-Fenster das Meeting verlassen. */
   leaveRegie: () => void;
+  /** Meetings aus dem Zoom-Konto und Anmeldung dafür. */
+  zoomMeetings: ZoomMeetingsState;
+  loadZoomMeetings: () => void;
+  requestAuthUrl: () => Promise<string | null>;
+  connectZoom: (input: string) => Promise<{ ok: boolean; message: string }>;
+  disconnectZoom: () => void;
   /** Eigene Vorlagen (im Ordner daten/ gespeichert, ohne Server nur im Browser). */
   templates: StyleTemplate[];
   saveTemplates: (list: StyleTemplate[]) => void;
@@ -83,6 +110,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [lastImport, setLastImport] = useState<SyncValue['lastImport']>(null);
   const [regie, setRegie] = useState<RegieStatus | null>(null);
   const [actionKey, setActionKey] = useState<string | null>(null);
+  const [zoomMeetings, setZoomMeetings] = useState<ZoomMeetingsState>({ loading: false, meetings: [], error: null, at: null });
+  const authUrlWaiter = useRef<((url: string | null) => void) | null>(null);
+  const connectWaiter = useRef<((r: { ok: boolean; message: string }) => void) | null>(null);
   const [templates, setTemplates] = useState<StyleTemplate[]>(() => {
     if (available) return [];
     try {
@@ -146,6 +176,17 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         if (messages.length) dispatch({ type: 'chat/import', messages });
         break;
       }
+      case 'zoom-meetings':
+        setZoomMeetings({ loading: false, meetings: msg.meetings ?? [], error: msg.ok ? null : String(msg.error ?? 'Unbekannter Fehler'), at: msg.at ?? Date.now() });
+        break;
+      case 'zoom-auth-url':
+        authUrlWaiter.current?.(msg.url ?? null);
+        authUrlWaiter.current = null;
+        break;
+      case 'zoom-result':
+        connectWaiter.current?.({ ok: Boolean(msg.ok), message: String(msg.message ?? '') });
+        connectWaiter.current = null;
+        break;
       case 'vorlagen':
         if (Array.isArray(msg.vorlagen)) setTemplates(msg.vorlagen);
         break;
@@ -224,6 +265,32 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     const win = window.open(`/regie.html?${q.toString()}`, 'mb-regie', 'width=1180,height=780');
     return Boolean(win);
   }, []);
+  const loadZoomMeetings = useCallback(() => {
+    setZoomMeetings((z) => ({ ...z, loading: true, error: null }));
+    if (!socket.current?.send({ type: 'zoom-meetings' })) setZoomMeetings((z) => ({ ...z, loading: false, error: 'Keine Verbindung zum Server.' }));
+  }, []);
+  const requestAuthUrl = useCallback(
+    () =>
+      new Promise<string | null>((resolve) => {
+        authUrlWaiter.current = resolve;
+        if (!socket.current?.send({ type: 'zoom-auth-url' })) resolve(null);
+        window.setTimeout(() => resolve(null), 4000);
+      }),
+    [],
+  );
+  const connectZoom = useCallback(
+    (input: string) =>
+      new Promise<{ ok: boolean; message: string }>((resolve) => {
+        connectWaiter.current = resolve;
+        if (!socket.current?.send({ type: 'zoom-connect', input })) resolve({ ok: false, message: 'Keine Verbindung zum Server.' });
+        window.setTimeout(() => resolve({ ok: false, message: 'Zoom hat nicht rechtzeitig geantwortet.' }), 15000);
+      }),
+    [],
+  );
+  const disconnectZoom = useCallback(() => {
+    socket.current?.send({ type: 'zoom-disconnect' });
+    setZoomMeetings({ loading: false, meetings: [], error: null, at: null });
+  }, []);
   const saveTemplates = useCallback(
     (list: StyleTemplate[]) => {
       setTemplates(list);
@@ -263,8 +330,13 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setActionHandler,
       templates,
       saveTemplates,
+      zoomMeetings,
+      loadZoomMeetings,
+      requestAuthUrl,
+      connectZoom,
+      disconnectZoom,
     }),
-    [regie, available, status, outputs, savedAt, watch, lastImport, startWatch, stopWatch, openRegie, leaveRegie, actionKey, setActionHandler, templates, saveTemplates],
+    [regie, available, status, outputs, savedAt, watch, lastImport, startWatch, stopWatch, openRegie, leaveRegie, actionKey, setActionHandler, templates, saveTemplates, zoomMeetings, loadZoomMeetings, requestAuthUrl, connectZoom, disconnectZoom],
   );
   return <SyncCtx.Provider value={value}>{children}</SyncCtx.Provider>;
 }

@@ -75,6 +75,8 @@ Der Chat kommt über ein **Regie-Fenster**: MeetingBackstage öffnet ein Browser
 
 Grenzen: Ohne eine von Zoom geprüfte und veröffentlichte App tritt die Regie nur Meetings deines **eigenen Zoom-Kontos** bei. Die Regie ist für alle sichtbar und belegt einen Teilnehmerplatz. Private Nachrichten werden nicht übernommen. Wenn Zoom den Beitritt wegen des Kenncodes ablehnt, den Kenncode im Feld „Kenncode“ eintragen.
 
+**Meine Meetings (Seite „Meeting“):** Unter dem Eingabefeld lassen sich eigene Veranstaltungen mit Name, Zoom-Link und optional Kenncode speichern (ein Klick auf „Beitreten“ genügt dann). Der Reiter „Aus meinem Zoom-Konto“ zeigt geplante und wiederkehrende Meetings sowie den persönlichen Meetingraum. Dafür einmalig: im Marketplace die Scopes `meeting:read:list_meetings` und `user:read:user` ergänzen, in `.env.local` `ZOOM_REDIRECT_URI` (gleiche Adresse wie „OAuth Redirect URL“) eintragen, neu starten, „Bei Zoom erlauben“ und die Adresse nach dem Erlauben einfügen. Die Zugangs-Token liegen nur lokal in `daten/zoom-anmeldung.json`.
+
 **Notlösung ohne Regie:** In der App unter „Zoom & Einstellungen“ den Zoom-Ordner beobachten lassen. Nach jedem Klick auf „Chat speichern“ in Zoom übernimmt MeetingBackstage die neuen Nachrichten (nicht live). Nur Nachrichten an alle werden übernommen.
 
 ## Regeln der Chat-Auswertung

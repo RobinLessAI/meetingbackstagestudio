@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { meetingSignature, normalizeSdkChat, parseMeetingLink } from './meetingSdk.mjs';
 import { resetAnswers } from './resetAnswers.mjs';
+import { createZoomAccount } from './zoomAccount.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -37,6 +38,8 @@ function loadEnvFile(file) {
 loadEnvFile(process.env.MB_ENV_FILE ?? path.join(ROOT, '.env.local'));
 const ZOOM_CLIENT_ID = process.env.ZOOM_CLIENT_ID ?? '';
 const ZOOM_CLIENT_SECRET = process.env.ZOOM_CLIENT_SECRET ?? '';
+// Für „Meetings aus Zoom“: dieselbe Adresse wie „OAuth Redirect URL“ in der Zoom-App.
+const ZOOM_REDIRECT_URI = process.env.ZOOM_REDIRECT_URI ?? '';
 // Dateien des Zoom Meeting SDK (Web) aus node_modules, lokal ausgeliefert.
 const SDK_DIST = process.env.MB_ZOOM_SDK_DIR
   ? path.resolve(process.env.MB_ZOOM_SDK_DIR)
@@ -192,6 +195,17 @@ function handleAction(req, res, id) {
   json(200, { ok: true, aktion: id });
 }
 
+// --------------------------------------------- Zoom-Konto (eigene Meetings)
+const zoomAccount = createZoomAccount({
+  clientId: ZOOM_CLIENT_ID,
+  clientSecret: ZOOM_CLIENT_SECRET,
+  redirectUri: ZOOM_REDIRECT_URI,
+  dataDir: DATA_DIR,
+  log,
+  oauthBase: process.env.MB_ZOOM_OAUTH_BASE,
+  apiBase: process.env.MB_ZOOM_API_URL,
+});
+
 // ----------------------------------------------- Live-Chat über das Regie-Fenster
 const liveChat = []; // zuletzt empfangene Nachrichten, damit eine neu geladene Steuerung nichts verpasst
 const liveKeys = new Set();
@@ -203,6 +217,7 @@ function regieStatus() {
   return {
     ...regie,
     name: REGIE_NAME,
+    account: zoomAccount.status(),
     appVersion: APP_VERSION,
     sdkVersion: SDK_VERSION,
     configured: Boolean(ZOOM_CLIENT_ID && ZOOM_CLIENT_SECRET && SDK_MAIN),
@@ -434,6 +449,29 @@ wss.on('connection', (ws, rolle) => {
           send(ws, { type: 'saved', savedAt });
         } catch (e) {
           send(ws, { type: 'error', message: `Speichern fehlgeschlagen: ${e.message}` });
+        }
+        break;
+      case 'zoom-auth-url':
+        send(ws, { type: 'zoom-auth-url', url: zoomAccount.authorizeUrl() });
+        break;
+      case 'zoom-connect':
+        try {
+          await zoomAccount.connect(msg.input);
+          send(ws, { type: 'zoom-result', ok: true, message: 'Mit dem Zoom-Konto verbunden.' });
+        } catch (e) {
+          send(ws, { type: 'zoom-result', ok: false, message: e.message });
+        }
+        broadcast('steuerung', { type: 'regie-status', status: regieStatus() });
+        break;
+      case 'zoom-disconnect':
+        await zoomAccount.disconnect();
+        broadcast('steuerung', { type: 'regie-status', status: regieStatus() });
+        break;
+      case 'zoom-meetings':
+        try {
+          send(ws, { type: 'zoom-meetings', ok: true, meetings: await zoomAccount.listMeetings(), at: Date.now() });
+        } catch (e) {
+          send(ws, { type: 'zoom-meetings', ok: false, error: e.message, meetings: [] });
         }
         break;
       case 'regie-leave':

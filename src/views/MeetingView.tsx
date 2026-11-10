@@ -5,6 +5,7 @@ import { clock } from '../lib/time.ts';
 import { useStore } from '../state/store.tsx';
 import { useUi } from '../state/ui.tsx';
 import { useSync, type RegieStatus } from '../sync/SyncProvider.tsx';
+import { MeetingLists } from './MeetingLists.tsx';
 
 const readStored = (key: string) => {
   try {
@@ -55,14 +56,16 @@ export function MeetingView() {
   const connected = regie?.state === 'verbunden';
   const busy = regie?.state === 'verbindet' || regie?.state === 'wartet';
 
-  const join = () => {
-    if (!meeting.trim()) return;
+  const join = (link = meeting, code = passcode) => {
+    if (!link.trim()) return;
+    setMeeting(link.trim());
+    setPasscode(code ?? '');
     try {
-      localStorage.setItem('mb-letztes-meeting', meeting.trim());
+      localStorage.setItem('mb-letztes-meeting', link.trim());
     } catch {
       /* optional */
     }
-    if (!openRegie(meeting, passcode)) notify('Das Regie-Fenster wurde blockiert. Bitte Pop-ups für localhost erlauben.', 'fehler');
+    if (!openRegie(link, code ?? '')) notify('Das Regie-Fenster wurde blockiert. Bitte Pop-ups für localhost erlauben.', 'fehler');
   };
 
   const paste = async () => {
@@ -129,7 +132,7 @@ export function MeetingView() {
             className="meet-form"
             onSubmit={(e) => {
               e.preventDefault();
-              join();
+              join(meeting, passcode);
             }}
           >
             <label htmlFor={ids.meeting} className="meet-form__label">
@@ -194,6 +197,22 @@ export function MeetingView() {
           </Step>
         </ol>
       </section>
+
+      {!connected && (
+        <MeetingLists
+          currentLink={meeting}
+          disabled={!!blocker || busy}
+          onJoin={(link, code) => join(link, code)}
+          onUse={(link, code) => {
+            setMeeting(link);
+            if (code) {
+              setPasscode(code);
+              setShowPasscode(true);
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
+      )}
 
       <p className="meet-foot subtle">
         Zugangsdaten, Chat-Export als Notlösung und Team-Namen findest du unter{' '}

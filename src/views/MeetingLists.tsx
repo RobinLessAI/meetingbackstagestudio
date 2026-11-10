@@ -1,0 +1,276 @@
+import { useEffect, useId, useState } from 'react';
+import { Bookmark, BookmarkPlus, Check, ExternalLink, LogIn, RefreshCw, Repeat, Trash2, Unplug, X } from 'lucide-react';
+import { Badge, Button } from '../components/ui.tsx';
+import { useStore } from '../state/store.tsx';
+import { useSync, type StyleTemplate, type ZoomMeeting } from '../sync/SyncProvider.tsx';
+
+/** Gespeicherte Veranstaltung: Name, Zoom-Link, optional Kenncode. */
+interface SavedMeetingData {
+  link: string;
+  passcode?: string;
+}
+
+const idFromLink = (link: string) => link.match(/\/(?:j|w|s|wc\/join|wc)\/(\d{9,12})/)?.[1] ?? link.replace(/\D/g, '').slice(0, 12);
+const formatId = (id: string) => id.replace(/^(\d{3})(\d{3,4})(\d{3,4})$/, '$1 $2 $3');
+
+function when(m: ZoomMeeting): string {
+  if (m.type === 'pmi') return 'Immer verfügbar';
+  if (m.type === 3) return 'Wiederkehrend, ohne feste Zeit';
+  if (!m.start) return 'Ohne Termin';
+  const d = new Date(m.start);
+  const text = d.toLocaleString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return m.type === 8 ? `Wiederkehrend · nächster Termin ${text}` : text;
+}
+
+/** Tabs „Gespeichert“ und „Aus meinem Zoom-Konto“ unter dem Eingabefeld. */
+export function MeetingLists({ onJoin, onUse, currentLink, disabled }: {
+  onJoin: (link: string, passcode?: string) => void;
+  /** Link nur ins Feld übernehmen. */
+  onUse: (link: string, passcode?: string) => void;
+  currentLink: string;
+  disabled: boolean;
+}) {
+  const [tab, setTab] = useState<'gespeichert' | 'zoom'>('gespeichert');
+  return (
+    <section className="meet-lists" aria-label="Meine Meetings">
+      <div className="tabs meet-lists__tabs" role="tablist">
+        <button type="button" role="tab" aria-selected={tab === 'gespeichert'} className={`tab${tab === 'gespeichert' ? ' is-active' : ''}`} onClick={() => setTab('gespeichert')}>
+          <Bookmark size={15} aria-hidden /> Meine Veranstaltungen
+        </button>
+        <button type="button" role="tab" aria-selected={tab === 'zoom'} className={`tab${tab === 'zoom' ? ' is-active' : ''}`} onClick={() => setTab('zoom')}>
+          <Repeat size={15} aria-hidden /> Aus meinem Zoom-Konto
+        </button>
+      </div>
+      {tab === 'gespeichert' ? (
+        <SavedMeetings onJoin={onJoin} onUse={onUse} currentLink={currentLink} disabled={disabled} />
+      ) : (
+        <ZoomMeetings onJoin={onJoin} disabled={disabled} />
+      )}
+    </section>
+  );
+}
+
+function useSaveMeeting() {
+  const { templates, saveTemplates } = useSync();
+  const { notify } = useStore();
+  return (name: string, data: SavedMeetingData) => {
+    const n = name.trim();
+    const existing = templates.find((t) => t.kind === 'meeting' && t.name.toLowerCase() === n.toLowerCase());
+    const entry: StyleTemplate = {
+      id: existing?.id ?? `m-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      name: n,
+      kind: 'meeting',
+      data: { link: data.link.trim(), ...(data.passcode?.trim() ? { passcode: data.passcode.trim() } : {}) },
+      at: Date.now(),
+    };
+    saveTemplates([...templates.filter((t) => t.id !== entry.id), entry]);
+    notify(existing ? `„${n}“ aktualisiert` : `„${n}“ gespeichert`, 'erfolg');
+  };
+}
+
+function SavedMeetings({ onJoin, onUse, currentLink, disabled }: { onJoin: (l: string, p?: string) => void; onUse: (l: string, p?: string) => void; currentLink: string; disabled: boolean }) {
+  const { templates, saveTemplates } = useSync();
+  const save = useSaveMeeting();
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState('');
+  const [link, setLink] = useState('');
+  const [passcode, setPasscode] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const ids = { name: useId(), link: useId(), pass: useId() };
+  const list = templates.filter((t) => t.kind === 'meeting').sort((a, b) => a.name.localeCompare(b.name, 'de'));
+
+  return (
+    <div className="meet-list">
+      {list.length === 0 && !adding && (
+        <p className="subtle meet-list__empty">Noch keine Veranstaltungen gespeichert. Lege deine regelmäßigen Workshops mit Zoom-Link an, dann reicht später ein Klick.</p>
+      )}
+      <ul className="meet-items">
+        {list.map((t) => {
+          const d = t.data as unknown as SavedMeetingData;
+          return (
+            <li key={t.id} className="meet-item">
+              <div className="meet-item__main">
+                <strong>{t.name}</strong>
+                <span className="subtle mono">ID {formatId(idFromLink(d.link))}{d.passcode ? ' · mit Kenncode' : ''}</span>
+              </div>
+              <div className="meet-item__actions">
+                <Button size="sm" variant="primary" icon={LogIn} disabled={disabled} onClick={() => onJoin(d.link, d.passcode)}>
+                  Beitreten
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => onUse(d.link, d.passcode)} title="Nur ins Feld oben übernehmen">
+                  Übernehmen
+                </Button>
+                {confirmDelete === t.id ? (
+                  <>
+                    <Button size="sm" variant="danger" icon={Check} onClick={() => { saveTemplates(templates.filter((x) => x.id !== t.id)); setConfirmDelete(null); }}>
+                      Löschen
+                    </Button>
+                    <Button size="sm" variant="ghost" icon={X} onClick={() => setConfirmDelete(null)} aria-label="Nicht löschen" />
+                  </>
+                ) : (
+                  <button type="button" className="tpl__icon meet-item__del" aria-label={`„${t.name}“ löschen`} title="Löschen" onClick={() => setConfirmDelete(t.id)}>
+                    <Trash2 size={14} aria-hidden />
+                  </button>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      {adding ? (
+        <form
+          className="meet-add"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!name.trim() || !link.trim()) return;
+            save(name, { link, passcode });
+            setAdding(false);
+            setName('');
+            setLink('');
+            setPasscode('');
+          }}
+        >
+          <label htmlFor={ids.name} className="field-label">Name der Veranstaltung</label>
+          <input id={ids.name} className="input" value={name} maxLength={60} autoFocus placeholder="z. B. Montagsworkshop Team Nord" onChange={(e) => setName(e.target.value)} />
+          <label htmlFor={ids.link} className="field-label">Zoom-Link oder Meeting-ID</label>
+          <input id={ids.link} className="input" value={link} placeholder="https://zoom.us/j/…" onChange={(e) => setLink(e.target.value)} />
+          <label htmlFor={ids.pass} className="field-label">Kenncode (optional)</label>
+          <input id={ids.pass} className="input" value={passcode} autoComplete="off" onChange={(e) => setPasscode(e.target.value)} />
+          <div className="row">
+            <Button type="submit" variant="primary" disabled={!name.trim() || !link.trim()}>Speichern</Button>
+            <Button variant="ghost" onClick={() => setAdding(false)}>Abbrechen</Button>
+          </div>
+        </form>
+      ) : (
+        <Button
+          icon={BookmarkPlus}
+          onClick={() => {
+            setLink(currentLink);
+            setAdding(true);
+          }}
+        >
+          Veranstaltung mit Zoom-Link speichern
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function ZoomMeetings({ onJoin, disabled }: { onJoin: (l: string, p?: string) => void; disabled: boolean }) {
+  const { regie, available, zoomMeetings, loadZoomMeetings, requestAuthUrl, connectZoom, disconnectZoom } = useSync();
+  const save = useSaveMeeting();
+  const { notify } = useStore();
+  const [pasted, setPasted] = useState('');
+  const [busy, setBusy] = useState(false);
+  const pasteId = useId();
+  const account = regie?.account;
+  const connected = !!account?.connected;
+
+  // Beim ersten Öffnen automatisch laden
+  useEffect(() => {
+    if (connected && !zoomMeetings.at && !zoomMeetings.loading) loadZoomMeetings();
+  }, [connected, zoomMeetings.at, zoomMeetings.loading, loadZoomMeetings]);
+
+  if (!available) return <p className="subtle meet-list__empty">Nur in der App auf dem Mac verfügbar.</p>;
+
+  if (!account?.redirectConfigured) {
+    return (
+      <div className="meet-list">
+        <p className="callout callout--warn">
+          Für diese Liste muss MeetingBackstage dein Zoom-Konto lesen dürfen. Einmalig einrichten:
+        </p>
+        <ol className="program-steps">
+          <li>Im Zoom Marketplace in deiner App unter <strong>Scopes</strong> „meeting:read:list_meetings“ und „user:read:user“ hinzufügen.</li>
+          <li>In <code>.env.local</code> die Zeile <code>ZOOM_REDIRECT_URI=…</code> eintragen: dieselbe Adresse wie „OAuth Redirect URL“ in der Zoom-App.</li>
+          <li>Die App neu starten (ctrl + C, dann npm start).</li>
+        </ol>
+      </div>
+    );
+  }
+
+  if (!connected) {
+    return (
+      <div className="meet-list">
+        <p className="muted">Einmalig dein Zoom-Konto verbinden. Danach erscheinen hier deine geplanten und wiederkehrenden Meetings.</p>
+        <p className="field-hint">
+          Vorher im Zoom Marketplace in deiner App unter <strong>Scopes</strong> „meeting:read:list_meetings“ und „user:read:user“ hinzufügen.
+        </p>
+        <ol className="program-steps">
+          <li>
+            <Button
+              size="sm"
+              icon={ExternalLink}
+              onClick={async () => {
+                const url = await requestAuthUrl();
+                if (url) window.open(url, '_blank', 'noopener');
+                else notify('Die Zoom-Freigabe ließ sich nicht öffnen.', 'fehler');
+              }}
+            >
+              Bei Zoom erlauben
+            </Button>
+          </li>
+          <li>Nach „Erlauben“ die komplette Adresse aus der Adresszeile des Browsers kopieren (sie enthält „?code=“) und hier einfügen:</li>
+        </ol>
+        <form
+          className="meet-form__row"
+          style={{ width: '100%' }}
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy(true);
+            const r = await connectZoom(pasted);
+            setBusy(false);
+            notify(r.message, r.ok ? 'erfolg' : 'fehler');
+            if (r.ok) {
+              setPasted('');
+              loadZoomMeetings();
+            }
+          }}
+        >
+          <label htmlFor={pasteId} className="sr-only">Adresse nach dem Erlauben</label>
+          <input id={pasteId} className="input" value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder="https://…?code=…" style={{ flex: 1 }} />
+          <Button type="submit" variant="primary" loading={busy} disabled={!pasted.trim() || busy}>
+            Verbinden
+          </Button>
+        </form>
+      </div>
+    );
+  }
+
+  return (
+    <div className="meet-list">
+      <div className="row meet-list__bar">
+        <Button size="sm" icon={RefreshCw} loading={zoomMeetings.loading} onClick={loadZoomMeetings}>
+          Aktualisieren
+        </Button>
+        {zoomMeetings.at && <span className="subtle">{zoomMeetings.meetings.length} Meetings</span>}
+        <Button size="sm" variant="ghost" icon={Unplug} onClick={disconnectZoom}>
+          Zoom-Konto trennen
+        </Button>
+      </div>
+      {zoomMeetings.error && <p className="callout callout--danger">{zoomMeetings.error}</p>}
+      {!zoomMeetings.loading && zoomMeetings.at && zoomMeetings.meetings.length === 0 && !zoomMeetings.error && (
+        <p className="subtle meet-list__empty">Keine geplanten Meetings gefunden.</p>
+      )}
+      <ul className="meet-items">
+        {zoomMeetings.meetings.map((m) => (
+          <li key={`${m.type}-${m.id}`} className="meet-item">
+            <div className="meet-item__main">
+              <strong>
+                {m.topic} {m.recurring && <Badge tone="info">wiederkehrend</Badge>}
+              </strong>
+              <span className="subtle">{when(m)} · ID {formatId(m.id)}</span>
+            </div>
+            <div className="meet-item__actions">
+              <Button size="sm" variant="primary" icon={LogIn} disabled={disabled} onClick={() => onJoin(m.link)}>
+                Beitreten
+              </Button>
+              <Button size="sm" variant="ghost" icon={BookmarkPlus} onClick={() => save(m.topic, { link: m.link })} title="Unter „Meine Veranstaltungen“ speichern">
+                Speichern
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
