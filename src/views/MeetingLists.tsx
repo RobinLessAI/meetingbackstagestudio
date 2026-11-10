@@ -32,21 +32,21 @@ export function MeetingLists({ onJoin, onUse, currentLink, disabled }: {
   currentLink: string;
   disabled: boolean;
 }) {
-  const [tab, setTab] = useState<'gespeichert' | 'zoom'>('gespeichert');
+  const [tab, setTab] = useState<'gespeichert' | 'zoom'>('zoom');
   return (
     <section className="meet-lists" aria-label="Meine Meetings">
       <div className="tabs meet-lists__tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === 'gespeichert'} className={`tab${tab === 'gespeichert' ? ' is-active' : ''}`} onClick={() => setTab('gespeichert')}>
-          <Bookmark size={15} aria-hidden /> Meine Veranstaltungen
-        </button>
         <button type="button" role="tab" aria-selected={tab === 'zoom'} className={`tab${tab === 'zoom' ? ' is-active' : ''}`} onClick={() => setTab('zoom')}>
           <Repeat size={15} aria-hidden /> Aus meinem Zoom-Konto
         </button>
+        <button type="button" role="tab" aria-selected={tab === 'gespeichert'} className={`tab${tab === 'gespeichert' ? ' is-active' : ''}`} onClick={() => setTab('gespeichert')}>
+          <Bookmark size={15} aria-hidden /> Meine Veranstaltungen
+        </button>
       </div>
-      {tab === 'gespeichert' ? (
-        <SavedMeetings onJoin={onJoin} onUse={onUse} currentLink={currentLink} disabled={disabled} />
-      ) : (
+      {tab === 'zoom' ? (
         <ZoomMeetings onJoin={onJoin} disabled={disabled} />
+      ) : (
+        <SavedMeetings onJoin={onJoin} onUse={onUse} currentLink={currentLink} disabled={disabled} />
       )}
     </section>
   );
@@ -86,7 +86,7 @@ function SavedMeetings({ onJoin, onUse, currentLink, disabled }: { onJoin: (l: s
 
   return (
     <div className="meet-list">
-      {all.length > 0 && <CategoryFilter value={catFilter} onChange={setCatFilter} />}
+      <CategoryFilter value={catFilter} onChange={setCatFilter} />
       {list.length === 0 && !adding && (
         <p className="subtle meet-list__empty">Noch keine Veranstaltungen gespeichert. Lege deine regelmäßigen Workshops mit Zoom-Link an, dann reicht später ein Klick.</p>
       )}

@@ -143,7 +143,8 @@ export function CategoryFilter({ value, onChange }: { value: string; onChange: (
   const cats = useCategories();
   const [manage, setManage] = useState(false);
   const [confirm, setConfirm] = useState<string | null>(null);
-  if (cats.list.length === 0) return null;
+  const [newName, setNewName] = useState('');
+  const newId = useId();
   const options = [{ value: '', label: 'Alle' }, ...cats.list.map((c) => ({ value: c.name, label: c.name, color: c.color })), { value: '__ohne', label: 'Ohne Kategorie' }];
   return (
     <div className="cat-filter">
@@ -163,10 +164,31 @@ export function CategoryFilter({ value, onChange }: { value: string; onChange: (
           </button>
         ))}
         <button type="button" className="link-btn" onClick={() => setManage((m) => !m)}>
-          {manage ? 'Verwalten schließen' : 'Kategorien verwalten'}
+          {manage ? 'Verwalten schließen' : cats.list.length ? 'Kategorien verwalten' : 'Kategorien anlegen'}
         </button>
       </div>
+      {cats.list.length === 0 && !manage && (
+        <span className="field-hint">Noch keine Kategorien. Lege sie hier an oder direkt über „Kategorie“ an einem Meeting.</span>
+      )}
       {manage && (
+        <form
+          className="cat-pop__new"
+          onSubmit={(e) => {
+            e.preventDefault();
+            cats.create(newName);
+            setNewName('');
+          }}
+        >
+          <label htmlFor={newId} className="sr-only">
+            Neue Kategorie
+          </label>
+          <input id={newId} className="input input--sm" value={newName} maxLength={30} placeholder="Neue Kategorie, z. B. Kunde Nord" onChange={(e) => setNewName(e.target.value)} />
+          <Button size="sm" type="submit" icon={Plus} disabled={!newName.trim()}>
+            Anlegen
+          </Button>
+        </form>
+      )}
+      {manage && cats.list.length > 0 && (
         <ul className="cat-manage">
           {cats.list.map((c) => (
             <li key={c.name}>
