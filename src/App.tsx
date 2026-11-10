@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { ChatPopupWindow } from './components/ChatPopup.tsx';
 import { Presentation } from './components/graphics/Presentation.tsx';
 import { ShortcutHelp, Sidebar, TopBar } from './components/layout.tsx';
 import { LockedBanner, MuteAllBanner, MuteAllDialog, Toasts } from './components/people.tsx';
@@ -141,6 +142,7 @@ function Shell() {
       </main>
       <MuteAllDialog />
       <Presentation />
+      <ChatPopupWindow />
       <ShortcutHelp />
       <Toasts />
     </div>

@@ -1,4 +1,6 @@
-import { ChatPanel } from '../components/ChatPanel.tsx';
+import { ExternalLink } from 'lucide-react';
+import { focusChatPopup } from '../components/ChatPopup.tsx';
+import { Button } from '../components/ui.tsx';
 import { useStore } from '../state/store.tsx';
 import { useUi } from '../state/ui.tsx';
 import { CloudTab } from './graphics/CloudTab.tsx';
@@ -10,11 +12,12 @@ import { PollTab } from './graphics/PollTab.tsx';
 import { useGraphicCounts } from './graphics/counts.ts';
 
 /**
- * Live Grafiken: eine Unterseite pro Eintrag (Chat, Weltkarte, Umfrage, Wortwolke, Highlight).
+ * Live Grafiken: eine Unterseite pro Eintrag (Weltkarte, Umfrage, Wortwolke, Highlight).
+ * Der Chat öffnet sich als eigenes Fenster (Pop-up).
  * Ausgewählt wird über das Ausklappmenü in der Leiste; auf schmalen Bildschirmen über die Leiste oben.
  */
 export function GraphicsView() {
-  const { graphicTab, setGraphicTab } = useUi();
+  const { graphicTab, setGraphicTab, chatPopupOpen, setChatPopupOpen } = useUi();
   const { state } = useStore();
   const counts = useGraphicCounts();
   const page = GRAPHIC_PAGES.find((p) => p.id === graphicTab) ?? GRAPHIC_PAGES[0];
@@ -42,25 +45,24 @@ export function GraphicsView() {
           <span className="eyebrow">Live Grafiken</span>
           <h1 className="view__title">
             {page.label}
-            {page.id !== 'chat' && state.program.graphic === page.id && <span className="tab__live">im Programm</span>}
+            {state.program.graphic === page.id && <span className="tab__live">im Programm</span>}
           </h1>
           <p className="view__lead">{page.lead}</p>
         </div>
+        <div className="view__head-side">
+          <Button icon={ExternalLink} variant={chatPopupOpen ? 'secondary' : 'primary'} onClick={() => focusChatPopup() || setChatPopupOpen(true)}>
+            {chatPopupOpen ? 'Chat-Fenster nach vorne holen' : 'Chat-Fenster öffnen'}
+          </Button>
+        </div>
       </header>
 
-      {page.id === 'chat' ? (
-        <div className="graphics-chat">
-          <ChatPanel />
-        </div>
-      ) : (
-        <section className="graphics-main" aria-label={page.label}>
-          {page.id === 'karte' && <MapTab />}
-          {page.id === 'umfrage' && <PollTab />}
-          {page.id === 'wortwolke' && <CloudTab />}
-          {page.id === 'highlight' && <HighlightTab />}
-          {(page.id === 'karte' || page.id === 'umfrage' || page.id === 'wortwolke') && <LookPanel graphic={page.id} />}
-        </section>
-      )}
+      <section className="graphics-main" aria-label={page.label}>
+        {page.id === 'karte' && <MapTab />}
+        {page.id === 'umfrage' && <PollTab />}
+        {page.id === 'wortwolke' && <CloudTab />}
+        {page.id === 'highlight' && <HighlightTab />}
+        {(page.id === 'karte' || page.id === 'umfrage' || page.id === 'wortwolke') && <LookPanel graphic={page.id} />}
+      </section>
     </div>
   );
 }

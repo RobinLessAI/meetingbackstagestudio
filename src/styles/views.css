@@ -1061,3 +1061,11 @@ a.icon-btn { text-decoration: none; }
   .look-layout { grid-template-columns: minmax(0, 1fr); }
   .look-preview { position: static; }
 }
+
+/* ------------------------------------------------ Chat-Fenster (Pop-up) */
+.chat-popup { height: 100vh; display: flex; flex-direction: column; gap: 8px; padding: 8px; background: var(--bg); box-sizing: border-box; }
+.chat-popup__head { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--panel); }
+.chat-popup__status { display: flex; gap: 8px; align-items: baseline; font-size: var(--fs-sm); min-width: 0; }
+.chat-popup__status svg { flex: none; color: var(--accent); align-self: center; }
+.chat-popup .chat { position: static; flex: 1; min-height: 0; height: auto; max-height: none; }
+.chat-popup .msg__hl { opacity: 1; } /* im Chat-Fenster immer sichtbar */

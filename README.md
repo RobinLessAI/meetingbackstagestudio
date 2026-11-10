@@ -31,7 +31,7 @@ Ohne Git: auf GitHub „Code“ → „Download ZIP“, entpacken und im Termina
 - **Steuerung:** http://localhost:4300 im Browser öffnen.
 - **OBS:** Adressen unter „OBS-Ausgabe“ kopieren (siehe unten).
 
-Die App startet leer und zeigt nur drei Bereiche: **Live Grafiken** (Ausklappmenü mit Chat, Weltkarte, Umfrage, Wortwolke und Chat-Highlight), **OBS-Ausgabe** und **Zoom & Einstellungen**. Die simulierten Bereiche (Teilnehmende, Galerie, Steuerpult & Stream Deck, Audio, Veranstaltungsübersicht) lassen sich unter „Zoom & Einstellungen“ → „Weitere Bereiche (Demo) zeigen“ einblenden. Beispieldaten gibt es dort auf Knopfdruck.
+Die App startet leer und zeigt nur drei Bereiche: **Live Grafiken** (Ausklappmenü mit Weltkarte, Umfrage, Wortwolke und Chat-Highlight; der Chat öffnet sich über „Chat-Fenster öffnen“ als eigenes Fenster), **OBS-Ausgabe** und **Zoom & Einstellungen**. Die simulierten Bereiche (Teilnehmende, Galerie, Steuerpult & Stream Deck, Audio, Veranstaltungsübersicht) lassen sich unter „Zoom & Einstellungen“ → „Weitere Bereiche (Demo) zeigen“ einblenden. Beispieldaten gibt es dort auf Knopfdruck.
 
 Der Server ist nur auf diesem Rechner erreichbar. Eine eigene Veranstaltung („Veranstaltung“ → „Neue Veranstaltung“) wird automatisch unter `daten/veranstaltung.json` gespeichert und nach einem Neustart wiederhergestellt.
 
@@ -67,7 +67,7 @@ Der Chat kommt über ein **Regie-Fenster**: MeetingBackstage öffnet ein Browser
 
 **Pro Meeting:**
 1. Meeting in Zoom als Host starten.
-2. In MeetingBackstage unter „Zoom & Einstellungen“ (oder oben im Chat) den Meeting-Link einfügen und **„Regie beitreten“** klicken. Es öffnet sich das Regie-Fenster.
+2. In MeetingBackstage unter „Zoom & Einstellungen“ (oder oben im Chat-Fenster) den Meeting-Link einfügen und **„Regie beitreten“** klicken. Es öffnet sich das Regie-Fenster.
 3. In Zoom die Regie aus dem Warteraum **zulassen**, falls ein Warteraum aktiv ist.
 4. Das Regie-Fenster offen lassen. Beenden mit „Regie verlassen“ oder durch Schließen des Fensters.
 

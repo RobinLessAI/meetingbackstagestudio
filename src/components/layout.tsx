@@ -137,7 +137,7 @@ export function Sidebar() {
                           <p.icon size={15} strokeWidth={1.9} aria-hidden />
                           <span>{p.label}</span>
                           <span className="nav__end">
-                            {p.id !== 'chat' && state.program.graphic === p.id && (
+                            {state.program.graphic === p.id && (
                               <span className="nav__live" title="Im Programm" aria-label="im Programm" />
                             )}
                             {n ? (

@@ -25,7 +25,7 @@ const readDemo = () => {
 };
 
 /** Unterseiten von „Live Grafiken“: der Chat und die vier Grafiken. */
-export type GraphicTab = 'chat' | GraphicKind;
+export type GraphicTab = GraphicKind;
 
 const NAV_OPEN_KEY = 'mb-grafiken-offen';
 
@@ -43,6 +43,9 @@ interface UiValue {
   setPresentation: (g: GraphicKind | null) => void;
   helpOpen: boolean;
   setHelpOpen: (open: boolean) => void;
+  /** Chat als eigenes Fenster (Pop-up) geöffnet. */
+  chatPopupOpen: boolean;
+  setChatPopupOpen: (open: boolean) => void;
   /** Simulierte Bereiche (Teilnehmende, Galerie, Steuerpult, Audio …) anzeigen. */
   showDemo: boolean;
   setShowDemo: (on: boolean) => void;
@@ -59,7 +62,8 @@ const readHash = (): ViewId => {
 
 export function UiProvider({ children }: { children: ReactNode }) {
   const [view, setView] = useState<ViewId>(readHash);
-  const [graphicTab, setGraphicTab] = useState<GraphicTab>('chat');
+  const [graphicTab, setGraphicTab] = useState<GraphicTab>('karte');
+  const [chatPopupOpen, setChatPopupOpen] = useState(false);
   const [graphicsOpen, setGraphicsOpenState] = useState(() => {
     try {
       return localStorage.getItem(NAV_OPEN_KEY) !== '0';
@@ -122,11 +126,13 @@ export function UiProvider({ children }: { children: ReactNode }) {
       setPresentation,
       helpOpen,
       setHelpOpen,
+      chatPopupOpen,
+      setChatPopupOpen,
       showDemo,
       setShowDemo,
       views,
     }),
-    [view, go, graphicTab, graphicsOpen, setGraphicsOpen, muteAllOpen, presentation, helpOpen, showDemo, setShowDemo, views],
+    [view, go, graphicTab, graphicsOpen, setGraphicsOpen, muteAllOpen, presentation, helpOpen, chatPopupOpen, showDemo, setShowDemo, views],
   );
   return <UiCtx.Provider value={value}>{children}</UiCtx.Provider>;
 }
