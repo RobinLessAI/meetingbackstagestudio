@@ -1190,7 +1190,7 @@ a.icon-btn { text-decoration: none; }
 @media (max-width: 600px) { .meet-card { padding: 20px; } .meet-form__row { flex-wrap: wrap; } }
 
 /* Meine Meetings */
-.meet-lists { width: min(720px, 100%); margin: 16px auto 0; display: flex; flex-direction: column; gap: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.meet-lists { width: min(720px, 100%); margin: 24px auto 0; display: flex; flex-direction: column; gap: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
 .meet-lists__tabs { padding: 0 16px; border-radius: 12px 12px 0 0; }
 .meet-list { display: flex; flex-direction: column; gap: 12px; padding: 16px; align-items: flex-start; }
 .meet-list > * { max-width: 100%; }

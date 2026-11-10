@@ -66,6 +66,8 @@ export function MeetingView() {
       /* optional */
     }
     if (!openRegie(link, code ?? '')) notify('Das Regie-Fenster wurde blockiert. Bitte Pop-ups für localhost erlauben.', 'fehler');
+    // Fortschritt und Meldungen stehen in der Karte unten: dorthin scrollen.
+    document.getElementById('meet-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const paste = async () => {
@@ -90,12 +92,28 @@ export function MeetingView() {
 
   return (
     <div className="view meet">
+      {!connected && (
+        <MeetingLists
+          currentLink={meeting}
+          disabled={!!blocker || busy}
+          onJoin={(link, code) => join(link, code)}
+          onUse={(link, code) => {
+            setMeeting(link);
+            if (code) {
+              setPasscode(code);
+              setShowPasscode(true);
+            }
+            document.getElementById(ids.meeting)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }}
+        />
+      )}
+
       <section className="meet-card" aria-labelledby="meet-title">
         <div className="meet-card__icon" aria-hidden>
           <Video size={26} />
         </div>
         <h1 id="meet-title" className="meet-card__title">
-          {connected ? 'Mit dem Meeting verbunden' : 'Mit dem Zoom-Meeting verbinden'}
+          {connected ? 'Mit dem Meeting verbunden' : 'Per Link verbinden'}
         </h1>
         <p className="meet-card__lead">
           {connected
@@ -146,7 +164,6 @@ export function MeetingView() {
                 onChange={(e) => setMeeting(e.target.value)}
                 placeholder="https://zoom.us/j/123456789?pwd=…"
                 autoComplete="off"
-                autoFocus={!busy}
                 disabled={!!blocker || busy}
               />
               <Button type="button" variant="ghost" icon={Clipboard} onClick={paste} disabled={!!blocker || busy} title="Aus der Zwischenablage einfügen">
@@ -197,22 +214,6 @@ export function MeetingView() {
           </Step>
         </ol>
       </section>
-
-      {!connected && (
-        <MeetingLists
-          currentLink={meeting}
-          disabled={!!blocker || busy}
-          onJoin={(link, code) => join(link, code)}
-          onUse={(link, code) => {
-            setMeeting(link);
-            if (code) {
-              setPasscode(code);
-              setShowPasscode(true);
-            }
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
-        />
-      )}
 
       <p className="meet-foot subtle">
         Zugangsdaten, Chat-Export als Notlösung und Team-Namen findest du unter{' '}
