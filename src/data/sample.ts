@@ -235,6 +235,7 @@ export function createInitialState(now: number = Date.now()): AppState {
     },
     highlightId: idOf('aylin', 'Wie haltet ihr die Energie hoch, wenn die Hälfte im Raum sitzt und die andere Hälfte online ist?'),
     highlightStyle: DEFAULT_HIGHLIGHT_STYLE,
+    highlightSince: null,
     looks: DEFAULT_LOOKS,
     program: { graphic: null, reaction: null },
     gallery: {

@@ -11,6 +11,7 @@ export function resetAnswers(state, now = Date.now()) {
     ...state,
     chat: [],
     highlightId: null,
+    highlightSince: null,
     program: { graphic: null, reaction: null },
     log: [],
     joinCursor: 0,

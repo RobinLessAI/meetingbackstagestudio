@@ -71,6 +71,7 @@ export type Action =
   | { type: 'cloud/toggleHidden'; key: string }
   | { type: 'cloud/pause' | 'cloud/resume' | 'cloud/reset'; at: number }
   | { type: 'highlight/set'; id: string | null }
+  | { type: 'highlight/since'; at: number | null }
   | { type: 'highlight/style'; patch: Partial<HighlightStyle> }
   | { type: 'look/update'; graphic: keyof GraphicLooks; patch: Partial<MapLook & PollLook & CloudLook> }
   | { type: 'program/graphic'; graphic: GraphicKind | null }
@@ -335,6 +336,8 @@ export function reducer(s: AppState, a: Action): AppState {
 
     case 'highlight/set':
       return { ...s, highlightId: a.id };
+    case 'highlight/since':
+      return { ...s, highlightSince: a.at };
     case 'highlight/style':
       return { ...s, highlightStyle: { ...s.highlightStyle, ...a.patch } };
     case 'look/update':

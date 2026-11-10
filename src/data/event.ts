@@ -38,6 +38,7 @@ export function createEventState(input: NewEventInput, now: number = Date.now())
     poll: { ...base.poll, status: 'entwurf', startedAt: null, closedAt: null, gaps: [], decisions: {} },
     cloud: { ...base.cloud, prompt: input.cloudPrompt.trim() || base.cloud.prompt, startedAt: now, hidden: [] },
     highlightId: null,
+    highlightSince: null,
     program: { graphic: null, reaction: null },
     settings: { ...base.settings, teamNames: input.teamNames.map((n) => n.trim()).filter(Boolean), autoDemo: false },
     log: [],

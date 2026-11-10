@@ -384,6 +384,8 @@ export interface AppState {
   poll: PollState;
   cloud: CloudState;
   highlightId: string | null;
+  /** Highlight-Auswahl zeigt nur Nachrichten ab diesem Zeitpunkt („Liste leeren“); null = alle. */
+  highlightSince: number | null;
   highlightStyle: HighlightStyle;
   /** Darstellung von Weltkarte, Umfrage und Wortwolke in OBS. */
   looks: GraphicLooks;

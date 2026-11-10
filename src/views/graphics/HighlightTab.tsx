@@ -45,7 +45,7 @@ export function HighlightTab() {
         </div>
         <Panel
           eyebrow="Auswahl · neueste zuerst"
-          title={`Alle Chat-Nachrichten (${state.chat.length})`}
+          title={state.highlightSince ? 'Chat-Nachrichten seit dem Leeren' : `Alle Chat-Nachrichten (${state.chat.length})`}
           actions={
             <Button size="sm" icon={ExternalLink} onClick={() => focusChatPopup() || setChatPopupOpen(true)}>
               {chatPopupOpen ? 'Fenster nach vorne' : 'Als Pop-up öffnen'}

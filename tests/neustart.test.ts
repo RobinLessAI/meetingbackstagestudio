@@ -15,6 +15,7 @@ function filled() {
     ...s,
     chat: [{ id: 'm1', senderId: null, senderName: 'Lea', text: 'Werl', at: 2000, source: 'zoom' }],
     highlightId: 'm1',
+    highlightSince: 5000,
     program: { graphic: 'karte', reaction: null },
     map: { ...s.map, decisions: { m1: { status: 'bestaetigt', placeId: 'werl', at: 2000 } } },
     poll: { ...s.poll, status: 'laeuft', startedAt: 1500, decisions: { m1: { status: 'verworfen' } } },
@@ -27,6 +28,7 @@ test('Antworten werden entfernt, Einstellungen bleiben', () => {
   const r = resetAnswers(filled(), 9000);
   assert.deepEqual(r.chat, []);
   assert.equal(r.highlightId, null);
+  assert.equal(r.highlightSince, null);
   assert.equal(r.program.graphic, null);
   assert.deepEqual(r.map.decisions, {});
   assert.equal(r.map.startedAt, 9000);
