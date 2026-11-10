@@ -1,4 +1,4 @@
-import { useId, useState, type CSSProperties } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import { Check, Plus, Tag, Trash2 } from 'lucide-react';
 import { Button } from '../components/ui.tsx';
 import { PALETTE } from '../lib/color.ts';
@@ -86,17 +86,43 @@ export function CategoryChips({ meetingId }: { meetingId: string }) {
 export function CategoryPicker({ meetingId }: { meetingId: string }) {
   const cats = useCategories();
   const [open, setOpen] = useState(false);
+  const [up, setUp] = useState(false);
   const [name, setName] = useState('');
   const inputId = useId();
+  const ref = useRef<HTMLSpanElement>(null);
   const mine = cats.of(meetingId);
 
+  const toggleOpen = () => {
+    if (!open && ref.current) {
+      // Unten zu wenig Platz? Dann nach oben aufklappen, damit nichts abgeschnitten wird.
+      const r = ref.current.getBoundingClientRect();
+      setUp(window.innerHeight - r.bottom < 340 && r.top > window.innerHeight - r.bottom);
+    }
+    setOpen((o) => !o);
+  };
+
+  // Schließen mit Esc oder Klick daneben
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onDown);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onDown);
+    };
+  }, [open]);
+
   return (
-    <span className="cat-picker">
-      <Button size="sm" variant="ghost" icon={Tag} onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+    <span className="cat-picker" ref={ref}>
+      <Button size="sm" variant="ghost" icon={Tag} onClick={toggleOpen} aria-expanded={open}>
         Kategorie
       </Button>
       {open && (
-        <div className="cat-pop" role="dialog" aria-label="Kategorien zuordnen">
+        <div className={`cat-pop${up ? ' cat-pop--up' : ''}`} role="dialog" aria-label="Kategorien zuordnen">
           {cats.list.length === 0 && <p className="subtle">Noch keine Kategorien. Lege unten die erste an.</p>}
           <ul className="cat-pop__list">
             {cats.list.map((c) => {

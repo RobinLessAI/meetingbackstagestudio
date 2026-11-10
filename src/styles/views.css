@@ -1190,8 +1190,8 @@ a.icon-btn { text-decoration: none; }
 @media (max-width: 600px) { .meet-card { padding: 20px; } .meet-form__row { flex-wrap: wrap; } }
 
 /* Meine Meetings */
-.meet-lists { width: min(720px, 100%); margin: 16px auto 0; display: flex; flex-direction: column; gap: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); overflow: hidden; }
-.meet-lists__tabs { padding: 0 16px; }
+.meet-lists { width: min(720px, 100%); margin: 16px auto 0; display: flex; flex-direction: column; gap: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.meet-lists__tabs { padding: 0 16px; border-radius: 12px 12px 0 0; }
 .meet-list { display: flex; flex-direction: column; gap: 12px; padding: 16px; align-items: flex-start; }
 .meet-list > * { max-width: 100%; }
 .meet-list__empty { margin: 0; }
@@ -1215,6 +1215,7 @@ a.icon-btn { text-decoration: none; }
 .cat-chip { --cat: #888; display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 999px; font-size: var(--fs-xs); font-weight: 600; color: var(--text); background: color-mix(in srgb, var(--cat) 22%, transparent); border: 1px solid color-mix(in srgb, var(--cat) 70%, transparent); }
 .cat-picker { position: relative; }
 .cat-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; width: 260px; display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--panel); box-shadow: 0 10px 30px rgb(0 0 0 / 0.35); }
+.cat-pop--up { top: auto; bottom: calc(100% + 6px); }
 .cat-pop p { margin: 0; font-size: var(--fs-sm); }
 .cat-pop__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow-y: auto; }
 .cat-pop__item { width: 100%; display: flex; align-items: center; gap: 8px; padding: 5px 6px; border: 0; border-radius: var(--r-sm); background: none; color: var(--text); font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; }
