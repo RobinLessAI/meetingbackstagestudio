@@ -16,3 +16,15 @@ test('Ohne erkennbare Meeting-ID gibt es keine Adresse', () => {
   assert.equal(zoomAppUrl('hallo'), null);
   assert.equal(zoomAppUrl(''), null);
 });
+
+import { isTeamsLink, teamsAppUrl, teamsThreadId } from '../src/lib/teamsLink.ts';
+
+const TEAMS = 'https://teams.microsoft.com/l/meetup-join/19%3ameeting_ZmE0NzQ4YjMtNWY2Ny00ZDQ1%40thread.v2/0?context=%7b%22Tid%22%3a%22abc%22%7d';
+
+test('Teams-Link erkennen, Chat-ID lesen und in der Teams-App öffnen', () => {
+  assert.equal(isTeamsLink(TEAMS), true);
+  assert.equal(isTeamsLink('https://zoom.us/j/81234567890'), false);
+  assert.equal(teamsThreadId(TEAMS), '19:meeting_ZmE0NzQ4YjMtNWY2Ny00ZDQ1@thread.v2');
+  assert.equal(teamsAppUrl(TEAMS)?.startsWith('msteams:/l/meetup-join/19%3ameeting_'), true);
+  assert.equal(teamsAppUrl('https://zoom.us/j/1'), null);
+});

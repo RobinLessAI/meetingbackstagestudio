@@ -81,6 +81,33 @@ Grenzen: Ohne eine von Zoom geprüfte und veröffentlichte App tritt die Regie n
 
 **Notlösung ohne Regie:** In der App unter „Zoom & Einstellungen“ den Zoom-Ordner beobachten lassen. Nach jedem Klick auf „Chat speichern“ in Zoom übernimmt MeetingBackstage die neuen Nachrichten (nicht live). Nur Nachrichten an alle werden übernommen.
 
+## Live-Chat aus Microsoft Teams einrichten (einmalig, kostenlos)
+
+Funktioniert mit einem Microsoft-365-Konto (Firma, Schule, Verein), nicht mit dem privaten Teams. MeetingBackstage liest den
+Chat über Microsoft Graph mit deinem eigenen Konto. Es erscheint kein zusätzlicher Teilnehmer, du selbst musst im Meeting sein.
+
+1. Auf <https://entra.microsoft.com> mit dem Vereinskonto anmelden: **App-Registrierungen** → **Neue Registrierung**.
+   Name „MeetingBackstage“, Kontotyp „Nur Konten in diesem Organisationsverzeichnis“.
+   Umleitungs-URI: Plattform **Öffentlicher Client/nativ (mobil und Desktop)**, Adresse `http://localhost:4300/teams/anmeldung`.
+2. In der App unter **Authentifizierung**: „Öffentliche Clientflows zulassen“ auf **Ja**.
+3. Unter **API-Berechtigungen** → Microsoft Graph → **Delegierte Berechtigungen**: `Calendars.Read` und `Chat.Read` hinzufügen
+   (`User.Read` ist schon da). Ein Geheimnis wird nicht gebraucht.
+4. In `.env.local` eintragen (beide Werte stehen auf der Übersichtsseite der App):
+   ```
+   TEAMS_CLIENT_ID=Anwendungs-ID
+   TEAMS_TENANT_ID=Verzeichnis-ID
+   ```
+5. Tunnel-Programm installieren: `brew install cloudflared` (kostenlos, ohne Konto). Ist stattdessen `ngrok` installiert, wird das genutzt.
+6. App neu starten, auf der Seite „Meeting“ den Reiter **Aus Microsoft Teams** öffnen und **Mit Microsoft anmelden**.
+
+Im Workshop: Meeting in der Liste wählen, **Starten** öffnet es in der Teams-App, **Chat mitlesen** startet die Live-Verbindung.
+Warum ein Tunnel? Microsoft erlaubt kein ständiges Nachfragen nach neuen Nachrichten, sondern schickt sie an eine öffentliche
+https-Adresse. Der Tunnel führt nur zu einem kleinen Empfänger (Port 4302), der ausschließlich Benachrichtigungen mit dem
+geheimen Schlüssel des aktuellen Abos annimmt. Die App selbst bleibt nur auf deinem Mac erreichbar.
+
+Blockiert dein Verein das Registrieren eigener Apps oder die Zustimmung zu Berechtigungen, muss ein Admin des Vereins Schritt 1
+bis 3 erledigen bzw. die Berechtigungen bestätigen.
+
 ## Regeln der Chat-Auswertung
 
 - **Team-Namen:** Beiträge der eingetragenen Team-Namen (z. B. deine eigenen Fragen) werden nicht ausgewertet. „Robin“ erfasst auch „Robin Weniger“.

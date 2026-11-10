@@ -19,6 +19,7 @@ import { WebSocketServer } from 'ws';
 import { meetingSignature, normalizeSdkChat, parseMeetingLink } from './meetingSdk.mjs';
 import { resetAnswers } from './resetAnswers.mjs';
 import { createZoomAccount } from './zoomAccount.mjs';
+import { createTeamsAccount, createTeamsLive } from './teams.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -51,6 +52,11 @@ const SDK_MAIN = (() => {
     return null;
   }
 })();
+// Microsoft Teams (optional): Anwendungs-ID und Verzeichnis-ID der eigenen App-Registrierung.
+const TEAMS_CLIENT_ID = process.env.TEAMS_CLIENT_ID ?? '';
+const TEAMS_TENANT_ID = process.env.TEAMS_TENANT_ID ?? '';
+// Feste öffentliche Adresse statt automatischem Tunnel (z. B. eigene ngrok-Domain), optional.
+const TEAMS_PUBLIC_URL = process.env.TEAMS_PUBLIC_URL ?? '';
 const REGIE_NAME = 'MeetingBackstage (Regie)';
 /** Stand des Regie-Fensters; muss mit REGIE_STAND in public/regie.js übereinstimmen. */
 const REGIE_STAND = 4;
@@ -83,6 +89,8 @@ const APP_VERSION = (() => {
 })();
 
 const PORT = Number(process.env.PORT ?? 4300);
+// Empfänger für Teams-Benachrichtigungen (nur über den Tunnel erreichbar, getrennt von der App).
+const TEAMS_RECEIVER_PORT = Number(process.env.TEAMS_WEBHOOK_PORT ?? PORT + 2);
 const HOST = '127.0.0.1';
 const MAX_MESSAGE = 8 * 1024 * 1024;
 const MAX_CHAT_FILE = 5 * 1024 * 1024;
@@ -247,14 +255,54 @@ function handleRegieChat(data) {
     log(`Regie: private Nachricht von ${chat.senderName} nicht übernommen.`);
     return;
   }
-  if (liveKeys.has(chat.key)) return;
+  if (!pushLive(chat)) return;
+  regie.messages += 1;
+  broadcast('steuerung', { type: 'regie-status', status: regieStatus() });
+}
+
+/** Neue Live-Nachricht (Zoom oder Teams) an alle Steuerungen; false, wenn schon bekannt. */
+function pushLive(chat) {
+  if (liveKeys.has(chat.key)) return false;
   liveKeys.add(chat.key);
   const message = { key: chat.key, senderName: chat.senderName, text: chat.text, at: chat.at };
   liveChat.push(message);
   if (liveChat.length > 2000) liveKeys.delete(liveChat.shift().key);
-  regie.messages += 1;
   broadcast('steuerung', { type: 'live-chat', messages: [message] });
-  broadcast('steuerung', { type: 'regie-status', status: regieStatus() });
+  return true;
+}
+
+// ------------------------------------------------------------- Microsoft Teams
+const teamsAccount = createTeamsAccount({
+  clientId: TEAMS_CLIENT_ID,
+  tenant: TEAMS_TENANT_ID,
+  redirectUri: `http://localhost:${PORT}/teams/anmeldung`,
+  dataDir: DATA_DIR,
+  log,
+  loginBase: process.env.MB_TEAMS_LOGIN_URL,
+  graphBase: process.env.MB_TEAMS_GRAPH_URL,
+});
+const teamsLive = createTeamsLive({
+  account: teamsAccount,
+  log,
+  receiverPort: TEAMS_RECEIVER_PORT,
+  publicUrl: TEAMS_PUBLIC_URL,
+  onMessage: (m) => pushLive(m),
+  onStatus: () => broadcast('steuerung', { type: 'teams-status', status: teamsStatus() }),
+});
+function teamsStatus() {
+  return { ...teamsAccount.status(), live: teamsLive.status() };
+}
+const broadcastTeams = () => broadcast('steuerung', { type: 'teams-status', status: teamsStatus() });
+
+/** Kleine Seite nach der Microsoft-Anmeldung (im Browser-Tab). */
+function teamsCallbackPage(res, ok, text) {
+  res.writeHead(ok ? 200 : 400, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+  const safe = String(text).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  res.end(`<!doctype html><meta charset="utf-8"><title>MeetingBackstage · Teams</title>
+<body style="font:16px system-ui,sans-serif;background:#16181d;color:#eee;display:grid;place-items:center;height:100vh;margin:0">
+<div style="max-width:480px;text-align:center"><h1 style="font-size:22px">${ok ? 'Mit Microsoft Teams verbunden' : 'Anmeldung nicht möglich'}</h1>
+<p>${safe}</p><p style="opacity:.7">Du kannst diesen Tab schließen und zu MeetingBackstage zurückkehren.</p></div>
+${ok ? '<script>setTimeout(()=>window.close(),1500)</script>' : ''}</body>`);
 }
 
 /** Beitrittsdaten für das Regie-Fenster (Signatur wird hier erzeugt, das Geheimnis bleibt lokal). */
@@ -314,6 +362,20 @@ const server = http.createServer((req, res) => {
   }
   if (url.pathname.startsWith('/aktion/') && (req.method === 'GET' || req.method === 'POST')) {
     handleAction(req, res, decodeURIComponent(url.pathname.slice('/aktion/'.length)));
+    return;
+  }
+  if (url.pathname === '/teams/anmelden' && req.method === 'GET') {
+    const target = teamsAccount.authorizeUrl();
+    if (!target) return teamsCallbackPage(res, false, 'TEAMS_CLIENT_ID fehlt in .env.local. Danach die App neu starten.');
+    res.writeHead(302, { Location: target, 'Cache-Control': 'no-store' }).end();
+    return;
+  }
+  if (url.pathname === '/teams/anmeldung' && req.method === 'GET') {
+    teamsAccount
+      .handleCallback(url.searchParams)
+      .then(() => teamsCallbackPage(res, true, 'Deine Teams-Besprechungen erscheinen jetzt in MeetingBackstage.'))
+      .catch((e) => teamsCallbackPage(res, false, e.message))
+      .finally(broadcastTeams);
     return;
   }
   if (url.pathname === '/api/status') {
@@ -413,7 +475,7 @@ wss.on('connection', (ws, rolle) => {
   if (role === 'ausgabe' || role === 'vorschau') {
     if (lastSnapshot) send(ws, { type: 'snapshot', snapshot: lastSnapshot });
   } else if (role === 'steuerung') {
-    send(ws, { type: 'hello', saved, ...counts(), watch: watchStatus(), regie: regieStatus(), aktionSchluessel: ACTION_KEY, vorlagen: templates });
+    send(ws, { type: 'hello', saved, ...counts(), watch: watchStatus(), regie: regieStatus(), teams: teamsStatus(), aktionSchluessel: ACTION_KEY, vorlagen: templates });
     if (liveChat.length) send(ws, { type: 'live-chat', messages: liveChat });
   }
   broadcastCounts();
@@ -476,6 +538,28 @@ wss.on('connection', (ws, rolle) => {
         break;
       case 'regie-leave':
         broadcast('regie', { type: 'regie-leave' });
+        break;
+      case 'teams-meetings':
+        try {
+          send(ws, { type: 'teams-meetings', ok: true, meetings: await teamsAccount.listMeetings(), at: Date.now() });
+        } catch (e) {
+          send(ws, { type: 'teams-meetings', ok: false, error: e.message, meetings: [] });
+        }
+        break;
+      case 'teams-disconnect':
+        await teamsLive.stop();
+        await teamsAccount.disconnect();
+        broadcastTeams();
+        break;
+      case 'teams-live-start':
+        if (!teamsAccount.status().connected) {
+          send(ws, { type: 'error', message: 'Bitte zuerst unter „Aus Microsoft Teams“ mit Microsoft anmelden.' });
+          break;
+        }
+        teamsLive.start(String(msg.link ?? ''), String(msg.topic ?? ''));
+        break;
+      case 'teams-live-stop':
+        await teamsLive.stop();
         break;
       case 'chat-watch':
         startWatch(msg.folder);
@@ -639,12 +723,14 @@ server.listen(PORT, HOST, () => {
         ? `  Zoom-Live-Chat:    noch nicht eingerichtet (fehlt in .env.local: ${st.missing.join(', ')})`
         : `  Zoom-Live-Chat:    bereit, Regie-Fenster tritt als „${REGIE_NAME}“ bei`,
   );
+  if (TEAMS_CLIENT_ID) console.log('  Teams-Live-Chat:   eingerichtet (Anmeldung in der App unter „Meeting“)');
   console.log(`  Beenden mit ${process.platform === 'darwin' ? 'ctrl + C' : 'Strg + C'}`);
   console.log('');
 });
 
 const shutdown = () => {
   stopWatch(false);
+  teamsLive.close().catch(() => {});
   wss.clients.forEach((ws) => ws.close());
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 500).unref();

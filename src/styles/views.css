@@ -1195,7 +1195,8 @@ a.icon-btn { text-decoration: none; }
 .meet-list { display: flex; flex-direction: column; gap: 12px; padding: 16px; align-items: flex-start; }
 .meet-list > * { max-width: 100%; }
 .meet-list__empty { margin: 0; }
-.meet-list__bar { gap: 10px; }
+.meet-list__bar { gap: 10px; width: 100%; }
+.meet-list__account { margin-left: auto; font-size: var(--fs-sm); }
 .meet-items { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 6px; }
 .meet-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--raised); }
 .meet-item__main strong { overflow-wrap: anywhere; }

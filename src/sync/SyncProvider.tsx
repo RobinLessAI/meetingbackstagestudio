@@ -55,6 +55,29 @@ export interface ZoomMeeting {
   recurring: boolean;
   type: number | 'pmi';
   link: string;
+  /** Herkunft; fehlt bei Zoom. */
+  platform?: 'teams';
+}
+
+/** Live-Chat aus Microsoft Teams (Graph-Benachrichtigungen über einen Tunnel). */
+export interface TeamsLiveStatus {
+  state: 'bereit' | 'verbindet' | 'verbunden' | 'fehler';
+  meeting: string | null;
+  link: string | null;
+  since: number | null;
+  messages: number;
+  error: string | null;
+  tunnelUrl: string | null;
+}
+
+export interface TeamsStatus {
+  /** TEAMS_CLIENT_ID ist eingetragen. */
+  configured: boolean;
+  connected: boolean;
+  name: string | null;
+  email: string | null;
+  redirectUri: string;
+  live: TeamsLiveStatus;
 }
 
 export interface ZoomMeetingsState {
@@ -88,6 +111,13 @@ interface SyncValue {
   requestAuthUrl: () => Promise<string | null>;
   connectZoom: (input: string) => Promise<{ ok: boolean; message: string }>;
   disconnectZoom: () => void;
+  /** Microsoft Teams: Konto, Meetings, Live-Chat. */
+  teams: TeamsStatus | null;
+  teamsMeetings: ZoomMeetingsState;
+  loadTeamsMeetings: () => void;
+  disconnectTeams: () => void;
+  startTeamsLive: (link: string, topic?: string) => boolean;
+  stopTeamsLive: () => void;
   /** Eigene Vorlagen (im Ordner daten/ gespeichert, ohne Server nur im Browser). */
   templates: StyleTemplate[];
   saveTemplates: (list: StyleTemplate[]) => void;
@@ -111,6 +141,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [regie, setRegie] = useState<RegieStatus | null>(null);
   const [actionKey, setActionKey] = useState<string | null>(null);
   const [zoomMeetings, setZoomMeetings] = useState<ZoomMeetingsState>({ loading: false, meetings: [], error: null, at: null });
+  const [teams, setTeams] = useState<TeamsStatus | null>(null);
+  const teamsRef = useRef<TeamsStatus | null>(null);
+  teamsRef.current = teams;
+  const [teamsMeetings, setTeamsMeetings] = useState<ZoomMeetingsState>({ loading: false, meetings: [], error: null, at: null });
   const authUrlWaiter = useRef<((url: string | null) => void) | null>(null);
   const connectWaiter = useRef<((r: { ok: boolean; message: string }) => void) | null>(null);
   const [templates, setTemplates] = useState<StyleTemplate[]>(() => {
@@ -138,6 +172,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         setSavedAt(msg.saved?.savedAt ?? null);
         if (msg.watch) setWatch(msg.watch);
         if (msg.regie) setRegie(msg.regie);
+        if (msg.teams) setTeams(msg.teams);
         if (msg.aktionSchluessel) setActionKey(msg.aktionSchluessel);
         if (Array.isArray(msg.vorlagen)) setTemplates(msg.vorlagen);
         const saved = msg.saved?.state as Partial<AppState> | undefined;
@@ -162,6 +197,22 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         else if (next.state === 'bereit' && prev?.state === 'verbunden') notify('Regie hat das Meeting verlassen', 'info');
         break;
       }
+      case 'teams-status': {
+        const prev = teamsRef.current;
+        const next = msg.status as TeamsStatus;
+        setTeams(next);
+        if (next.connected && !prev?.connected) notify(`Mit Microsoft Teams verbunden${next.name ? ` (${next.name})` : ''}`, 'erfolg');
+        const a = prev?.live;
+        const b = next.live;
+        if (b.state === a?.state && b.error === a?.error) break;
+        if (b.state === 'verbunden') notify('Teams-Chat wird live mitgelesen', 'erfolg');
+        else if (b.state === 'fehler' && b.error) notify(b.error, 'fehler');
+        else if (b.state === 'bereit' && a?.state === 'verbunden') notify('Teams-Chat wird nicht mehr mitgelesen', 'info');
+        break;
+      }
+      case 'teams-meetings':
+        setTeamsMeetings({ loading: false, meetings: msg.meetings ?? [], error: msg.ok ? null : String(msg.error ?? 'Unbekannter Fehler'), at: msg.at ?? Date.now() });
+        break;
       case 'live-chat': {
         // Live-Nachrichten aus dem Regie-Fenster: Schlüssel verhindern doppelte Übernahme nach Neuladen.
         const messages = (msg.messages ?? []).map((m: { key: string; senderName: string; text: string; at: number }) => ({
@@ -291,6 +342,18 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     socket.current?.send({ type: 'zoom-disconnect' });
     setZoomMeetings({ loading: false, meetings: [], error: null, at: null });
   }, []);
+  const loadTeamsMeetings = useCallback(() => {
+    setTeamsMeetings((z) => ({ ...z, loading: true, error: null }));
+    if (!socket.current?.send({ type: 'teams-meetings' })) setTeamsMeetings((z) => ({ ...z, loading: false, error: 'Keine Verbindung zum Server.' }));
+  }, []);
+  const disconnectTeams = useCallback(() => {
+    socket.current?.send({ type: 'teams-disconnect' });
+    setTeamsMeetings({ loading: false, meetings: [], error: null, at: null });
+  }, []);
+  const startTeamsLive = useCallback((link: string, topic?: string) => socket.current?.send({ type: 'teams-live-start', link: link.trim(), topic }) ?? false, []);
+  const stopTeamsLive = useCallback(() => {
+    socket.current?.send({ type: 'teams-live-stop' });
+  }, []);
   const saveTemplates = useCallback(
     (list: StyleTemplate[]) => {
       setTemplates(list);
@@ -335,8 +398,14 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       requestAuthUrl,
       connectZoom,
       disconnectZoom,
+      teams,
+      teamsMeetings,
+      loadTeamsMeetings,
+      disconnectTeams,
+      startTeamsLive,
+      stopTeamsLive,
     }),
-    [regie, available, status, outputs, savedAt, watch, lastImport, startWatch, stopWatch, openRegie, leaveRegie, actionKey, setActionHandler, templates, saveTemplates, zoomMeetings, loadZoomMeetings, requestAuthUrl, connectZoom, disconnectZoom],
+    [teams, teamsMeetings, loadTeamsMeetings, disconnectTeams, startTeamsLive, stopTeamsLive, regie, available, status, outputs, savedAt, watch, lastImport, startWatch, stopWatch, openRegie, leaveRegie, actionKey, setActionHandler, templates, saveTemplates, zoomMeetings, loadZoomMeetings, requestAuthUrl, connectZoom, disconnectZoom],
   );
   return <SyncCtx.Provider value={value}>{children}</SyncCtx.Provider>;
 }

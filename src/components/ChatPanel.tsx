@@ -152,7 +152,7 @@ export function ChatPanel() {
           <span className="subtle tabular">{state.chat.length} Nachrichten</span>
         </div>
       </header>
-      {sync.regie?.configured && sync.regie.state !== 'verbunden' && (
+      {sync.regie?.configured && sync.regie.state !== 'verbunden' && sync.teams?.live.state !== 'verbunden' && (
         <div className="chat__start">
           <RegieStart compact />
         </div>

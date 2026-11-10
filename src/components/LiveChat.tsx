@@ -3,10 +3,21 @@ import { CircleCheck, CircleDashed, Copy, FolderSearch, LogOut, MonitorPlay, Rad
 import { clock } from '../lib/time.ts';
 import { useStore } from '../state/store.tsx';
 import { useUi } from '../state/ui.tsx';
-import { useSync, type RegieStatus } from '../sync/SyncProvider.tsx';
+import { useSync, type RegieStatus, type TeamsStatus } from '../sync/SyncProvider.tsx';
 import { Badge, Button, DemoTag, Field, Panel, Switch } from './ui.tsx';
 
-export function regieLabel(r: RegieStatus | null, available: boolean): { text: string; tone: 'ok' | 'warn' | 'danger' | 'neutral' } {
+export function regieLabel(
+  r: RegieStatus | null,
+  available: boolean,
+  teams?: TeamsStatus | null,
+): { text: string; tone: 'ok' | 'warn' | 'danger' | 'neutral' } {
+  // Teams-Mitlesen hat Vorrang, solange es läuft oder gerade eingerichtet wird.
+  const t = teams?.live;
+  if (available && t && t.state !== 'bereit' && r?.state !== 'verbunden') {
+    if (t.state === 'verbunden') return { text: `Live aus Teams · ${t.messages} ${t.messages === 1 ? 'Nachricht' : 'Nachrichten'}`, tone: 'ok' };
+    if (t.state === 'verbindet') return { text: 'Teams-Chat wird verbunden …', tone: 'warn' };
+    return { text: 'Teams-Chat: Fehler', tone: 'danger' };
+  }
   if (!available || !r) return { text: 'Live-Chat nicht verfügbar (Vorschau ohne Server)', tone: 'neutral' };
   if (!r.configured) return { text: 'Live-Chat nicht eingerichtet', tone: 'warn' };
   switch (r.state) {
@@ -25,8 +36,8 @@ export function regieLabel(r: RegieStatus | null, available: boolean): { text: s
 
 /** Kleine Statusanzeige für Chat und Kopfzeile. */
 export function LiveChatBadge() {
-  const { regie, available } = useSync();
-  const l = regieLabel(regie, available);
+  const { regie, available, teams } = useSync();
+  const l = regieLabel(regie, available, teams);
   return (
     <Badge tone={l.tone} icon={l.tone === 'ok' ? Radio : l.tone === 'danger' ? TriangleAlert : CircleDashed} title={regie?.error ?? undefined}>
       {l.text}

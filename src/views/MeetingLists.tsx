@@ -1,11 +1,26 @@
 import { useEffect, useId, useState } from 'react';
-import { Bookmark, BookmarkPlus, Check, ExternalLink, LogIn, Play, RefreshCw, Repeat, Trash2, Unplug, X } from 'lucide-react';
+import {
+  Bookmark,
+  BookmarkPlus,
+  Check,
+  ExternalLink,
+  LogIn,
+  MessageSquareText,
+  Play,
+  RefreshCw,
+  Repeat,
+  Trash2,
+  Unplug,
+  Users,
+  X,
+} from 'lucide-react';
 import { openInZoomApp } from '../lib/zoomLink.ts';
+import { isTeamsLink, teamsAppUrl, teamsThreadId } from '../lib/teamsLink.ts';
 import { Badge, Button, Segmented } from '../components/ui.tsx';
 import { filterMeetings, type MeetingFilter } from './meetingFilter.ts';
 import { CategoryChips, CategoryFilter, CategoryPicker, matchesCategory, useCategories } from './meetingCategories.tsx';
 import { useStore } from '../state/store.tsx';
-import { useSync, type StyleTemplate, type ZoomMeeting } from '../sync/SyncProvider.tsx';
+import { useSync, type StyleTemplate, type ZoomMeeting, type ZoomMeetingsState } from '../sync/SyncProvider.tsx';
 
 /** Gespeicherte Veranstaltung: Name, Zoom-Link, optional Kenncode. */
 interface SavedMeetingData {
@@ -13,7 +28,8 @@ interface SavedMeetingData {
   passcode?: string;
 }
 
-const idFromLink = (link: string) => link.match(/\/(?:j|w|s|wc\/join|wc)\/(\d{9,12})/)?.[1] ?? link.replace(/\D/g, '').slice(0, 12);
+const idFromLink = (link: string) => (isTeamsLink(link) ? (teamsThreadId(link) ?? link) : zoomIdFromLink(link));
+const zoomIdFromLink = (link: string) => link.match(/\/(?:j|w|s|wc\/join|wc)\/(\d{9,12})/)?.[1] ?? link.replace(/\D/g, '').slice(0, 12);
 const formatId = (id: string) => id.replace(/^(\d{3})(\d{3,4})(\d{3,4})$/, '$1 $2 $3');
 
 function when(m: ZoomMeeting): string {
@@ -26,26 +42,101 @@ function when(m: ZoomMeeting): string {
 }
 
 /** Tabs „Gespeichert“ und „Aus meinem Zoom-Konto“ unter dem Eingabefeld. */
-export function MeetingLists({ onJoin, onUse, currentLink, disabled }: {
-  onJoin: (link: string, passcode?: string) => void;
+type JoinFn = (link: string, passcode?: string, topic?: string) => void;
+type ListTab = 'zoom' | 'teams' | 'gespeichert';
+
+/** Beschriftung des Beitreten-Knopfs je nach Plattform. */
+function JoinButton({
+  link,
+  onJoin,
+  passcode,
+  topic,
+  disabled,
+}: {
+  link: string;
+  onJoin: JoinFn;
+  passcode?: string;
+  topic?: string;
+  disabled: boolean;
+}) {
+  const teams = isTeamsLink(link);
+  return (
+    <Button
+      size="sm"
+      variant="primary"
+      icon={teams ? MessageSquareText : LogIn}
+      disabled={disabled}
+      onClick={() => onJoin(link, passcode, topic)}
+      title={teams ? 'Den Chat dieses Teams-Meetings live mitlesen' : '„MeetingBackstage (Regie)“ tritt bei und liest den Chat mit'}
+    >
+      {teams ? 'Chat mitlesen' : 'Beitreten'}
+    </Button>
+  );
+}
+
+export function MeetingLists({
+  onJoin,
+  onUse,
+  currentLink,
+  disabled,
+}: {
+  onJoin: JoinFn;
   /** Link nur ins Feld übernehmen. */
   onUse: (link: string, passcode?: string) => void;
   currentLink: string;
   disabled: boolean;
 }) {
-  const [tab, setTab] = useState<'gespeichert' | 'zoom'>('zoom');
+  const [tab, setTabState] = useState<ListTab>(() => {
+    try {
+      const t = localStorage.getItem('mb-meeting-tab');
+      return t === 'teams' || t === 'gespeichert' ? t : 'zoom';
+    } catch {
+      return 'zoom';
+    }
+  });
+  const setTab = (t: ListTab) => {
+    setTabState(t);
+    try {
+      localStorage.setItem('mb-meeting-tab', t);
+    } catch {
+      /* nur Komfort */
+    }
+  };
   return (
     <section className="meet-lists" aria-label="Meine Meetings">
       <div className="tabs meet-lists__tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === 'zoom'} className={`tab${tab === 'zoom' ? ' is-active' : ''}`} onClick={() => setTab('zoom')}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'zoom'}
+          className={`tab${tab === 'zoom' ? ' is-active' : ''}`}
+          onClick={() => setTab('zoom')}
+        >
           <Repeat size={15} aria-hidden /> Aus meinem Zoom-Konto
         </button>
-        <button type="button" role="tab" aria-selected={tab === 'gespeichert'} className={`tab${tab === 'gespeichert' ? ' is-active' : ''}`} onClick={() => setTab('gespeichert')}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'teams'}
+          className={`tab${tab === 'teams' ? ' is-active' : ''}`}
+          onClick={() => setTab('teams')}
+        >
+          <Users size={15} aria-hidden /> Aus Microsoft Teams
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'gespeichert'}
+          className={`tab${tab === 'gespeichert' ? ' is-active' : ''}`}
+          onClick={() => setTab('gespeichert')}
+        >
           <Bookmark size={15} aria-hidden /> Meine Veranstaltungen
         </button>
       </div>
       {tab === 'zoom' ? (
         <ZoomMeetings onJoin={onJoin} disabled={disabled} />
+      ) : tab === 'teams' ? (
+        <TeamsMeetings onJoin={onJoin} disabled={disabled} />
       ) : (
         <SavedMeetings onJoin={onJoin} onUse={onUse} currentLink={currentLink} disabled={disabled} />
       )}
@@ -53,19 +144,30 @@ export function MeetingLists({ onJoin, onUse, currentLink, disabled }: {
   );
 }
 
-/** Öffnet das Meeting in der Zoom-App; als Gastgeber startet es damit. */
+/** Öffnet das Meeting in der Zoom- bzw. Teams-App; als Gastgeber startet es damit. */
 function StartButton({ link }: { link: string }) {
   const { notify } = useStore();
+  const teams = isTeamsLink(link);
+  const start = () => {
+    if (teams) {
+      const url = teamsAppUrl(link);
+      if (!url) return notify('Dieser Teams-Link lässt sich nicht öffnen.', 'fehler');
+      const a = document.createElement('a');
+      a.href = url;
+      a.click();
+      notify('Teams wird geöffnet. Tritt dort dem Meeting bei und klicke hier auf „Chat mitlesen“.', 'info');
+      return;
+    }
+    if (openInZoomApp(link))
+      notify('Zoom-App wird geöffnet. Sobald das Meeting läuft, hier auf „Beitreten“ klicken, damit die Regie den Chat mitliest.', 'info');
+    else notify('In diesem Link wurde keine Meeting-ID gefunden.', 'fehler');
+  };
   return (
     <Button
       size="sm"
       icon={Play}
-      title="In deiner Zoom-App öffnen. Bist du dort als Gastgeber angemeldet, startet das Meeting."
-      onClick={() =>
-        openInZoomApp(link)
-          ? notify('Zoom-App wird geöffnet. Sobald das Meeting läuft, hier auf „Beitreten“ klicken, damit die Regie den Chat mitliest.', 'info')
-          : notify('In diesem Link wurde keine Meeting-ID gefunden.', 'fehler')
-      }
+      title={teams ? 'In deiner Teams-App öffnen' : 'In deiner Zoom-App öffnen. Bist du dort als Gastgeber angemeldet, startet das Meeting.'}
+      onClick={start}
     >
       Starten
     </Button>
@@ -90,7 +192,17 @@ function useSaveMeeting() {
   };
 }
 
-function SavedMeetings({ onJoin, onUse, currentLink, disabled }: { onJoin: (l: string, p?: string) => void; onUse: (l: string, p?: string) => void; currentLink: string; disabled: boolean }) {
+function SavedMeetings({
+  onJoin,
+  onUse,
+  currentLink,
+  disabled,
+}: {
+  onJoin: JoinFn;
+  onUse: (l: string, p?: string) => void;
+  currentLink: string;
+  disabled: boolean;
+}) {
   const { templates, saveTemplates } = useSync();
   const save = useSaveMeeting();
   const [adding, setAdding] = useState(false);
@@ -108,7 +220,9 @@ function SavedMeetings({ onJoin, onUse, currentLink, disabled }: { onJoin: (l: s
     <div className="meet-list">
       <CategoryFilter value={catFilter} onChange={setCatFilter} />
       {list.length === 0 && !adding && (
-        <p className="subtle meet-list__empty">Noch keine Veranstaltungen gespeichert. Lege deine regelmäßigen Workshops mit Zoom-Link an, dann reicht später ein Klick.</p>
+        <p className="subtle meet-list__empty">
+          Noch keine Veranstaltungen gespeichert. Lege deine regelmäßigen Workshops mit Zoom-Link an, dann reicht später ein Klick.
+        </p>
       )}
       <ul className="meet-items">
         {list.map((t) => {
@@ -119,26 +233,41 @@ function SavedMeetings({ onJoin, onUse, currentLink, disabled }: { onJoin: (l: s
                 <strong>
                   {t.name} <CategoryChips meetingId={idFromLink(d.link)} />
                 </strong>
-                <span className="subtle mono">ID {formatId(idFromLink(d.link))}{d.passcode ? ' · mit Kenncode' : ''}</span>
+                <span className="subtle mono">
+                  {isTeamsLink(d.link) ? 'Microsoft Teams' : `ID ${formatId(idFromLink(d.link))}`}
+                  {d.passcode ? ' · mit Kenncode' : ''}
+                </span>
               </div>
               <div className="meet-item__actions">
                 <StartButton link={d.link} />
-                <Button size="sm" variant="primary" icon={LogIn} disabled={disabled} onClick={() => onJoin(d.link, d.passcode)} title="„MeetingBackstage (Regie)“ tritt bei und liest den Chat mit">
-                  Beitreten
-                </Button>
+                <JoinButton link={d.link} passcode={d.passcode} topic={t.name} onJoin={onJoin} disabled={disabled} />
                 <Button size="sm" variant="ghost" onClick={() => onUse(d.link, d.passcode)} title="Nur ins Feld oben übernehmen">
                   Übernehmen
                 </Button>
                 <CategoryPicker meetingId={idFromLink(d.link)} />
                 {confirmDelete === t.id ? (
                   <>
-                    <Button size="sm" variant="danger" icon={Check} onClick={() => { saveTemplates(templates.filter((x) => x.id !== t.id)); setConfirmDelete(null); }}>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      icon={Check}
+                      onClick={() => {
+                        saveTemplates(templates.filter((x) => x.id !== t.id));
+                        setConfirmDelete(null);
+                      }}
+                    >
                       Löschen
                     </Button>
                     <Button size="sm" variant="ghost" icon={X} onClick={() => setConfirmDelete(null)} aria-label="Nicht löschen" />
                   </>
                 ) : (
-                  <button type="button" className="tpl__icon meet-item__del" aria-label={`„${t.name}“ löschen`} title="Löschen" onClick={() => setConfirmDelete(t.id)}>
+                  <button
+                    type="button"
+                    className="tpl__icon meet-item__del"
+                    aria-label={`„${t.name}“ löschen`}
+                    title="Löschen"
+                    onClick={() => setConfirmDelete(t.id)}
+                  >
                     <Trash2 size={14} aria-hidden />
                   </button>
                 )}
@@ -160,15 +289,39 @@ function SavedMeetings({ onJoin, onUse, currentLink, disabled }: { onJoin: (l: s
             setPasscode('');
           }}
         >
-          <label htmlFor={ids.name} className="field-label">Name der Veranstaltung</label>
-          <input id={ids.name} className="input" value={name} maxLength={60} autoFocus placeholder="z. B. Montagsworkshop Team Nord" onChange={(e) => setName(e.target.value)} />
-          <label htmlFor={ids.link} className="field-label">Zoom-Link oder Meeting-ID</label>
-          <input id={ids.link} className="input" value={link} placeholder="https://zoom.us/j/…" onChange={(e) => setLink(e.target.value)} />
-          <label htmlFor={ids.pass} className="field-label">Kenncode (optional)</label>
+          <label htmlFor={ids.name} className="field-label">
+            Name der Veranstaltung
+          </label>
+          <input
+            id={ids.name}
+            className="input"
+            value={name}
+            maxLength={60}
+            autoFocus
+            placeholder="z. B. Montagsworkshop Team Nord"
+            onChange={(e) => setName(e.target.value)}
+          />
+          <label htmlFor={ids.link} className="field-label">
+            Zoom- oder Teams-Link
+          </label>
+          <input
+            id={ids.link}
+            className="input"
+            value={link}
+            placeholder="https://zoom.us/j/… oder https://teams.microsoft.com/l/meetup-join/…"
+            onChange={(e) => setLink(e.target.value)}
+          />
+          <label htmlFor={ids.pass} className="field-label">
+            Kenncode (optional)
+          </label>
           <input id={ids.pass} className="input" value={passcode} autoComplete="off" onChange={(e) => setPasscode(e.target.value)} />
           <div className="row">
-            <Button type="submit" variant="primary" disabled={!name.trim() || !link.trim()}>Speichern</Button>
-            <Button variant="ghost" onClick={() => setAdding(false)}>Abbrechen</Button>
+            <Button type="submit" variant="primary" disabled={!name.trim() || !link.trim()}>
+              Speichern
+            </Button>
+            <Button variant="ghost" onClick={() => setAdding(false)}>
+              Abbrechen
+            </Button>
           </div>
         </form>
       ) : (
@@ -179,43 +332,19 @@ function SavedMeetings({ onJoin, onUse, currentLink, disabled }: { onJoin: (l: s
             setAdding(true);
           }}
         >
-          Veranstaltung mit Zoom-Link speichern
+          Veranstaltung mit Link speichern
         </Button>
       )}
     </div>
   );
 }
 
-function ZoomMeetings({ onJoin, disabled }: { onJoin: (l: string, p?: string) => void; disabled: boolean }) {
+function ZoomMeetings({ onJoin, disabled }: { onJoin: JoinFn; disabled: boolean }) {
   const { regie, available, zoomMeetings, loadZoomMeetings, requestAuthUrl, connectZoom, disconnectZoom } = useSync();
-  const save = useSaveMeeting();
   const { notify } = useStore();
   const [pasted, setPasted] = useState('');
   const [busy, setBusy] = useState(false);
   const pasteId = useId();
-  const searchId = useId();
-  const [filter, setFilterState] = useState<MeetingFilter>(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('mb-meeting-filter') ?? '{}') as Partial<MeetingFilter>;
-      return { art: 'alle', zeitraum: 'ab-heute', sortierung: 'datum-auf', ...saved, suche: '' };
-    } catch {
-      return { art: 'alle', zeitraum: 'ab-heute', sortierung: 'datum-auf', suche: '' };
-    }
-  });
-  const setFilter = (patch: Partial<MeetingFilter>) => {
-    setFilterState((f) => {
-      const next = { ...f, ...patch };
-      try {
-        localStorage.setItem('mb-meeting-filter', JSON.stringify({ ...next, suche: '' }));
-      } catch {
-        /* nur Komfort */
-      }
-      return next;
-    });
-  };
-  const cats = useCategories();
-  const [catFilter, setCatFilter] = useState('');
-  const shown = filterMeetings(zoomMeetings.meetings, filter).filter((m) => matchesCategory(cats.of(m.id), catFilter));
   const account = regie?.account;
   const connected = !!account?.connected;
 
@@ -229,12 +358,15 @@ function ZoomMeetings({ onJoin, disabled }: { onJoin: (l: string, p?: string) =>
   if (!account?.redirectConfigured) {
     return (
       <div className="meet-list">
-        <p className="callout callout--warn">
-          Für diese Liste muss MeetingBackstage dein Zoom-Konto lesen dürfen. Einmalig einrichten:
-        </p>
+        <p className="callout callout--warn">Für diese Liste muss MeetingBackstage dein Zoom-Konto lesen dürfen. Einmalig einrichten:</p>
         <ol className="program-steps">
-          <li>Im Zoom Marketplace in deiner App unter <strong>Scopes</strong> „meeting:read:list_meetings“ und „user:read:user“ hinzufügen.</li>
-          <li>In <code>.env.local</code> die Zeile <code>ZOOM_REDIRECT_URI=…</code> eintragen: dieselbe Adresse wie „OAuth Redirect URL“ in der Zoom-App.</li>
+          <li>
+            Im Zoom Marketplace in deiner App unter <strong>Scopes</strong> „meeting:read:list_meetings“ und „user:read:user“ hinzufügen.
+          </li>
+          <li>
+            In <code>.env.local</code> die Zeile <code>ZOOM_REDIRECT_URI=…</code> eintragen: dieselbe Adresse wie „OAuth Redirect URL“ in der
+            Zoom-App.
+          </li>
           <li>Die App neu starten (ctrl + C, dann npm start).</li>
         </ol>
       </div>
@@ -279,8 +411,17 @@ function ZoomMeetings({ onJoin, disabled }: { onJoin: (l: string, p?: string) =>
             }
           }}
         >
-          <label htmlFor={pasteId} className="sr-only">Adresse nach dem Erlauben</label>
-          <input id={pasteId} className="input" value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder="https://…?code=…" style={{ flex: 1 }} />
+          <label htmlFor={pasteId} className="sr-only">
+            Adresse nach dem Erlauben
+          </label>
+          <input
+            id={pasteId}
+            className="input"
+            value={pasted}
+            onChange={(e) => setPasted(e.target.value)}
+            placeholder="https://…?code=…"
+            style={{ flex: 1 }}
+          />
           <Button type="submit" variant="primary" loading={busy} disabled={!pasted.trim() || busy}>
             Verbinden
           </Button>
@@ -290,17 +431,73 @@ function ZoomMeetings({ onJoin, disabled }: { onJoin: (l: string, p?: string) =>
   }
 
   return (
+    <AccountList
+      data={zoomMeetings}
+      reload={loadZoomMeetings}
+      disconnect={disconnectZoom}
+      disconnectLabel="Zoom-Konto trennen"
+      onJoin={onJoin}
+      disabled={disabled}
+    />
+  );
+}
+
+/** Liste der Meetings aus einem verbundenen Konto (Zoom oder Teams) mit Filter und Kategorien. */
+function AccountList({
+  data,
+  reload,
+  disconnect,
+  disconnectLabel,
+  accountLabel,
+  onJoin,
+  disabled,
+}: {
+  data: ZoomMeetingsState;
+  reload: () => void;
+  disconnect: () => void;
+  disconnectLabel: string;
+  accountLabel?: string;
+  onJoin: JoinFn;
+  disabled: boolean;
+}) {
+  const save = useSaveMeeting();
+  const searchId = useId();
+  const [filter, setFilterState] = useState<MeetingFilter>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('mb-meeting-filter') ?? '{}') as Partial<MeetingFilter>;
+      return { art: 'alle', zeitraum: 'ab-heute', sortierung: 'datum-auf', ...saved, suche: '' };
+    } catch {
+      return { art: 'alle', zeitraum: 'ab-heute', sortierung: 'datum-auf', suche: '' };
+    }
+  });
+  const setFilter = (patch: Partial<MeetingFilter>) => {
+    setFilterState((f) => {
+      const next = { ...f, ...patch };
+      try {
+        localStorage.setItem('mb-meeting-filter', JSON.stringify({ ...next, suche: '' }));
+      } catch {
+        /* nur Komfort */
+      }
+      return next;
+    });
+  };
+  const cats = useCategories();
+  const [catFilter, setCatFilter] = useState('');
+  const shown = filterMeetings(data.meetings, filter).filter((m) => matchesCategory(cats.of(m.id), catFilter));
+
+  return (
     <div className="meet-list">
       <div className="row meet-list__bar">
-        <Button size="sm" icon={RefreshCw} loading={zoomMeetings.loading} onClick={loadZoomMeetings}>
+        <Button size="sm" icon={RefreshCw} loading={data.loading} onClick={reload}>
           Aktualisieren
         </Button>
-        <Button size="sm" variant="ghost" icon={Unplug} onClick={disconnectZoom}>
-          Zoom-Konto trennen
+        <Button size="sm" variant="ghost" icon={Unplug} onClick={disconnect}>
+          {disconnectLabel}
         </Button>
+        {accountLabel && <span className="subtle meet-list__account">{accountLabel}</span>}
       </div>
-      {zoomMeetings.error && <p className="callout callout--danger">{zoomMeetings.error}</p>}
-      {zoomMeetings.meetings.length > 0 && (
+      {data.error && <p className="callout callout--danger">{data.error}</p>}
+      {data.meetings.length > 0 && (
         <div className="meet-filter">
           <Segmented<MeetingFilter['art']>
             label="Art"
@@ -353,12 +550,10 @@ function ZoomMeetings({ onJoin, disabled }: { onJoin: (l: string, p?: string) =>
           </div>
         </div>
       )}
-      {!zoomMeetings.loading && zoomMeetings.at && !zoomMeetings.error && (
+      {!data.loading && data.at && !data.error && (
         <p className="subtle meet-list__empty">
-          {zoomMeetings.meetings.length === 0
-            ? 'Keine geplanten Meetings gefunden.'
-            : `${shown.length} von ${zoomMeetings.meetings.length} Meetings`}
-          {zoomMeetings.meetings.length > 0 && shown.length === 0 && ' – kein Meeting passt zum Filter.'}
+          {data.meetings.length === 0 ? 'Keine geplanten Meetings gefunden.' : `${shown.length} von ${data.meetings.length} Meetings`}
+          {data.meetings.length > 0 && shown.length === 0 && ' – kein Meeting passt zum Filter.'}
         </p>
       )}
       <ul className="meet-items">
@@ -368,15 +563,22 @@ function ZoomMeetings({ onJoin, disabled }: { onJoin: (l: string, p?: string) =>
               <strong>
                 {m.topic} {m.recurring && <Badge tone="info">wiederkehrend</Badge>} <CategoryChips meetingId={m.id} />
               </strong>
-              <span className="subtle">{when(m)} · ID {formatId(m.id)}</span>
+              <span className="subtle">
+                {when(m)}
+                {m.platform === 'teams' ? '' : ` · ID ${formatId(m.id)}`}
+              </span>
             </div>
             <div className="meet-item__actions">
               <StartButton link={m.link} />
-              <Button size="sm" variant="primary" icon={LogIn} disabled={disabled} onClick={() => onJoin(m.link)} title="„MeetingBackstage (Regie)“ tritt bei und liest den Chat mit">
-                Beitreten
-              </Button>
+              <JoinButton link={m.link} topic={m.topic} onJoin={onJoin} disabled={disabled} />
               <CategoryPicker meetingId={m.id} />
-              <Button size="sm" variant="ghost" icon={BookmarkPlus} onClick={() => save(m.topic, { link: m.link })} title="Unter „Meine Veranstaltungen“ speichern">
+              <Button
+                size="sm"
+                variant="ghost"
+                icon={BookmarkPlus}
+                onClick={() => save(m.topic, { link: m.link })}
+                title="Unter „Meine Veranstaltungen“ speichern"
+              >
                 Speichern
               </Button>
             </div>
@@ -384,5 +586,72 @@ function ZoomMeetings({ onJoin, disabled }: { onJoin: (l: string, p?: string) =>
         ))}
       </ul>
     </div>
+  );
+}
+
+/** Teams-Besprechungen aus dem eigenen Microsoft-Kalender. */
+function TeamsMeetings({ onJoin, disabled }: { onJoin: JoinFn; disabled: boolean }) {
+  const { teams, available, teamsMeetings, loadTeamsMeetings, disconnectTeams } = useSync();
+  const connected = !!teams?.connected;
+
+  useEffect(() => {
+    if (connected && !teamsMeetings.at && !teamsMeetings.loading) loadTeamsMeetings();
+  }, [connected, teamsMeetings.at, teamsMeetings.loading, loadTeamsMeetings]);
+
+  if (!available || !teams) return <p className="subtle meet-list__empty">Nur in der App auf dem Mac verfügbar.</p>;
+
+  if (!teams.configured) {
+    return (
+      <div className="meet-list">
+        <p className="callout callout--warn">
+          Für Teams braucht MeetingBackstage einmalig eine eigene App-Registrierung in deinem Microsoft-Konto (kostenlos).
+        </p>
+        <ol className="program-steps">
+          <li>
+            Auf <strong>entra.microsoft.com</strong> mit deinem Vereinskonto anmelden: <strong>App-Registrierungen</strong> →{' '}
+            <strong>Neue Registrierung</strong>. Name „MeetingBackstage“, Kontotyp „Nur Konten in diesem Organisationsverzeichnis“.
+          </li>
+          <li>
+            Umleitungs-URI: Plattform <strong>Öffentlicher Client/nativ (mobil und Desktop)</strong>, Adresse <code>{teams.redirectUri}</code>.
+          </li>
+          <li>
+            Unter <strong>Authentifizierung</strong> „Öffentliche Clientflows zulassen“ auf <strong>Ja</strong>. Unter{' '}
+            <strong>API-Berechtigungen</strong> → Microsoft Graph → Delegiert: <code>Calendars.Read</code> und <code>Chat.Read</code> hinzufügen (
+            <code>User.Read</code> ist schon da).
+          </li>
+          <li>
+            In <code>.env.local</code> eintragen: <code>TEAMS_CLIENT_ID=</code> (Anwendungs-ID) und <code>TEAMS_TENANT_ID=</code> (Verzeichnis-ID),
+            beide auf der Übersichtsseite der App. Dann die App neu starten (ctrl + C, npm start).
+          </li>
+          <li>
+            Für den Live-Chat einmalig im Terminal <code>brew install cloudflared</code> ausführen (kostenloser Tunnel, ohne Konto).
+          </li>
+        </ol>
+      </div>
+    );
+  }
+
+  if (!connected) {
+    return (
+      <div className="meet-list">
+        <p className="muted">Einmalig mit deinem Microsoft-Konto anmelden. Danach erscheinen hier deine Teams-Besprechungen aus dem Kalender.</p>
+        <Button variant="primary" icon={ExternalLink} onClick={() => window.open('/teams/anmelden', '_blank')}>
+          Mit Microsoft anmelden
+        </Button>
+        <p className="field-hint">Es öffnet sich ein neuer Tab. Nach der Anmeldung kehrst du hierher zurück, die Liste lädt dann automatisch.</p>
+      </div>
+    );
+  }
+
+  return (
+    <AccountList
+      data={teamsMeetings}
+      reload={loadTeamsMeetings}
+      disconnect={disconnectTeams}
+      disconnectLabel="Teams-Konto trennen"
+      accountLabel={teams.name ? `Angemeldet als ${teams.name}${teams.email ? ` (${teams.email})` : ''}` : undefined}
+      onJoin={onJoin}
+      disabled={disabled}
+    />
   );
 }

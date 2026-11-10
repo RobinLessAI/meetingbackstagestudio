@@ -186,7 +186,7 @@ export function TopBar() {
   const spot = state.spotlight.map((id) => derived.byId[id]).filter(Boolean);
   const first = derived.queue.find((q) => !q.inSpotlight);
   const sync = useSync();
-  const live = regieLabel(sync.regie, sync.available);
+  const live = regieLabel(sync.regie, sync.available, sync.teams);
 
   let timer = '';
   if (session.status === 'laeuft' && session.startedAt) timer = timecode(now - session.startedAt);

@@ -22,7 +22,7 @@ export function createEventState(input: NewEventInput, now: number = Date.now())
       ...base.session,
       title: input.title.trim() || 'Eigene Veranstaltung',
       subtitle: 'Eigene Veranstaltung',
-      format: 'Chat aus Zoom · Grafiken für OBS',
+      format: 'Chat aus Zoom oder Teams · Grafiken für OBS',
       status: 'laeuft',
       scheduledStart: now,
       startedAt: now,

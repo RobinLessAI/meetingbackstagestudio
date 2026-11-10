@@ -4,7 +4,8 @@ import { Button } from '../components/ui.tsx';
 import { clock } from '../lib/time.ts';
 import { useStore } from '../state/store.tsx';
 import { useUi } from '../state/ui.tsx';
-import { useSync, type RegieStatus } from '../sync/SyncProvider.tsx';
+import { useSync, type RegieStatus, type TeamsLiveStatus } from '../sync/SyncProvider.tsx';
+import { isTeamsLink } from '../lib/teamsLink.ts';
 import { MeetingLists } from './MeetingLists.tsx';
 
 const readStored = (key: string) => {
@@ -21,6 +22,14 @@ function stepOf(r: RegieStatus | null): number {
   if (r.state === 'verbunden') return 4;
   if (r.state === 'wartet') return 2;
   if (r.state === 'verbindet') return 1;
+  return 0;
+}
+
+/** Ablauf bei Teams: 0 = Link, 1 = Tunnel und Benachrichtigung, 3 = verbunden. */
+function teamsStepOf(t: TeamsLiveStatus | undefined): number {
+  if (!t) return 0;
+  if (t.state === 'verbunden') return 3;
+  if (t.state === 'verbindet') return 1;
   return 0;
 }
 
@@ -45,18 +54,24 @@ function Step({ n, current, title, children }: { n: number; current: number; tit
  * Das ist der erste Schritt jeder Sitzung.
  */
 export function MeetingView() {
-  const { regie, available, openRegie, leaveRegie } = useSync();
+  const { regie, available, openRegie, leaveRegie, teams, startTeamsLive, stopTeamsLive } = useSync();
   const { notify, state } = useStore();
   const { go } = useUi();
   const [meeting, setMeeting] = useState(() => readStored('mb-letztes-meeting'));
   const [passcode, setPasscode] = useState('');
   const [showPasscode, setShowPasscode] = useState(false);
   const ids = { meeting: useId(), passcode: useId() };
-  const step = stepOf(regie);
-  const connected = regie?.state === 'verbunden';
-  const busy = regie?.state === 'verbindet' || regie?.state === 'wartet';
+  const tl = teams?.live;
+  const teamsActive = !!tl && tl.state !== 'bereit' && tl.state !== 'fehler';
+  // Welche Plattform zeigt die Karte: laufendes Teams-Mitlesen, sonst nach dem eingegebenen Link.
+  const platform: 'zoom' | 'teams' = teamsActive || (tl?.state === 'fehler' && !!tl.error) || isTeamsLink(meeting) ? 'teams' : 'zoom';
+  const step = platform === 'teams' ? teamsStepOf(tl) : stepOf(regie);
+  const zoomConnected = regie?.state === 'verbunden';
+  const teamsConnected = tl?.state === 'verbunden';
+  const connected = zoomConnected || teamsConnected;
+  const busy = regie?.state === 'verbindet' || regie?.state === 'wartet' || tl?.state === 'verbindet';
 
-  const join = (link = meeting, code = passcode) => {
+  const join = (link = meeting, code = passcode, topic?: string) => {
     if (!link.trim()) return;
     setMeeting(link.trim());
     setPasscode(code ?? '');
@@ -65,7 +80,14 @@ export function MeetingView() {
     } catch {
       /* optional */
     }
-    if (!openRegie(link, code ?? '')) notify('Das Regie-Fenster wurde blockiert. Bitte Pop-ups für localhost erlauben.', 'fehler');
+    const problem = blockerFor(link);
+    if (problem) {
+      notify(problem, 'fehler');
+      return;
+    }
+    if (isTeamsLink(link)) {
+      if (!startTeamsLive(link, topic)) notify('Keine Verbindung zum Server.', 'fehler');
+    } else if (!openRegie(link, code ?? '')) notify('Das Regie-Fenster wurde blockiert. Bitte Pop-ups für localhost erlauben.', 'fehler');
     // Fortschritt und Meldungen stehen in der Karte unten: dorthin scrollen.
     document.getElementById('meet-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -80,23 +102,29 @@ export function MeetingView() {
   };
 
   // Ohne lokalen Server (z. B. Handy-Vorschau) oder ohne Einrichtung: klar sagen, was fehlt.
-  const blocker = !available
-    ? 'Diese Vorschau läuft ohne den Server auf deinem Mac. Ins Meeting geht es nur in der App auf dem Mac (npm start, dann http://localhost:4300).'
-    : !regie
-      ? 'Verbinde mit dem Server …'
-      : !regie.sdkInstalled
-        ? 'Das Zoom Meeting SDK fehlt. Im Terminal „npm install“ ausführen und die App neu starten.'
-        : regie.missing.length
-          ? `In .env.local fehlt: ${regie.missing.join(', ')}. Danach die App neu starten.`
-          : null;
+  function blockerFor(link: string): string | null {
+    if (!available)
+      return 'Diese Vorschau läuft ohne den Server auf deinem Mac. Ins Meeting geht es nur in der App auf dem Mac (npm start, dann http://localhost:4300).';
+    if (isTeamsLink(link)) {
+      if (!teams) return 'Verbinde mit dem Server …';
+      if (!teams.configured) return 'Microsoft Teams ist noch nicht eingerichtet. Die Schritte stehen oben im Reiter „Aus Microsoft Teams“.';
+      if (!teams.connected) return 'Bitte zuerst oben im Reiter „Aus Microsoft Teams“ mit Microsoft anmelden.';
+      return null;
+    }
+    if (!regie) return 'Verbinde mit dem Server …';
+    if (!regie.sdkInstalled) return 'Das Zoom Meeting SDK fehlt. Im Terminal „npm install“ ausführen und die App neu starten.';
+    if (regie.missing.length) return `In .env.local fehlt: ${regie.missing.join(', ')}. Danach die App neu starten.`;
+    return null;
+  }
+  const blocker = blockerFor(meeting);
 
   return (
     <div className="view meet">
       {!connected && (
         <MeetingLists
           currentLink={meeting}
-          disabled={!!blocker || busy}
-          onJoin={(link, code) => join(link, code)}
+          disabled={!available || busy}
+          onJoin={(link, code, topic) => join(link, code, topic)}
           onUse={(link, code) => {
             setMeeting(link);
             if (code) {
@@ -116,9 +144,11 @@ export function MeetingView() {
           {connected ? 'Mit dem Meeting verbunden' : 'Per Link verbinden'}
         </h1>
         <p className="meet-card__lead">
-          {connected
-            ? `„${regie?.name}“ ist im Meeting ${regie?.meeting ?? ''}. Der Chat kommt jetzt live in MeetingBackstage an.`
-            : 'Starte dein Meeting in Zoom, kopiere den Einladungslink und füge ihn hier ein. MeetingBackstage tritt als „MeetingBackstage (Regie)“ bei und liest den Chat mit.'}
+          {teamsConnected
+            ? `Der Chat von „${tl?.meeting ?? 'Teams-Meeting'}“ wird live mitgelesen. Die Nachrichten kommen jetzt in MeetingBackstage an.`
+            : zoomConnected
+              ? `„${regie?.name}“ ist im Meeting ${regie?.meeting ?? ''}. Der Chat kommt jetzt live in MeetingBackstage an.`
+              : 'Füge den Einladungslink deines Meetings ein. Bei Zoom tritt „MeetingBackstage (Regie)“ bei, bei Microsoft Teams liest MeetingBackstage den Meeting-Chat über dein Konto mit.'}
         </p>
 
         {blocker && (
@@ -130,8 +160,13 @@ export function MeetingView() {
         {connected ? (
           <div className="meet-connected">
             <p className="meet-connected__line">
-              <span className="meet-live" aria-hidden /> Live seit {regie?.since ? clock(regie.since, false) : '–'} Uhr · {regie?.messages ?? 0}{' '}
-              {regie?.messages === 1 ? 'Nachricht' : 'Nachrichten'} empfangen · {state.chat.length} im Chat
+              <span className="meet-live" aria-hidden /> {teamsConnected ? 'Teams · ' : ''}Live seit{' '}
+              {(() => {
+                const since = teamsConnected ? tl?.since : regie?.since;
+                return since ? clock(since, false) : '–';
+              })()}{' '}
+              Uhr · {(teamsConnected ? tl?.messages : regie?.messages) ?? 0}{' '}
+              {(teamsConnected ? tl?.messages : regie?.messages) === 1 ? 'Nachricht' : 'Nachrichten'} empfangen · {state.chat.length} im Chat
             </p>
             <div className="meet-actions">
               <Button variant="primary" size="lg" icon={ArrowRight} onClick={() => go('grafiken', { graphicTab: 'uebersicht' })}>
@@ -140,9 +175,15 @@ export function MeetingView() {
               <Button size="lg" icon={MonitorPlay} onClick={() => go('ausgabe')}>
                 OBS-Ausgabe
               </Button>
-              <Button variant="ghost" icon={LogOut} onClick={leaveRegie}>
-                Meeting verlassen
-              </Button>
+              {teamsConnected ? (
+                <Button variant="ghost" icon={LogOut} onClick={stopTeamsLive}>
+                  Mitlesen beenden
+                </Button>
+              ) : (
+                <Button variant="ghost" icon={LogOut} onClick={leaveRegie}>
+                  Meeting verlassen
+                </Button>
+              )}
             </div>
           </div>
         ) : (
@@ -154,7 +195,7 @@ export function MeetingView() {
             }}
           >
             <label htmlFor={ids.meeting} className="meet-form__label">
-              Zoom-Link oder Meeting-ID
+              Zoom- oder Teams-Link
             </label>
             <div className="meet-form__row">
               <input
@@ -162,11 +203,18 @@ export function MeetingView() {
                 className="input meet-form__input"
                 value={meeting}
                 onChange={(e) => setMeeting(e.target.value)}
-                placeholder="https://zoom.us/j/123456789?pwd=…"
+                placeholder="https://zoom.us/j/… oder https://teams.microsoft.com/l/meetup-join/…"
                 autoComplete="off"
                 disabled={!!blocker || busy}
               />
-              <Button type="button" variant="ghost" icon={Clipboard} onClick={paste} disabled={!!blocker || busy} title="Aus der Zwischenablage einfügen">
+              <Button
+                type="button"
+                variant="ghost"
+                icon={Clipboard}
+                onClick={paste}
+                disabled={!!blocker || busy}
+                title="Aus der Zwischenablage einfügen"
+              >
                 Einfügen
               </Button>
             </div>
@@ -190,29 +238,52 @@ export function MeetingView() {
               </button>
             )}
             <Button type="submit" variant="primary" size="lg" icon={busy ? LoaderCircle : ArrowRight} disabled={!meeting.trim() || !!blocker || busy}>
-              {busy ? 'Regie tritt bei …' : 'Meeting beitreten'}
+              {busy
+                ? platform === 'teams'
+                  ? 'Wird eingerichtet …'
+                  : 'Regie tritt bei …'
+                : platform === 'teams'
+                  ? 'Chat mitlesen'
+                  : 'Meeting beitreten'}
             </Button>
           </form>
         )}
 
-        {regie?.state === 'fehler' && regie.error && (
+        {platform === 'zoom' && regie?.state === 'fehler' && regie.error && (
           <p className="callout callout--danger meet-card__note" role="alert">
             <CircleAlert size={16} aria-hidden /> {regie.error}
           </p>
         )}
+        {platform === 'teams' && tl?.state === 'fehler' && tl.error && (
+          <p className="callout callout--danger meet-card__note" role="alert">
+            <CircleAlert size={16} aria-hidden /> {tl.error}
+          </p>
+        )}
 
-        <ol className="meet-steps" aria-label="Ablauf">
-          <Step n={0} current={step} title="Link einfügen und „Meeting beitreten“" />
-          <Step n={1} current={step} title="Regie-Fenster öffnet sich">
-            Lass es offen, solange der Workshop läuft. Kamera und Mikrofon nicht erlauben.
-          </Step>
-          <Step n={2} current={step} title="In Zoom zulassen">
-            „MeetingBackstage (Regie)“ wartet ggf. im Warteraum.
-          </Step>
-          <Step n={3} current={step} title="Verbunden">
-            Chat-Nachrichten an alle kommen live an.
-          </Step>
-        </ol>
+        {platform === 'teams' ? (
+          <ol className="meet-steps" aria-label="Ablauf">
+            <Step n={0} current={step} title="Teams-Link einfügen oder Meeting oben wählen, dann „Chat mitlesen“" />
+            <Step n={1} current={step} title="Live-Verbindung wird eingerichtet">
+              Tunnel und Benachrichtigung bei Microsoft, dauert bis zu einer halben Minute.
+            </Step>
+            <Step n={2} current={step} title="Verbunden">
+              Neue Nachrichten im Meeting-Chat kommen live an. Du selbst musst im Meeting sein, MeetingBackstage erscheint nicht als Teilnehmer.
+            </Step>
+          </ol>
+        ) : (
+          <ol className="meet-steps" aria-label="Ablauf">
+            <Step n={0} current={step} title="Link einfügen und „Meeting beitreten“" />
+            <Step n={1} current={step} title="Regie-Fenster öffnet sich">
+              Lass es offen, solange der Workshop läuft. Kamera und Mikrofon nicht erlauben.
+            </Step>
+            <Step n={2} current={step} title="In Zoom zulassen">
+              „MeetingBackstage (Regie)“ wartet ggf. im Warteraum.
+            </Step>
+            <Step n={3} current={step} title="Verbunden">
+              Chat-Nachrichten an alle kommen live an.
+            </Step>
+          </ol>
+        )}
       </section>
 
       <p className="meet-foot subtle">
