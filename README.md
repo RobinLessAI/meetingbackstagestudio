@@ -57,8 +57,8 @@ Weitere Optionen: `stil=einblendung|vollbild`, `hintergrund=transparent|dunkel`,
 
 Unter „OBS-Ausgabe“ (oder über das Symbol an der kleinen Programm-Vorschau links unten) **Präsentationsfenster öffnen**.
 Das Fenster zeigt immer das Programm als Vollbild-Grafik auf dunklem Hintergrund, ohne Programm den Titel der Veranstaltung.
-In Zoom „Bildschirm freigeben“ → Fenster „MeetingBackstage · Präsentation“ wählen. Die Bedienleiste und der Mauszeiger
-verschwinden nach kurzer Zeit, Taste **F** schaltet Vollbild um. Adresse: `http://localhost:4300/ausgabe.html?modus=praesentation`
+In Zoom „Bildschirm freigeben“ → Fenster „MeetingBackstage · Präsentation“ wählen. Die Bedienleiste schließt du mit **X**
+(sie kommt in diesem Fenster nicht wieder), der Mauszeiger verschwindet von selbst. Taste **F** schaltet Vollbild um. Adresse: `http://localhost:4300/ausgabe.html?modus=praesentation`
 (mit `&leer=schwarz` bleibt das Fenster ohne Programm ganz dunkel).
 
 ## Programm und Stream Deck

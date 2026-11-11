@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Maximize, Minimize, MonitorUp } from 'lucide-react';
+import { Maximize, Minimize, MonitorUp, X } from 'lucide-react';
 import type { OutputSnapshot } from '../sync/snapshot.ts';
 import type { SocketStatus } from '../sync/socket.ts';
 import { OutputView, type OutputOptions } from './Output.tsx';
@@ -8,8 +8,9 @@ const IDLE_MS = 2500;
 
 /**
  * Präsentationsfenster für die Bildschirmfreigabe in Zoom oder Teams (ohne OBS).
- * Feste 16:9-Bühne, die sich dem Fenster anpasst. Bedienleiste und Mauszeiger
- * verschwinden nach kurzer Zeit, damit in der Freigabe nur die Grafik zu sehen ist.
+ * Feste 16:9-Bühne, die sich dem Fenster anpasst. Die Bedienleiste bleibt, bis sie mit X
+ * geschlossen wird, und kommt in diesem Fenster nicht wieder. Der Mauszeiger verschwindet
+ * nach kurzer Zeit, damit in der Freigabe nur die Grafik zu sehen ist.
  */
 export function PresentationFrame({
   snapshot,
@@ -24,6 +25,21 @@ export function PresentationFrame({
 }) {
   const [idle, setIdle] = useState(false);
   const [full, setFull] = useState(false);
+  const [barClosed, setBarClosed] = useState(() => {
+    try {
+      return sessionStorage.getItem('mb-praes-leiste') === 'zu';
+    } catch {
+      return false;
+    }
+  });
+  const closeBar = () => {
+    setBarClosed(true);
+    try {
+      sessionStorage.setItem('mb-praes-leiste', 'zu');
+    } catch {
+      /* nur für dieses Fenster */
+    }
+  };
   const timer = useRef<number>(0);
 
   useEffect(() => {
@@ -65,22 +81,27 @@ export function PresentationFrame({
           </div>
         )}
       </div>
-      <div className="praes__bar" role="toolbar" aria-label="Präsentationsfenster">
-        <span className={`praes__dot${status === 'verbunden' ? ' is-on' : ''}`} aria-hidden />
-        <span className="praes__hint">
-          {status !== 'verbunden' ? (
-            'Verbinde mit MeetingBackstage …'
-          ) : (
-            <>
-              <MonitorUp size={14} aria-hidden /> In Zoom: „Bildschirm freigeben“ → dieses Fenster wählen. Die Leiste verschwindet von selbst.
-            </>
-          )}
-        </span>
-        <button type="button" className="praes__btn" onClick={toggleFull} title="Vollbild (Taste F)">
-          {full ? <Minimize size={15} aria-hidden /> : <Maximize size={15} aria-hidden />}
-          {full ? 'Vollbild beenden' : 'Vollbild'}
-        </button>
-      </div>
+      {!barClosed && (
+        <div className="praes__bar" role="toolbar" aria-label="Präsentationsfenster">
+          <span className={`praes__dot${status === 'verbunden' ? ' is-on' : ''}`} aria-hidden />
+          <span className="praes__hint">
+            {status !== 'verbunden' ? (
+              'Verbinde mit MeetingBackstage …'
+            ) : (
+              <>
+                <MonitorUp size={14} aria-hidden /> In Zoom: „Bildschirm freigeben“ → dieses Fenster wählen. Vollbild auch mit Taste F.
+              </>
+            )}
+          </span>
+          <button type="button" className="praes__btn" onClick={toggleFull} title="Vollbild (Taste F)">
+            {full ? <Minimize size={15} aria-hidden /> : <Maximize size={15} aria-hidden />}
+            {full ? 'Vollbild beenden' : 'Vollbild'}
+          </button>
+          <button type="button" className="praes__close" onClick={closeBar} aria-label="Leiste schließen" title="Leiste schließen">
+            <X size={16} aria-hidden />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

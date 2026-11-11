@@ -196,7 +196,6 @@ body.praes-body { background: #000; }
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.4);
   transition: opacity 300ms ease, transform 300ms ease;
 }
-.praes.is-idle .praes__bar { opacity: 0; transform: translate(-50%, -8px); pointer-events: none; }
 .praes__hint { display: inline-flex; align-items: center; gap: 6px; }
 .praes__dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: #d9534f; }
 .praes__dot.is-on { background: #3ecf8e; }
@@ -213,4 +212,19 @@ body.praes-body { background: #000; }
   font: 600 13px/1 var(--font-ui);
   cursor: pointer;
 }
+.praes__close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #e8eaed;
+  cursor: pointer;
+}
+.praes__close:hover { background: rgb(255 255 255 / 0.12); }
+.praes__btn:focus-visible,
+.praes__close:focus-visible { outline: 2px solid #f5b82e; outline-offset: 2px; }
 @media (max-width: 720px) { .praes__hint { display: none; } }
