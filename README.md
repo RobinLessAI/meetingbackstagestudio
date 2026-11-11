@@ -83,6 +83,15 @@ Voraussetzung: Zoom lässt Spotlight nur Host und Co-Host setzen. In Zoom unter 
 **Mehr → Zum Co-Host machen** (Co-Host muss in den Zoom-Einstellungen eingeschaltet sein). Zoom verlangt außerdem mindestens drei
 Personen im Meeting, und die Person im Spotlight braucht eingeschaltetes Video.
 
+## Wer war dran (persönliche Liste)
+
+Die Seite **Wer war dran** listet alle aus dem Zoom-Meeting (ohne Host und Team-Namen) zum Abhaken, nur für dich, nicht in OBS oder Zoom:
+**Gefragt**, **Gesprochen**, **Merken** (jeweils mit Uhrzeit) und eine kurze Notiz. Wer im Spotlight war, zählt automatisch als
+„schon dran“. Wer das Meeting verlässt, bleibt mit seinen Markierungen in der Liste; Wiedereintritte landen in derselben Zeile.
+„Wen als Nächstes?“ schlägt zufällig jemanden vor, der gerade im Meeting ist und noch nicht dran war (mit Spotlight-Knopf).
+Filter: Noch nicht dran, Schon dran, Gemerkt, nur Anwesende, Suche. Personen ohne Zoom (Telefon, Raum) lassen sich von Hand
+hinzufügen. „Als Pop-up öffnen“ zeigt die Liste als eigenes Fenster neben Zoom. Nach einem Neustart der App beginnt die Liste leer.
+
 ## Live-Chat aus Zoom einrichten (einmalig)
 
 Der Chat kommt über ein **Regie-Fenster**: MeetingBackstage öffnet ein Browserfenster mit dem **Zoom Meeting SDK**, das deinem Meeting als sichtbarer Teilnehmer **„MeetingBackstage (Regie)“** beitritt, ohne Kamera und Mikrofon. Jede Chat-Nachricht an alle geht sofort an die App. Das ist kostenfrei; Realtime Media Streams (RTMS) werden nicht verwendet.

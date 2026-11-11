@@ -11,6 +11,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   Star,
+  ListChecks,
   Sun,
   Users,
   Video,
@@ -41,6 +42,7 @@ const ICONS: Record<ViewId, LucideIcon> = {
   ausgabe: MonitorPlay,
   integrationen: Plug,
   spotlight: Star,
+  dran: ListChecks,
 };
 
 export function Brand() {

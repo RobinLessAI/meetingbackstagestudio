@@ -26,10 +26,14 @@ import type {
   SessionStatus,
   Settings,
   StreamDeckState,
+  RosterMark,
   WheelLook,
   WheelSpin,
   WheelState,
 } from './types.ts';
+
+/** Schlüssel für die Liste „Wer war dran“: Name ohne Groß/Klein und doppelte Leerzeichen. */
+export const rosterKey = (name: string) => name.trim().toLowerCase().replace(/\s+/g, ' ');
 
 /** Diese Rollen werden von „Alle stummschalten“ ausgenommen. */
 export const MUTE_ALL_EXEMPT = ['moderation', 'co-moderation'] as const;
@@ -83,6 +87,12 @@ export type Action =
   | { type: 'wheel/clearResult' }
   | { type: 'wheel/restore' }
   | { type: 'wheel/reset'; at: number }
+  | { type: 'roster/seen'; names: string[]; spotlightNames: string[]; at: number }
+  | { type: 'roster/add'; name: string; at: number }
+  | { type: 'roster/mark'; key: string; mark: RosterMark; on: boolean; at: number }
+  | { type: 'roster/note'; key: string; note: string }
+  | { type: 'roster/remove'; key: string }
+  | { type: 'roster/clearMarks' }
   | { type: 'program/graphic'; graphic: GraphicKind | null }
   | { type: 'program/reaction'; reaction: Reaction | null }
   | { type: 'gallery/update'; patch: Partial<GalleryState> }
@@ -386,6 +396,55 @@ export function reducer(s: AppState, a: Action): AppState {
       return { ...s, wheel: { ...s.wheel, removed: [] } };
     case 'wheel/reset':
       return { ...s, wheel: { ...s.wheel, since: a.at, removed: [], spin: null, history: [] } };
+    case 'roster/seen': {
+      let entries = s.roster.entries;
+      let changed = false;
+      const spot = new Set(a.spotlightNames.map(rosterKey));
+      for (const name of a.names) {
+        const key = rosterKey(name);
+        if (!key) continue;
+        const e = entries[key];
+        const inSpot = spot.has(key);
+        if (!e) {
+          entries = { ...entries, [key]: { key, name: name.trim(), firstSeen: a.at, marks: {}, note: '', spotlightAt: inSpot ? a.at : null } };
+          changed = true;
+        } else if (inSpot && (e.spotlightAt === null || a.at - e.spotlightAt > 60_000)) {
+          entries = { ...entries, [key]: { ...e, spotlightAt: a.at } };
+          changed = true;
+        }
+      }
+      return changed ? { ...s, roster: { entries } } : s;
+    }
+    case 'roster/add': {
+      const key = rosterKey(a.name);
+      if (!key || s.roster.entries[key]) return s;
+      return {
+        ...s,
+        roster: { entries: { ...s.roster.entries, [key]: { key, name: a.name.trim(), firstSeen: a.at, marks: {}, note: '', spotlightAt: null, manual: true } } },
+      };
+    }
+    case 'roster/mark': {
+      const e = s.roster.entries[a.key];
+      if (!e) return s;
+      const marks = { ...e.marks };
+      if (a.on) marks[a.mark] = a.at;
+      else delete marks[a.mark];
+      return { ...s, roster: { entries: { ...s.roster.entries, [a.key]: { ...e, marks } } } };
+    }
+    case 'roster/note': {
+      const e = s.roster.entries[a.key];
+      if (!e) return s;
+      return { ...s, roster: { entries: { ...s.roster.entries, [a.key]: { ...e, note: a.note.slice(0, 200) } } } };
+    }
+    case 'roster/remove': {
+      const { [a.key]: _gone, ...rest } = s.roster.entries;
+      return { ...s, roster: { entries: rest } };
+    }
+    case 'roster/clearMarks':
+      return {
+        ...s,
+        roster: { entries: Object.fromEntries(Object.entries(s.roster.entries).map(([k, e]) => [k, { ...e, marks: {}, note: '', spotlightAt: null }])) },
+      };
     case 'program/graphic':
       return { ...s, program: { ...s.program, graphic: a.graphic } };
     case 'program/reaction':

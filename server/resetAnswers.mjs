@@ -21,6 +21,8 @@ export function resetAnswers(state, now = Date.now()) {
     cloud: state.cloud ? { ...collect(state.cloud), hidden: [] } : state.cloud,
     // Glücksrad: Chat-Namen neu sammeln, eigene Liste und Einstellungen bleiben.
     wheel: state.wheel ? { ...state.wheel, since: now, removed: [], spin: null, history: [] } : state.wheel,
+    // Liste „Wer war dran“ beginnt mit jeder Sitzung neu.
+    roster: { entries: {} },
     poll: state.poll ? { ...state.poll, status: 'entwurf', startedAt: null, closedAt: null, gaps: [], decisions: {} } : state.poll,
     session: state.session ? { ...state.session, startedAt: now, endedAt: null, status: 'laeuft' } : state.session,
   };

@@ -238,6 +238,7 @@ export function createInitialState(now: number = Date.now()): AppState {
     highlightStyle: DEFAULT_HIGHLIGHT_STYLE,
     highlightSince: null,
     wheel: { ...DEFAULT_WHEEL, since: 0 },
+    roster: { entries: {} },
     looks: DEFAULT_LOOKS,
     program: { graphic: null, reaction: null },
     gallery: {

@@ -6,6 +6,7 @@ export const VIEWS: Array<{ id: ViewId; label: string; short: string; demo?: boo
   { id: 'meeting', label: 'Meeting', short: 'Meeting' },
   { id: 'grafiken', label: 'Live Grafiken', short: 'Grafiken' },
   { id: 'spotlight', label: 'Spotlight', short: 'Spotlight' },
+  { id: 'dran', label: 'Wer war dran', short: 'Dran' },
   { id: 'ausgabe', label: 'OBS-Ausgabe', short: 'OBS' },
   { id: 'integrationen', label: 'Zoom & Einstellungen', short: 'Zoom' },
   { id: 'veranstaltung', label: 'Veranstaltung', short: 'Start', demo: true },
@@ -48,6 +49,8 @@ interface UiValue {
   setHelpOpen: (open: boolean) => void;
   /** Chat als eigenes Fenster (Pop-up) geöffnet. */
   chatPopupOpen: boolean;
+  rosterPopupOpen: boolean;
+  setRosterPopupOpen: (open: boolean) => void;
   setChatPopupOpen: (open: boolean) => void;
   /** Simulierte Bereiche (Teilnehmende, Galerie, Steuerpult, Audio …) anzeigen. */
   showDemo: boolean;
@@ -67,6 +70,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
   const [view, setView] = useState<ViewId>(readHash);
   const [graphicTab, setGraphicTab] = useState<GraphicTab>('uebersicht');
   const [chatPopupOpen, setChatPopupOpen] = useState(false);
+  const [rosterPopupOpen, setRosterPopupOpen] = useState(false);
   const [graphicsOpen, setGraphicsOpenState] = useState(() => {
     try {
       return localStorage.getItem(NAV_OPEN_KEY) !== '0';
@@ -130,12 +134,14 @@ export function UiProvider({ children }: { children: ReactNode }) {
       helpOpen,
       setHelpOpen,
       chatPopupOpen,
+      rosterPopupOpen,
+      setRosterPopupOpen,
       setChatPopupOpen,
       showDemo,
       setShowDemo,
       views,
     }),
-    [view, go, graphicTab, graphicsOpen, setGraphicsOpen, muteAllOpen, presentation, helpOpen, chatPopupOpen, showDemo, setShowDemo, views],
+    [view, go, graphicTab, graphicsOpen, setGraphicsOpen, muteAllOpen, presentation, helpOpen, chatPopupOpen, rosterPopupOpen, showDemo, setShowDemo, views],
   );
   return <UiCtx.Provider value={value}>{children}</UiCtx.Provider>;
 }

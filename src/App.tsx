@@ -11,6 +11,8 @@ import type { DeckActionId } from './state/types.ts';
 import { DEFAULT_VIEW, UiProvider, useUi, VIEWS } from './state/ui.tsx';
 import { ObsView } from './views/ObsView.tsx';
 import { SpotlightView } from './views/SpotlightView.tsx';
+import { RosterView } from './views/RosterView.tsx';
+import { RosterPopupWindow, useRosterSync } from './components/RosterList.tsx';
 import { MeetingView } from './views/MeetingView.tsx';
 import { AudioView } from './views/AudioView.tsx';
 import { ControlView } from './views/ControlView.tsx';
@@ -104,6 +106,7 @@ function Shell() {
   useAutoDemo();
   useShortcuts();
   useRemoteActions();
+  useRosterSync();
 
   useEffect(() => {
     document.documentElement.dataset.motion = state.settings.motion;
@@ -143,10 +146,12 @@ function Shell() {
         {view === 'integrationen' && <IntegrationsView />}
         {view === 'meeting' && <MeetingView />}
         {view === 'spotlight' && <SpotlightView />}
+        {view === 'dran' && <RosterView />}
       </main>
       <MuteAllDialog />
       <Presentation />
       <ChatPopupWindow />
+      <RosterPopupWindow />
       <ShortcutHelp />
       <Toasts />
     </div>

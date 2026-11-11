@@ -323,6 +323,27 @@ export interface HighlightStyle {
   showTime: boolean;
 }
 
+/** Persönliche Markierungen in der Liste „Wer war dran“ (nur für dich, nicht in OBS). */
+export type RosterMark = 'gefragt' | 'gesprochen' | 'merken';
+
+export interface RosterEntry {
+  /** Name kleingeschrieben, damit Wiedereintritte dieselbe Zeile treffen. */
+  key: string;
+  name: string;
+  firstSeen: number;
+  /** Zeitpunkt je Markierung; fehlt = nicht markiert. */
+  marks: Partial<Record<RosterMark, number>>;
+  note: string;
+  /** Zuletzt im Zoom-Spotlight gesehen. */
+  spotlightAt: number | null;
+  /** Von Hand hinzugefügt (z. B. Telefon, Teams, Raum). */
+  manual?: boolean;
+}
+
+export interface RosterState {
+  entries: Record<string, RosterEntry>;
+}
+
 export interface ProgramState {
   /** Die aktuell eingeblendete Grafik in der lokalen Vorschau. */
   graphic: GraphicKind | null;
@@ -416,7 +437,8 @@ export type ViewId =
   | 'audio'
   | 'ausgabe'
   | 'integrationen'
-  | 'spotlight';
+  | 'spotlight'
+  | 'dran';
 
 export type ParticipantFilter =
   | 'alle'
@@ -449,6 +471,7 @@ export interface AppState {
   poll: PollState;
   cloud: CloudState;
   wheel: WheelState;
+  roster: RosterState;
   highlightId: string | null;
   /** Highlight-Auswahl zeigt nur Nachrichten ab diesem Zeitpunkt („Liste leeren“); null = alle. */
   highlightSince: number | null;
