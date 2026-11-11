@@ -4,12 +4,12 @@ import { OutputView, type OutputOptions } from '../../ausgabe/Output.tsx';
 import { Button, Field, Panel, Segmented, Switch } from '../../components/ui.tsx';
 import { DEFAULT_LOOKS, LOOK_PRESETS } from '../../data/graphicLooks.ts';
 import { useStore } from '../../state/store.tsx';
-import type { CloudLook, GraphicLooks, LookPosition, MapLook, PollLook } from '../../state/types.ts';
+import type { CloudLook, GraphicLooks, LookPosition, MapLook, PollLook, WheelLook } from '../../state/types.ts';
 import { buildSnapshot } from '../../sync/snapshot.ts';
 import { matches, TemplateBar } from '../../components/TemplateBar.tsx';
 
 type LookKind = keyof GraphicLooks;
-type AnyLook = MapLook & PollLook & CloudLook;
+type AnyLook = MapLook & PollLook & CloudLook & WheelLook;
 
 const POSITIONS: Array<{ id: LookPosition; label: string }> = [
   { id: 'oben-links', label: 'Oben links' },
@@ -85,6 +85,7 @@ const SECTION_KEYS: Record<string, Array<keyof AnyLook>> = {
   karte: ['land', 'ocean', 'oceanOpacity', 'borders', 'pin', 'pinSize', 'showLabels', 'labelColor', 'showCounts'],
   umfrage: ['barColor', 'trackColor', 'trackOpacity', 'highlightLeader', 'multiColor', 'showPercent', 'showCounts', 'showKeys', 'sortByVotes', 'barSize'],
   wortwolke: ['colorMode', 'wordColor', 'maxWords', 'minSize', 'maxSize', 'weight', 'uppercase', 'gap'],
+  gluecksrad: ['wheelColors', 'wheelColorA', 'wheelColorB', 'wheelText', 'wheelRim', 'pointerColor', 'showWinner', 'winnerBackground', 'winnerText'],
 };
 
 /**
@@ -331,6 +332,38 @@ export function LookPanel({ graphic }: { graphic: LookKind }) {
                 <Switch checked={look.showKeys} onChange={(showKeys) => set({ showKeys })} label="Kennungen (A, B …)" />
               </div>
               <p className="field-hint">Balken oder Kreis stellst du oben bei der Umfrage ein.</p>
+            </Section>
+          )}
+
+          {graphic === 'gluecksrad' && (
+            <Section title="Glücksrad" open onReset={() => resetSection('gluecksrad')}>
+              <Segmented<WheelLook['wheelColors']>
+                label="Farben der Felder"
+                value={look.wheelColors}
+                onChange={(wheelColors) => set({ wheelColors })}
+                options={[
+                  { value: 'bunt', label: 'Bunt' },
+                  { value: 'zweifarbig', label: 'Zwei Farben' },
+                  { value: 'einfarbig', label: 'Eine Farbe' },
+                ]}
+              />
+              <div className="hl-editor__colors">
+                {look.wheelColors !== 'bunt' && <ColorField label={look.wheelColors === 'zweifarbig' ? 'Farbe 1' : 'Felder'} value={look.wheelColorA} onChange={(wheelColorA) => set({ wheelColorA })} />}
+                {look.wheelColors === 'zweifarbig' && <ColorField label="Farbe 2" value={look.wheelColorB} onChange={(wheelColorB) => set({ wheelColorB })} />}
+                {look.wheelColors !== 'bunt' && <ColorField label="Schrift im Rad" value={look.wheelText} onChange={(wheelText) => set({ wheelText })} />}
+                <ColorField label="Rand und Mitte" value={look.wheelRim} onChange={(wheelRim) => set({ wheelRim })} />
+                <ColorField label="Zeiger" value={look.pointerColor} onChange={(pointerColor) => set({ pointerColor })} />
+              </div>
+              <div className="hl-editor__switches">
+                <Switch checked={look.showWinner} onChange={(showWinner) => set({ showWinner })} label="Gewählten Namen groß einblenden" />
+              </div>
+              {look.showWinner && (
+                <div className="hl-editor__colors">
+                  <ColorField label="Namensfeld" value={look.winnerBackground} onChange={(winnerBackground) => set({ winnerBackground })} />
+                  <ColorField label="Name" value={look.winnerText} onChange={(winnerText) => set({ winnerText })} />
+                </div>
+              )}
+              <p className="field-hint">Bei „Bunt“ wählt die Schriftfarbe im Rad automatisch hell oder dunkel, damit sie gut lesbar ist.</p>
             </Section>
           )}
 

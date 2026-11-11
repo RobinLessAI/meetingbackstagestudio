@@ -37,6 +37,8 @@ const KEY_LABEL: Partial<Record<DeckActionId, string>> = {
   'frage-anzeigen': 'Frage',
   'karte-anzeigen': 'Karte',
   'grafik-aus': 'Grafik aus',
+  'rad-anzeigen': 'Glücksrad',
+  'rad-drehen': 'Rad drehen',
 };
 
 /** Anzahl der Personentasten pro Seite: alles außer der letzten Reihe. */

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ExternalLink, Eye, EyeOff, Palette, Pencil, RotateCcw } from 'lucide-react';
+import { ExternalLink, Eye, EyeOff, Palette, Pencil, RotateCcw, RotateCw } from 'lucide-react';
 import { matches, TemplateBar } from '../../components/TemplateBar.tsx';
 import { DEFAULT_LOOKS, normalizeLooks } from '../../data/graphicLooks.ts';
 import { DEFAULT_HIGHLIGHT_STYLE } from '../../data/highlightStyle.ts';
@@ -56,6 +56,10 @@ export function GraphicsDashboard() {
       status: state.cloud.status === 'laeuft' ? 'Sammelt Begriffe' : 'Pausiert',
       detail: `${derived.cloud.visible.length} Begriffe aus ${derived.cloud.messageCount} Beiträgen`,
     },
+    gluecksrad: {
+      status: state.wheel.history[0] && state.wheel.spin ? `Zuletzt: ${state.wheel.history[0].name}` : state.wheel.source === 'chat' ? 'Namen aus dem Chat' : 'Eigene Liste',
+      detail: `${snapshot.wheel?.entries.length ?? 0} im Rad`,
+    },
   };
 
   return (
@@ -64,13 +68,13 @@ export function GraphicsDashboard() {
         <div className="dash-design__head">
           <Palette size={16} aria-hidden />
           <strong>Design für alle Grafiken</strong>
-          <span className="subtle">Speichert das Aussehen von Chat-Highlight, Umfrage, Weltkarte und Wortwolke zusammen, z. B. pro Kunde.</span>
+          <span className="subtle">Speichert das Aussehen aller Grafiken zusammen, z. B. pro Kunde.</span>
         </div>
         <TemplateBar kind="alle" current={design} onApply={applyDesign} isActive={(data) => matches(design, data)} />
         <div className="row">
           {confirmReset ? (
             <>
-              <span className="subtle">Alle vier Grafiken auf das Standard-Aussehen setzen?</span>
+              <span className="subtle">Alle Grafiken auf das Standard-Aussehen setzen?</span>
               <Button
                 size="sm"
                 variant="danger"
@@ -137,6 +141,11 @@ export function GraphicsDashboard() {
                 <Button size="sm" variant="ghost" icon={Pencil} onClick={() => setGraphicTab(p.id)}>
                   Bearbeiten
                 </Button>
+                {p.id === 'gluecksrad' && (
+                  <Button size="sm" variant="ghost" icon={RotateCw} onClick={commands.spinWheel} disabled={!!derived.locked}>
+                    Drehen
+                  </Button>
+                )}
                 {p.id === 'highlight' && (
                   <Button size="sm" variant="ghost" icon={ExternalLink} onClick={() => focusChatPopup() || setChatPopupOpen(true)}>
                     Chat als Pop-up

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { CloudIcon, MapPin, MessageSquareQuote, Vote, X } from 'lucide-react';
+import { CloudIcon, Disc3, MapPin, MessageSquareQuote, Vote, X } from 'lucide-react';
+import { wheelEntries } from '../../lib/wheel.ts';
+import { Wheel } from './Wheel.tsx';
 import { GRAPHIC_LABEL } from '../../state/commands.ts';
 import { useStore } from '../../state/store.tsx';
 import type { GraphicKind } from '../../state/types.ts';
@@ -16,6 +18,7 @@ const TABS: Array<{ id: GraphicKind; icon: typeof MapPin }> = [
   { id: 'umfrage', icon: Vote },
   { id: 'wortwolke', icon: CloudIcon },
   { id: 'highlight', icon: MessageSquareQuote },
+  { id: 'gluecksrad', icon: Disc3 },
 ];
 
 /** Große Präsentationsansicht, z. B. für einen zweiten Bildschirm. Nur lokal. */
@@ -36,7 +39,7 @@ export function Presentation() {
   useEffect(() => {
     if (!presentation) return;
     const onKey = (e: KeyboardEvent) => {
-      const i = ['1', '2', '3', '4'].indexOf(e.key);
+      const i = ['1', '2', '3', '4', '5'].indexOf(e.key);
       if (i >= 0) setPresentation(TABS[i].id);
     };
     window.addEventListener('keydown', onKey);
@@ -54,7 +57,9 @@ export function Presentation() {
         ? state.poll.question
         : presentation === 'wortwolke'
           ? state.cloud.prompt
-          : 'Frage aus dem Chat';
+          : presentation === 'gluecksrad'
+            ? state.wheel.title
+            : 'Frage aus dem Chat';
   const meta =
     presentation === 'karte'
       ? `${derived.map.peopleOnMap} Personen an ${derived.map.pins.length} Orten · nur selbst genannte, bestätigte Orte`
@@ -134,6 +139,11 @@ export function Presentation() {
             {presentation === 'umfrage' && <PollChart data={pollView(state.poll, p)} variant="present" />}
             {presentation === 'wortwolke' && <WordCloud terms={derived.cloud.visible} variant="present" />}
             {presentation === 'highlight' && <HighlightCard message={highlight} variant="present" style={state.highlightStyle} />}
+            {presentation === 'gluecksrad' && (
+              <div className="presentation__wheel">
+                <Wheel entries={wheelEntries(state)} restDeg={state.wheel.restDeg} spin={state.wheel.spin} look={state.looks.gluecksrad} />
+              </div>
+            )}
           </div>
           {meta && <p className="presentation__meta">{meta}</p>}
         </div>

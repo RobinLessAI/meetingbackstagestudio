@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import {
   CloudIcon,
+  Disc3,
   EyeOff,
   Filter,
   Hand,
@@ -13,6 +14,7 @@ import {
   MessageSquareQuote,
   MicOff,
   PartyPopper,
+  RotateCw,
   StarOff,
   Tag,
   Vote,
@@ -51,6 +53,8 @@ export const DECK_CATALOG: DeckActionId[] = [
   'karte-anzeigen',
   'wortwolke-anzeigen',
   'highlight-anzeigen',
+  'rad-anzeigen',
+  'rad-drehen',
   'grafik-aus',
   'reaktion-applaus',
   'reaktion-herz',
@@ -71,6 +75,7 @@ export const SHORTCUTS: Record<string, DeckActionId> = {
   w: 'wortwolke-anzeigen',
   h: 'highlight-anzeigen',
   x: 'grafik-aus',
+  d: 'rad-drehen',
   r: 'reaktion-applaus',
 };
 
@@ -193,6 +198,26 @@ export function useDeckActions(): Record<DeckActionId, DeckAction> {
         live: true,
         status: highlight ? highlight.senderName.split(' ')[0] : 'Kein Beitrag gewählt',
         run: () => commands.toggleGraphic('highlight'),
+      },
+      {
+        id: 'rad-anzeigen',
+        label: 'Glücksrad einblenden',
+        hint: 'Zeigt das Glücksrad mit allen Namen bzw. Einträgen.',
+        icon: Disc3,
+        active: g === 'gluecksrad',
+        live: true,
+        status: state.wheel.source === 'chat' ? 'Namen aus dem Chat' : 'Eigene Liste',
+        run: () => commands.toggleGraphic('gluecksrad'),
+      },
+      {
+        id: 'rad-drehen',
+        label: 'Glücksrad drehen',
+        hint: 'Dreht das Rad und wählt zufällig einen Namen. Blendet das Rad dabei ein.',
+        icon: RotateCw,
+        active: !!state.wheel.spin && now < state.wheel.spin.startedAt + state.wheel.spin.durationMs,
+        live: true,
+        status: state.wheel.history[0] ? `Zuletzt: ${state.wheel.history[0].name}` : 'Noch nicht gedreht',
+        run: commands.spinWheel,
       },
       {
         id: 'grafik-aus',

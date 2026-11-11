@@ -152,7 +152,42 @@ export interface CloudState extends CollectWindow {
   maxWords: number;
 }
 
-export type GraphicKind = 'karte' | 'umfrage' | 'wortwolke' | 'highlight';
+export type GraphicKind = 'karte' | 'umfrage' | 'wortwolke' | 'highlight' | 'gluecksrad';
+
+/** Eine Drehung des Glücksrads. Alles steht fest, damit jede Ausgabe gleich dreht. */
+export interface WheelSpin {
+  id: string;
+  /** Felder des Rads beim Drehen (feste Reihenfolge). */
+  entries: string[];
+  winnerIndex: number;
+  /** Lage im Gewinnerfeld als Anteil der Feldbreite (-0,4 bis 0,4), damit es nicht immer genau mittig hält. */
+  offset: number;
+  /** Drehwinkel zu Beginn und am Ende in Grad (im Uhrzeigersinn). */
+  fromDeg: number;
+  toDeg: number;
+  startedAt: number;
+  durationMs: number;
+}
+
+export interface WheelState {
+  title: string;
+  /** Felder aus den Chat-Namen oder aus einer eigenen Liste. */
+  source: 'chat' | 'eigene';
+  /** Nur wer dieses Wort in den Chat schreibt, kommt ins Rad (leer = alle, die etwas geschrieben haben). */
+  keyword: string;
+  /** Chat-Namen zählen ab diesem Zeitpunkt. */
+  since: number;
+  custom: string[];
+  /** Gewinner beim nächsten Drehen aus dem Rad nehmen. */
+  removeWinner: boolean;
+  /** Aus dem Rad genommene Einträge (kleingeschrieben). */
+  removed: string[];
+  durationSec: number;
+  spin: WheelSpin | null;
+  /** Ruhelage des Rads in Grad, wenn gerade nicht gedreht wird. */
+  restDeg: number;
+  history: Array<{ name: string; at: number }>;
+}
 
 /** Position einer Einblendung im Bild (3 × 3 Raster). */
 export type LookPosition =
@@ -246,10 +281,25 @@ export interface CloudLook extends GraphicLook {
   gap: number;
 }
 
+export interface WheelLook extends GraphicLook {
+  /** Farben der Felder: bunt, zwei Farben im Wechsel oder eine Farbe mit Trennlinien. */
+  wheelColors: 'bunt' | 'zweifarbig' | 'einfarbig';
+  wheelColorA: string;
+  wheelColorB: string;
+  wheelText: string;
+  wheelRim: string;
+  pointerColor: string;
+  /** Gewinner nach dem Drehen groß einblenden. */
+  showWinner: boolean;
+  winnerBackground: string;
+  winnerText: string;
+}
+
 export interface GraphicLooks {
   karte: MapLook;
   umfrage: PollLook;
   wortwolke: CloudLook;
+  gluecksrad: WheelLook;
 }
 
 /** Aussehen der Chat-Highlight-Einblendung (Bauchbinde). Farben als #rrggbb. */
@@ -309,7 +359,9 @@ export type DeckActionId =
   | 'filter-mikro'
   | 'haende-senken'
   | 'namen-umschalten'
-  | 'umfrage-schliessen';
+  | 'umfrage-schliessen'
+  | 'rad-anzeigen'
+  | 'rad-drehen';
 
 export interface DeckState {
   tiles: DeckActionId[];
@@ -384,6 +436,7 @@ export interface AppState {
   map: MapState;
   poll: PollState;
   cloud: CloudState;
+  wheel: WheelState;
   highlightId: string | null;
   /** Highlight-Auswahl zeigt nur Nachrichten ab diesem Zeitpunkt („Liste leeren“); null = alle. */
   highlightSince: number | null;

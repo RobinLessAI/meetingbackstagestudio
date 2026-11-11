@@ -26,6 +26,9 @@ import type {
   SessionStatus,
   Settings,
   StreamDeckState,
+  WheelLook,
+  WheelSpin,
+  WheelState,
 } from './types.ts';
 
 /** Diese Rollen werden von „Alle stummschalten“ ausgenommen. */
@@ -73,7 +76,13 @@ export type Action =
   | { type: 'highlight/set'; id: string | null }
   | { type: 'highlight/since'; at: number | null }
   | { type: 'highlight/style'; patch: Partial<HighlightStyle> }
-  | { type: 'look/update'; graphic: keyof GraphicLooks; patch: Partial<MapLook & PollLook & CloudLook> }
+  | { type: 'look/update'; graphic: keyof GraphicLooks; patch: Partial<MapLook & PollLook & CloudLook & WheelLook> }
+  | { type: 'wheel/update'; patch: Partial<Pick<WheelState, 'title' | 'source' | 'keyword' | 'custom' | 'removeWinner' | 'durationSec'>> }
+  | { type: 'wheel/spin'; spin: WheelSpin }
+  | { type: 'wheel/toggleRemoved'; name: string }
+  | { type: 'wheel/clearResult' }
+  | { type: 'wheel/restore' }
+  | { type: 'wheel/reset'; at: number }
   | { type: 'program/graphic'; graphic: GraphicKind | null }
   | { type: 'program/reaction'; reaction: Reaction | null }
   | { type: 'gallery/update'; patch: Partial<GalleryState> }
@@ -342,6 +351,41 @@ export function reducer(s: AppState, a: Action): AppState {
       return { ...s, highlightStyle: { ...s.highlightStyle, ...a.patch } };
     case 'look/update':
       return { ...s, looks: { ...s.looks, [a.graphic]: { ...s.looks[a.graphic], ...a.patch } } };
+    case 'wheel/update':
+      return { ...s, wheel: { ...s.wheel, ...a.patch } };
+    case 'wheel/spin': {
+      const w = s.wheel;
+      const winner = a.spin.entries[a.spin.winnerIndex];
+      // Gewinner der vorigen Drehung erst jetzt herausnehmen, damit das Rad bis dahin unverändert bleibt.
+      const prev = w.spin ? w.spin.entries[w.spin.winnerIndex] : null;
+      const removed = w.removeWinner && prev && !w.removed.includes(prev.toLowerCase()) ? [...w.removed, prev.toLowerCase()] : w.removed;
+      return {
+        ...s,
+        wheel: {
+          ...w,
+          removed,
+          spin: a.spin,
+          restDeg: ((a.spin.toDeg % 360) + 360) % 360,
+          history: [{ name: winner, at: a.spin.startedAt + a.spin.durationMs }, ...w.history].slice(0, 50),
+        },
+      };
+    }
+    case 'wheel/toggleRemoved': {
+      const k = a.name.trim().toLowerCase();
+      const removed = s.wheel.removed.includes(k) ? s.wheel.removed.filter((x) => x !== k) : [...s.wheel.removed, k];
+      return { ...s, wheel: { ...s.wheel, removed } };
+    }
+    case 'wheel/clearResult': {
+      // Ergebnis ausblenden; mit „Gewinner herausnehmen“ verschwindet er dabei aus dem Rad.
+      const w = s.wheel;
+      const prev = w.spin ? w.spin.entries[w.spin.winnerIndex] : null;
+      const removed = w.removeWinner && prev && !w.removed.includes(prev.toLowerCase()) ? [...w.removed, prev.toLowerCase()] : w.removed;
+      return { ...s, wheel: { ...w, spin: null, removed } };
+    }
+    case 'wheel/restore':
+      return { ...s, wheel: { ...s.wheel, removed: [] } };
+    case 'wheel/reset':
+      return { ...s, wheel: { ...s.wheel, since: a.at, removed: [], spin: null, history: [] } };
     case 'program/graphic':
       return { ...s, program: { ...s.program, graphic: a.graphic } };
     case 'program/reaction':

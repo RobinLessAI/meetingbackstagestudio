@@ -2,7 +2,8 @@
 // der Grafiken nötig ist, und wird bei jeder Änderung an den Server geschickt.
 import type { CloudTerm } from '../lib/words.ts';
 import type { MapPin, PollAnalysis, PollTotal } from '../state/derive.ts';
-import type { AppState, GraphicKind, GraphicLooks, HighlightStyle, MapState, PollState, Reaction } from '../state/types.ts';
+import type { AppState, GraphicKind, GraphicLooks, HighlightStyle, MapState, PollState, Reaction, WheelSpin } from '../state/types.ts';
+import { wheelEntries } from '../lib/wheel.ts';
 
 export interface PollView {
   kind: PollState['kind'];
@@ -33,6 +34,8 @@ export interface OutputSnapshot {
   highlight: HighlightView | null;
   highlightStyle?: HighlightStyle;
   looks?: GraphicLooks;
+  /** Glücksrad: Felder in Ruhe und die laufende bzw. letzte Drehung. */
+  wheel?: { title: string; entries: string[]; restDeg: number; spin: WheelSpin | null };
 }
 
 export function pollView(poll: PollState, a: PollAnalysis): PollView {
@@ -72,5 +75,6 @@ export function buildSnapshot(
     highlight: h ? { text: h.text, senderName: h.senderName, at: h.at } : null,
     highlightStyle: state.highlightStyle,
     looks: state.looks,
+    wheel: { title: state.wheel.title, entries: wheelEntries(state), restDeg: state.wheel.restDeg, spin: state.wheel.spin },
   };
 }

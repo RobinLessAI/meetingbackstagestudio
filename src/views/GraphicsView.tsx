@@ -2,6 +2,7 @@ import { LayoutGrid } from 'lucide-react';
 import { useStore } from '../state/store.tsx';
 import { useUi } from '../state/ui.tsx';
 import { CloudTab } from './graphics/CloudTab.tsx';
+import { WheelTab } from './graphics/WheelTab.tsx';
 import { GraphicsDashboard } from './graphics/Dashboard.tsx';
 import { HighlightTab } from './graphics/HighlightTab.tsx';
 import { LookPanel } from './graphics/LookPanel.tsx';
@@ -55,7 +56,7 @@ export function GraphicsView() {
             <span className="eyebrow">Live Grafiken</span>
             <h1 className="view__title">Übersicht</h1>
             <p className="view__lead">
-              Alle vier Grafiken auf einen Blick, so wie sie in OBS aussehen. Klick auf eine Vorschau öffnet die Einstellungen.
+              Alle Grafiken auf einen Blick, so wie sie in OBS aussehen. Klick auf eine Vorschau öffnet die Einstellungen.
             </p>
           </div>
         </header>
@@ -80,7 +81,8 @@ export function GraphicsView() {
           {page.id === 'umfrage' && <PollTab />}
           {page.id === 'wortwolke' && <CloudTab />}
           {page.id === 'highlight' && <HighlightTab />}
-          {(page.id === 'karte' || page.id === 'umfrage' || page.id === 'wortwolke') && <LookPanel graphic={page.id} />}
+          {page.id === 'gluecksrad' && <WheelTab />}
+          {(page.id === 'karte' || page.id === 'umfrage' || page.id === 'wortwolke' || page.id === 'gluecksrad') && <LookPanel graphic={page.id} />}
         </section>
       )}
     </div>

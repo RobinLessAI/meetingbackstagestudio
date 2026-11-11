@@ -5,6 +5,7 @@ import { HighlightCard } from '../components/graphics/HighlightCard.tsx';
 import { PollChart } from '../components/graphics/PollChart.tsx';
 import { WordCloud } from '../components/graphics/WordCloud.tsx';
 import { WorldMap } from '../components/graphics/WorldMap.tsx';
+import { Wheel } from '../components/graphics/Wheel.tsx';
 import type { GraphicKind, GraphicLook, GraphicLooks } from '../state/types.ts';
 import type { OutputSnapshot } from '../sync/snapshot.ts';
 import { openSyncSocket, type SocketStatus } from '../sync/socket.ts';
@@ -26,7 +27,7 @@ export interface OutputOptions {
   leer?: 'titel' | 'schwarz';
 }
 
-const GRAPHICS: OutputGraphic[] = ['programm', 'karte', 'umfrage', 'wortwolke', 'highlight'];
+const GRAPHICS: OutputGraphic[] = ['programm', 'karte', 'umfrage', 'wortwolke', 'highlight', 'gluecksrad'];
 
 /** Liest die Optionen aus der Adresse, z. B. ?grafik=umfrage&stil=vollbild */
 export function readOptions(search: string): OutputOptions {
@@ -55,11 +56,12 @@ export function readOptions(search: string): OutputOptions {
 
 function title(s: OutputSnapshot, g: GraphicKind, look?: GraphicLook) {
   if (look?.title.trim()) return look.title.trim();
+  if (g === 'gluecksrad') return s.wheel?.title || 'Glücksrad';
   return g === 'karte' ? s.map.question : g === 'umfrage' ? s.poll.question : g === 'wortwolke' ? s.cloud.prompt : 'Aus dem Chat';
 }
 
 const lookOf = (looks: GraphicLooks, g: GraphicKind): GraphicLook | undefined =>
-  g === 'karte' || g === 'umfrage' || g === 'wortwolke' ? looks[g] : undefined;
+  g === 'karte' || g === 'umfrage' || g === 'wortwolke' || g === 'gluecksrad' ? looks[g] : undefined;
 
 function meta(s: OutputSnapshot, g: GraphicKind) {
   if (g === 'karte') return `${s.map.people} ${s.map.people === 1 ? 'Person' : 'Personen'} an ${s.map.pins.length} ${s.map.pins.length === 1 ? 'Ort' : 'Orten'}`;
@@ -68,6 +70,10 @@ function meta(s: OutputSnapshot, g: GraphicKind) {
       ? `${s.poll.totalVotes} Antworten`
       : `${s.poll.totalVotes} ${s.poll.totalVotes === 1 ? 'Stimme' : 'Stimmen'}${s.poll.status === 'geschlossen' ? ' · Abstimmung geschlossen' : ''}`;
   if (g === 'wortwolke') return `${s.cloud.messages} Beiträge`;
+  if (g === 'gluecksrad') {
+    const n = s.wheel?.spin ? s.wheel.spin.entries.length : (s.wheel?.entries.length ?? 0);
+    return `${n} ${n === 1 ? 'Feld' : 'Felder'} im Rad`;
+  }
   return '';
 }
 
@@ -90,6 +96,16 @@ function GraphicBody({ s, g, full, looks }: { s: OutputSnapshot; g: GraphicKind;
   }
   if (g === 'umfrage') return <PollChart data={s.poll} variant={full ? 'present' : 'overlay'} look={looks.umfrage} />;
   if (g === 'wortwolke') return <WordCloud terms={s.cloud.terms} variant={full ? 'present' : 'overlay'} look={looks.wortwolke} />;
+  if (g === 'gluecksrad')
+    return (
+      <Wheel
+        entries={s.wheel?.entries ?? []}
+        restDeg={s.wheel?.restDeg ?? 0}
+        spin={s.wheel?.spin ?? null}
+        look={looks.gluecksrad}
+        variant={full ? 'present' : 'overlay'}
+      />
+    );
   return <HighlightCard message={s.highlight} variant={full ? 'present' : 'overlay'} style={s.highlightStyle} />;
 }
 

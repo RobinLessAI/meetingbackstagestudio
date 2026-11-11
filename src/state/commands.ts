@@ -3,12 +3,14 @@ import { handQueue, participantsById } from './derive.ts';
 import { joinParticipant, MUTE_ALL_EXEMPT } from './reducer.ts';
 import { nextId, useStore } from './store.tsx';
 import type { GalleryLayout, GraphicKind, SessionStatus } from './types.ts';
+import { createSpin, wheelEntries } from '../lib/wheel.ts';
 
 export const GRAPHIC_LABEL: Record<GraphicKind, string> = {
   karte: 'Weltkarte',
   umfrage: 'Umfrage',
   wortwolke: 'Wortwolke',
   highlight: 'Chat-Highlight',
+  gluecksrad: 'Glücksrad',
 };
 
 export const LAYOUT_LABEL: Record<GalleryLayout, string> = {
@@ -213,6 +215,32 @@ export function useCommands() {
         }
         dispatch({ type: 'program/graphic', graphic });
         notify(`${GRAPHIC_LABEL[graphic]} ist im Programm`, 'erfolg');
+      },
+
+      /** Glücksrad drehen; blendet es dabei ins Programm ein, falls es noch nicht läuft. */
+      spinWheel: () => {
+        if (!guard()) return;
+        const state = s();
+        const w = state.wheel;
+        if (w.spin && Date.now() < w.spin.startedAt + w.spin.durationMs) {
+          notify('Das Rad dreht sich noch', 'info', false);
+          return;
+        }
+        // Gewinner der letzten Drehung zählt beim Herausnehmen schon nicht mehr mit.
+        const prev = w.spin && w.removeWinner ? w.spin.entries[w.spin.winnerIndex].toLowerCase() : null;
+        const entries = wheelEntries(state).filter((n) => n.toLowerCase() !== prev);
+        if (entries.length < 2) {
+          notify(
+            w.source === 'chat'
+              ? 'Zu wenige Namen im Rad. Es braucht mindestens zwei Personen, die im Chat geschrieben haben.'
+              : 'Zu wenige Einträge im Rad. Bitte mindestens zwei eigene Einträge anlegen.',
+            'fehler',
+          );
+          return;
+        }
+        dispatch({ type: 'wheel/spin', spin: createSpin(entries, w, Date.now()) });
+        if (state.program.graphic !== 'gluecksrad') dispatch({ type: 'program/graphic', graphic: 'gluecksrad' });
+        notify(`Glücksrad dreht mit ${entries.length} Feldern`, 'erfolg');
       },
 
       hideGraphic: () => {

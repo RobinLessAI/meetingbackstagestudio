@@ -7,7 +7,7 @@ import { copyText } from './LiveChat.tsx';
 import { Badge, DemoTag, IconButton, Kbd, Panel } from './ui.tsx';
 
 /** Aktionen, die schon heute wirken (Programm-Ausgabe für OBS). */
-const PROGRAM: DeckActionId[] = ['karte-anzeigen', 'frage-anzeigen', 'wortwolke-anzeigen', 'highlight-anzeigen', 'grafik-aus'];
+const PROGRAM: DeckActionId[] = ['karte-anzeigen', 'frage-anzeigen', 'wortwolke-anzeigen', 'highlight-anzeigen', 'rad-anzeigen', 'rad-drehen', 'grafik-aus'];
 /** Aktionen für Zoom; die Adressen bleiben gleich, sobald die Regie sie in Zoom ausführen kann. */
 const ZOOM: DeckActionId[] = ['naechste-hand', 'spotlight-leeren', 'alle-stumm'];
 

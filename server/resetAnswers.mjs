@@ -19,6 +19,8 @@ export function resetAnswers(state, now = Date.now()) {
     muteAll: null,
     map: state.map ? { ...collect(state.map), decisions: {}, flagged: [] } : state.map,
     cloud: state.cloud ? { ...collect(state.cloud), hidden: [] } : state.cloud,
+    // Glücksrad: Chat-Namen neu sammeln, eigene Liste und Einstellungen bleiben.
+    wheel: state.wheel ? { ...state.wheel, since: now, removed: [], spin: null, history: [] } : state.wheel,
     poll: state.poll ? { ...state.poll, status: 'entwurf', startedAt: null, closedAt: null, gaps: [], decisions: {} } : state.poll,
     session: state.session ? { ...state.session, startedAt: now, endedAt: null, status: 'laeuft' } : state.session,
   };

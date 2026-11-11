@@ -15,6 +15,7 @@ export const OBS_OUTPUTS: Array<{ id: string; label: string; desc: string; param
   { id: 'karte', label: 'Weltkarte', desc: 'Immer sichtbar, Vollbild. Ein- und ausblenden über OBS-Szenen.', params: { grafik: 'karte' } },
   { id: 'umfrage', label: 'Umfrage', desc: 'Immer sichtbar, Vollbild. Ein- und ausblenden über OBS-Szenen.', params: { grafik: 'umfrage' } },
   { id: 'wortwolke', label: 'Wortwolke', desc: 'Immer sichtbar, Vollbild. Ein- und ausblenden über OBS-Szenen.', params: { grafik: 'wortwolke' } },
+  { id: 'gluecksrad', label: 'Glücksrad', desc: 'Immer sichtbar, Vollbild. Ein- und ausblenden über OBS-Szenen.', params: { grafik: 'gluecksrad' } },
   { id: 'highlight', label: 'Chat-Highlight', desc: 'Immer sichtbar, als Bauchbinde. Ein- und ausblenden über OBS-Szenen.', params: { grafik: 'highlight', stil: 'einblendung' } },
 ];
 

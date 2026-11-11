@@ -1,6 +1,6 @@
 # MeetingBackstage Studio
 
-Produktionspult für Online-Workshops: Der Chat kommt live aus deinem Zoom-Meeting, daraus entstehen Weltkarte, Umfrage, Wortwolke und Chat-Highlight, und diese Grafiken laufen als Browserquellen in OBS.
+Produktionspult für Online-Workshops: Der Chat kommt live aus deinem Zoom-Meeting, daraus entstehen Weltkarte, Umfrage, Wortwolke, Chat-Highlight und Glücksrad, und diese Grafiken laufen als Browserquellen in OBS.
 
 ## Was live funktioniert und was simuliert ist
 
@@ -49,6 +49,7 @@ Der Server ist nur auf diesem Rechner erreichbar. Eine eigene Veranstaltung („
 | `http://localhost:4300/ausgabe.html?grafik=karte` | Weltkarte, Vollbild |
 | `http://localhost:4300/ausgabe.html?grafik=umfrage` | Umfrage, Vollbild |
 | `http://localhost:4300/ausgabe.html?grafik=wortwolke` | Wortwolke, Vollbild |
+| `http://localhost:4300/ausgabe.html?grafik=gluecksrad` | Glücksrad, Vollbild |
 | `http://localhost:4300/ausgabe.html?grafik=highlight&stil=einblendung` | Chat-Highlight als Bauchbinde |
 
 Weitere Optionen: `stil=einblendung|vollbild`, `hintergrund=transparent|dunkel`, `sichtbar=programm` (nur zeigen, wenn eingeblendet), `debug=1` (Verbindungsstatus anzeigen). In der Steuerung blendet „Einblenden“ eine Grafik in der Ausgabe „Programm“ ein.
@@ -65,7 +66,7 @@ In Zoom „Bildschirm freigeben“ → Fenster „MeetingBackstage · Präsentat
 
 Am einfachsten ist eine einzige OBS-Browserquelle **„Programm“** (`ausgabe.html?grafik=programm`) über dem Zoom-Bild. Sie ist durchsichtig, bis du in der App bei einer Grafik auf **„Ins Programm“** klickst; eine andere Grafik ersetzt die laufende, „Im Programm“ oder „Ausblenden“ nimmt sie heraus. Die kleine Vorschau links unten (und groß unter „OBS-Ausgabe“) zeigt genau, was die Quelle gerade zeigt.
 
-Stream Deck: Aktion „Website“ mit „GET-Anfrage im Hintergrund“ und einer Adresse wie `http://localhost:4300/aktion/karte-anzeigen?schluessel=…`. Alle Adressen mit deinem Schlüssel stehen in der App unter „OBS-Ausgabe → Fernsteuerung“ (der Schlüssel liegt in `daten/aktion-schluessel.txt`). Tastenkürzel: K Weltkarte, U Umfrage, W Wortwolke, H Chat-Highlight, X ausblenden (nur wenn das App-Fenster vorne ist). Spotlight und Stummschalten haben bereits Adressen (`naechste-hand`, `spotlight-leeren`, `alle-stumm`), wirken aber erst mit der Zoom-Steuerung in einem späteren Schritt.
+Stream Deck: Aktion „Website“ mit „GET-Anfrage im Hintergrund“ und einer Adresse wie `http://localhost:4300/aktion/karte-anzeigen?schluessel=…`. Alle Adressen mit deinem Schlüssel stehen in der App unter „OBS-Ausgabe → Fernsteuerung“ (der Schlüssel liegt in `daten/aktion-schluessel.txt`). Tastenkürzel: K Weltkarte, U Umfrage, W Wortwolke, H Chat-Highlight, D Glücksrad drehen, X ausblenden (nur wenn das App-Fenster vorne ist). Spotlight und Stummschalten haben bereits Adressen (`naechste-hand`, `spotlight-leeren`, `alle-stumm`), wirken aber erst mit der Zoom-Steuerung in einem späteren Schritt.
 
 ## Live-Chat aus Zoom einrichten (einmalig)
 
@@ -126,6 +127,11 @@ bis 3 erledigen bzw. die Berechtigungen bestätigen.
 - **Vorlagen und Zurücksetzen:** Jede Gestaltung (Chat-Highlight, Umfrage, Weltkarte, Wortwolke) hat „Auf Standard zurücksetzen“, die Abschnitte der Darstellung zusätzlich je einen eigenen. „Aktuelles Aussehen als Vorlage speichern“ legt eigene Vorlagen an (gleicher Name überschreibt); in der Übersicht gibt es Design-Vorlagen für alle vier Grafiken zusammen. Vorlagen liegen in `daten/vorlagen.json` und bleiben auch bei einer neuen Veranstaltung erhalten.
 - **Chat-Highlight:** Aussehen frei einstellbar (Vorlagen, Farben für Hintergrund, Text, Akzent und Name, Deckkraft, Schriftgröße, Schriftart, Ecken, Position links/Mitte/rechts, Überschrift, Name und Uhrzeit ein/aus). Gilt für App, Präsentation und OBS und wird mit der Veranstaltung gespeichert.
 - **Wortwolke:** Jeder Begriff zählt pro Nachricht einmal; Filter für Füllwörter, Kurzwörter, unangemessene Begriffe und Umfrage-Stimmen.
+- **Glücksrad:** Felder sind entweder alle Namen, die seit dem Start im Chat geschrieben haben (ohne Team-Namen, optional nur mit einem
+  Stichwort wie „dabei“), oder eine eigene Liste (auch als Vorlage speicherbar). „Drehen“ (Taste D, Stream Deck `rad-drehen`) wählt
+  zufällig, blendet das Rad ins Programm und zeigt danach den Namen groß. Alle Ausgaben drehen gleich, weil Gewinner und Winkel beim
+  Drehen festgelegt werden. „Gewählte aus dem Rad nehmen“ nimmt den Namen beim nächsten Drehen heraus; einzelne Namen lassen sich per
+  Klick heraus- und wieder hineinnehmen. Aussehen: Farben der Felder (bunt, zwei Farben, eine Farbe), Rand, Zeiger, Namensfeld.
 - Jede Frage sammelt Beiträge ab ihrem Start („Neu starten“ setzt den Startpunkt auf jetzt).
 
 ## Entwicklung

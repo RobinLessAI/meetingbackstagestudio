@@ -1,4 +1,6 @@
 import { useNow, useStore } from '../../state/store.tsx';
+import { wheelEntries } from '../../lib/wheel.ts';
+import { Wheel } from './Wheel.tsx';
 import { HighlightCard } from './HighlightCard.tsx';
 import { pollView } from '../../sync/snapshot.ts';
 import { PollChart } from './PollChart.tsx';
@@ -23,7 +25,13 @@ export function ProgramOverlay() {
       {graphic && graphic !== 'highlight' && (
         <div className="overlay overlay--side">
           <p className="overlay__title">
-            {graphic === 'karte' ? state.map.question : graphic === 'umfrage' ? state.poll.question : state.cloud.prompt}
+            {graphic === 'karte'
+              ? state.map.question
+              : graphic === 'umfrage'
+                ? state.poll.question
+                : graphic === 'gluecksrad'
+                  ? state.wheel.title
+                  : state.cloud.prompt}
           </p>
           <div className="overlay__body">
             {graphic === 'karte' && <WorldMap pins={derived.map.pins} view={state.map.view} mapStyle={state.map.style} variant="overlay" aspect={1.25} />}
@@ -31,6 +39,9 @@ export function ProgramOverlay() {
               <PollChart data={pollView(state.poll, derived.poll)} variant="overlay" chart="balken" />
             )}
             {graphic === 'wortwolke' && <WordCloud terms={derived.cloud.visible.slice(0, 18)} variant="overlay" />}
+            {graphic === 'gluecksrad' && (
+              <Wheel entries={wheelEntries(state)} restDeg={state.wheel.restDeg} spin={state.wheel.spin} look={state.looks.gluecksrad} variant="overlay" />
+            )}
           </div>
         </div>
       )}
