@@ -312,6 +312,7 @@ button.topbar__chip:hover { background: var(--hover); color: var(--text); }
 .program-monitor__title { font-family: var(--font-cond); font-weight: 600; font-size: var(--fs-sm); letter-spacing: 0.06em; text-transform: uppercase; }
 .program-monitor__state { color: var(--text-2); font-size: var(--fs-sm); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .program-monitor__link { margin-left: auto; display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: var(--r-sm); background: none; color: var(--text-3); cursor: pointer; }
+.program-monitor__link + .program-monitor__link { margin-left: 0; }
 .program-monitor__link:hover { background: var(--hover); color: var(--text); }
 .program-monitor__link:focus-visible { outline: none; box-shadow: var(--focus); }
 .program-monitor__screen {

@@ -53,6 +53,14 @@ Der Server ist nur auf diesem Rechner erreichbar. Eine eigene Veranstaltung („
 
 Weitere Optionen: `stil=einblendung|vollbild`, `hintergrund=transparent|dunkel`, `sichtbar=programm` (nur zeigen, wenn eingeblendet), `debug=1` (Verbindungsstatus anzeigen). In der Steuerung blendet „Einblenden“ eine Grafik in der Ausgabe „Programm“ ein.
 
+## Ohne OBS: Bildschirm teilen in Zoom oder Teams
+
+Unter „OBS-Ausgabe“ (oder über das Symbol an der kleinen Programm-Vorschau links unten) **Präsentationsfenster öffnen**.
+Das Fenster zeigt immer das Programm als Vollbild-Grafik auf dunklem Hintergrund, ohne Programm den Titel der Veranstaltung.
+In Zoom „Bildschirm freigeben“ → Fenster „MeetingBackstage · Präsentation“ wählen. Die Bedienleiste und der Mauszeiger
+verschwinden nach kurzer Zeit, Taste **F** schaltet Vollbild um. Adresse: `http://localhost:4300/ausgabe.html?modus=praesentation`
+(mit `&leer=schwarz` bleibt das Fenster ohne Programm ganz dunkel).
+
 ## Programm und Stream Deck
 
 Am einfachsten ist eine einzige OBS-Browserquelle **„Programm“** (`ausgabe.html?grafik=programm`) über dem Zoom-Bild. Sie ist durchsichtig, bis du in der App bei einer Grafik auf **„Ins Programm“** klickst; eine andere Grafik ersetzt die laufende, „Im Programm“ oder „Ausblenden“ nimmt sie heraus. Die kleine Vorschau links unten (und groß unter „OBS-Ausgabe“) zeigt genau, was die Quelle gerade zeigt.

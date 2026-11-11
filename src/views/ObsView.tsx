@@ -1,10 +1,16 @@
 import { ObsOutputsPanel } from '../components/ObsOutputs.tsx';
 import { ProgramMonitor } from '../components/ProgramMonitor.tsx';
 import { RemoteControlPanel } from '../components/RemoteControl.tsx';
-import { Panel } from '../components/ui.tsx';
+import { Button, Panel } from '../components/ui.tsx';
+import { MonitorUp } from 'lucide-react';
+import { openPresentationWindow, presentationUrl } from '../lib/presentation.ts';
+import { useStore } from '../state/store.tsx';
+import { useSync } from '../sync/SyncProvider.tsx';
 
 /** OBS-Ausgabe: Programm-Vorschau, Erklärung, Adressen und Fernsteuerung. */
 export function ObsView() {
+  const { baseUrl, available } = useSync();
+  const { notify } = useStore();
   return (
     <div className="view">
       <header className="view__head">
@@ -43,6 +49,38 @@ export function ObsView() {
           </p>
         </Panel>
       </div>
+
+      <Panel eyebrow="Ohne OBS" title="Bildschirm teilen in Zoom oder Teams" className="praes-panel">
+        <p className="muted">
+          Kein OBS? Dann öffne das Präsentationsfenster und teile es im Meeting. Es zeigt immer das, was im Programm ist, als Vollbild-Grafik. Ist
+          nichts im Programm, steht dort der Titel deiner Veranstaltung.
+        </p>
+        <ol className="program-steps">
+          <li>
+            <Button
+              variant="primary"
+              icon={MonitorUp}
+              disabled={!available}
+              onClick={() => {
+                if (!openPresentationWindow(baseUrl)) notify('Das Fenster wurde blockiert. Bitte Pop-ups für localhost erlauben.', 'fehler');
+              }}
+            >
+              Präsentationsfenster öffnen
+            </Button>
+          </li>
+          <li>
+            In Zoom auf <strong>„Bildschirm freigeben“</strong> klicken und das Fenster <strong>„MeetingBackstage · Präsentation“</strong> wählen
+            (nicht den ganzen Bildschirm). In Teams: <strong>„Teilen“</strong> → Fenster.
+          </li>
+          <li>
+            Wie gewohnt in der App <em>„Ins Programm“</em> klicken: Die Grafik erscheint sofort im geteilten Fenster. Größe des Fensters ist egal,
+            die Grafik passt sich an. Mit <strong>F</strong> oder dem Knopf im Fenster geht es in den Vollbildmodus.
+          </li>
+        </ol>
+        <p className="field-hint">
+          Adresse zum Öffnen in einem anderen Browser: <code>{presentationUrl(baseUrl)}</code>
+        </p>
+      </Panel>
 
       <ObsOutputsPanel />
       <RemoteControlPanel />

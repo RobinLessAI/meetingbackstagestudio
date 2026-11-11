@@ -8,6 +8,7 @@ import { WorldMap } from '../components/graphics/WorldMap.tsx';
 import type { GraphicKind, GraphicLook, GraphicLooks } from '../state/types.ts';
 import type { OutputSnapshot } from '../sync/snapshot.ts';
 import { openSyncSocket, type SocketStatus } from '../sync/socket.ts';
+import { PresentationFrame } from './Presentation.tsx';
 
 export type OutputGraphic = GraphicKind | 'programm';
 
@@ -19,6 +20,10 @@ export interface OutputOptions {
   /** hintergrund steht ausdrücklich in der Adresse (sonst darf die Karte „Nur Umrisse“ ihn transparent machen). */
   hintergrundFest: boolean;
   debug: boolean;
+  /** Präsentationsfenster für die Bildschirmfreigabe (ohne OBS): immer Vollbild, nie durchsichtig. */
+  praesentation?: boolean;
+  /** Was das Präsentationsfenster zeigt, wenn nichts im Programm ist. */
+  leer?: 'titel' | 'schwarz';
 }
 
 const GRAPHICS: OutputGraphic[] = ['programm', 'karte', 'umfrage', 'wortwolke', 'highlight'];
@@ -26,13 +31,26 @@ const GRAPHICS: OutputGraphic[] = ['programm', 'karte', 'umfrage', 'wortwolke', 
 /** Liest die Optionen aus der Adresse, z. B. ?grafik=umfrage&stil=vollbild */
 export function readOptions(search: string): OutputOptions {
   const p = new URLSearchParams(search);
+  if (p.get('modus') === 'praesentation') {
+    const pg = p.get('grafik') as OutputGraphic | null;
+    return {
+      grafik: pg && GRAPHICS.includes(pg) ? pg : 'programm',
+      stil: 'vollbild',
+      sichtbar: 'programm',
+      hintergrund: 'dunkel',
+      hintergrundFest: false,
+      debug: p.get('debug') === '1',
+      praesentation: true,
+      leer: p.get('leer') === 'schwarz' ? 'schwarz' : 'titel',
+    };
+  }
   const g = p.get('grafik') as OutputGraphic | null;
   const grafik = g && GRAPHICS.includes(g) ? g : 'programm';
   const stil = p.get('stil') === 'vollbild' ? 'vollbild' : p.get('stil') === 'einblendung' ? 'einblendung' : grafik === 'programm' ? 'einblendung' : 'vollbild';
   const sichtbar = p.get('sichtbar') === 'programm' ? 'programm' : p.get('sichtbar') === 'immer' ? 'immer' : grafik === 'programm' ? 'programm' : 'immer';
   const hintergrund = p.get('hintergrund') === 'dunkel' ? 'dunkel' : p.get('hintergrund') === 'transparent' ? 'transparent' : stil === 'vollbild' ? 'dunkel' : 'transparent';
   const hintergrundFest = p.get('hintergrund') === 'dunkel' || p.get('hintergrund') === 'transparent';
-  return { grafik, stil, sichtbar, hintergrund, hintergrundFest, debug: p.get('debug') === '1' };
+  return { grafik, stil, sichtbar, hintergrund, hintergrundFest, debug: p.get('debug') === '1', praesentation: false, leer: 'titel' };
 }
 
 function title(s: OutputSnapshot, g: GraphicKind, look?: GraphicLook) {
@@ -99,6 +117,7 @@ export function Output({ options }: { options: OutputOptions }) {
     return () => window.clearInterval(t);
   }, [reaction]);
 
+  if (options.praesentation) return <PresentationFrame snapshot={snapshot} options={options} now={now} status={status} />;
   return <OutputView snapshot={snapshot} options={options} now={now} status={status} />;
 }
 

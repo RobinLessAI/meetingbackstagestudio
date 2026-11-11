@@ -138,3 +138,79 @@ body.ausgabe {
 .out-look .poll-donut--present { font-size: calc(2.2cqi * var(--lk-scale, 1)); }
 .out-look .open-answers--present { font-size: calc(1.9cqi * var(--lk-scale, 1)); }
 .out-look .open-answer { background: var(--raised); border-color: var(--line-strong); }
+
+/*
+ * Präsentationsfenster (Bildschirmfreigabe ohne OBS): 16:9-Bühne, passend ins Fenster,
+ * Rest dunkel. Nie durchsichtig, weil eine Freigabe keine Transparenz kennt.
+ */
+body.praes-body { background: #000; }
+.praes {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #000;
+}
+.praes.is-idle { cursor: none; }
+.praes__stage {
+  position: relative;
+  width: min(100vw, calc(100vh * 16 / 9));
+  height: min(100vh, calc(100vw * 9 / 16));
+  background: var(--stage);
+  overflow: hidden;
+  container-type: size;
+}
+.praes__stage .out { inset: 0; }
+.praes__empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.praes__empty-title {
+  max-width: 70%;
+  text-align: center;
+  font-family: var(--font-display, var(--font-ui));
+  font-size: 3.4cqi;
+  font-weight: 600;
+  color: var(--text-2, var(--text));
+  text-wrap: balance;
+  opacity: 0.85;
+}
+.praes__bar {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 24px);
+  padding: 6px 6px 6px 12px;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 999px;
+  background: rgb(14 16 20 / 0.92);
+  color: #e8eaed;
+  font: 500 13px/1.3 var(--font-ui);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.4);
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+.praes.is-idle .praes__bar { opacity: 0; transform: translate(-50%, -8px); pointer-events: none; }
+.praes__hint { display: inline-flex; align-items: center; gap: 6px; }
+.praes__dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: #d9534f; }
+.praes__dot.is-on { background: #3ecf8e; }
+.praes__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #f5b82e;
+  color: #14161a;
+  font: 600 13px/1 var(--font-ui);
+  cursor: pointer;
+}
+@media (max-width: 720px) { .praes__hint { display: none; } }

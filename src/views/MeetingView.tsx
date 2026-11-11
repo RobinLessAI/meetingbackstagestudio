@@ -1,5 +1,6 @@
 import { useId, useState, type ReactNode } from 'react';
-import { ArrowRight, Check, CircleAlert, Clipboard, LoaderCircle, LogOut, MonitorPlay, Settings, Video } from 'lucide-react';
+import { ArrowRight, Check, CircleAlert, Clipboard, LoaderCircle, LogOut, MonitorPlay, MonitorUp, Settings, Video } from 'lucide-react';
+import { openPresentationWindow } from '../lib/presentation.ts';
 import { Button } from '../components/ui.tsx';
 import { clock } from '../lib/time.ts';
 import { useStore } from '../state/store.tsx';
@@ -174,6 +175,9 @@ export function MeetingView() {
               </Button>
               <Button size="lg" icon={MonitorPlay} onClick={() => go('ausgabe')}>
                 OBS-Ausgabe
+              </Button>
+              <Button size="lg" icon={MonitorUp} onClick={() => openPresentationWindow(window.location.origin)} title="Fenster zum Teilen in Zoom oder Teams (ohne OBS)">
+                Präsentationsfenster
               </Button>
               {teamsConnected ? (
                 <Button variant="ghost" icon={LogOut} onClick={stopTeamsLive}>

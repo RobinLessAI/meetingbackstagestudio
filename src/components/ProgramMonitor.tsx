@@ -1,4 +1,5 @@
-import { EyeOff, MonitorPlay } from 'lucide-react';
+import { EyeOff, MonitorPlay, MonitorUp } from 'lucide-react';
+import { openPresentationWindow } from '../lib/presentation.ts';
 import { GRAPHIC_LABEL, useCommands } from '../state/commands.ts';
 import { useStore } from '../state/store.tsx';
 import { useUi } from '../state/ui.tsx';
@@ -24,6 +25,17 @@ export function ProgramMonitor({ compact = false }: { compact?: boolean }) {
         <span className={`program-monitor__tally${g ? ' is-on' : ''}`} aria-hidden />
         <span className="program-monitor__title">Programm</span>
         <span className="program-monitor__state">{g ? GRAPHIC_LABEL[g] : 'leer'}</span>
+        {compact && sync.available && (
+          <button
+            type="button"
+            className="program-monitor__link"
+            onClick={() => openPresentationWindow(sync.baseUrl)}
+            title="Präsentationsfenster zum Teilen in Zoom öffnen"
+          >
+            <MonitorUp size={14} aria-hidden />
+            <span className="sr-only">Präsentationsfenster öffnen</span>
+          </button>
+        )}
         {compact && (
           <button type="button" className="program-monitor__link" onClick={() => go('ausgabe')} title="OBS-Ausgabe und Erklärung öffnen">
             <MonitorPlay size={14} aria-hidden />
