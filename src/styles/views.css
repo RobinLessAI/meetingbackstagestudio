@@ -1289,3 +1289,25 @@ a.icon-btn { text-decoration: none; }
 .wheel-names__more { padding: 0 16px 12px; }
 .wheel-history { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
 .presentation__wheel { width: min(70vh, 100%); margin-inline: auto; }
+
+/* Spotlight */
+.spot-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 16px; align-items: start; }
+@media (max-width: 1150px) { .spot-layout { grid-template-columns: minmax(0, 1fr); } }
+.spot-cohost { display: flex; gap: 10px; align-items: flex-start; }
+.spot-ok { display: flex; align-items: center; gap: 8px; }
+.spot-slots { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.spot-slot { display: grid; grid-template-columns: auto minmax(0, 1fr) 92px auto auto; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--raised); }
+.spot-slot.is-on { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.spot-slot__state { font-size: var(--fs-sm); color: var(--ok, #3ecf8e); white-space: nowrap; }
+.spot-slot__state.is-missing { color: var(--text-3); }
+.spot-search { padding: 12px 16px 4px; }
+.spot-people { list-style: none; margin: 0; padding: 8px 16px 16px; display: flex; flex-direction: column; gap: 6px; }
+.spot-person { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 12px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--raised); }
+.spot-person.is-on { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.spot-person__name { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.spot-person__name strong { overflow-wrap: anywhere; }
+.spot-person__icons { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--text-3); }
+.spot-person__actions { display: flex; align-items: center; gap: 6px; }
+.spot-person__slot { width: auto; min-width: 110px; }
+.spot-help { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 10px; line-height: 1.5; }
+@media (max-width: 640px) { .spot-person { grid-template-columns: minmax(0, 1fr); } .spot-slot { grid-template-columns: auto minmax(0, 1fr) auto; } .spot-slot__state { display: none; } }

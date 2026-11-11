@@ -5,7 +5,7 @@
   'use strict';
 
   /** Stand dieses Fensters; muss mit REGIE_STAND in server/server.mjs übereinstimmen. */
-  const REGIE_STAND = 4;
+  const REGIE_STAND = 5;
   const params = new URLSearchParams(window.location.search);
   const ui = {
     box: document.getElementById('mb-regie'),
@@ -72,6 +72,95 @@
   }
 
   /** Zoom SDK und seine React-/Redux-Dateien aus /zoom-sdk/<version>/ nacheinander laden. */
+  // ------------------------------------------------ Teilnehmende und Spotlight
+
+  /** SDK-Aufruf mit success/error als Promise (manche Aufrufe liefern auch direkt ein Ergebnis). */
+  function callZ(name, args) {
+    return new Promise(function (resolve, reject) {
+      const Z = window.ZoomMtg;
+      if (!Z || typeof Z[name] !== 'function') {
+        reject(new Error(name + ' gibt es in dieser SDK-Version nicht'));
+        return;
+      }
+      let done = false;
+      const ok = function (res) {
+        if (!done) {
+          done = true;
+          resolve(res);
+        }
+      };
+      const fail = function (err) {
+        if (!done) {
+          done = true;
+          reject(err);
+        }
+      };
+      try {
+        const ret = Z[name](Object.assign({}, args || {}, { success: ok, error: fail }));
+        if (ret && typeof ret.then === 'function') ret.then(ok, fail);
+        else if (ret !== undefined) setTimeout(function () { ok(ret); }, 0);
+      } catch (e) {
+        fail(e);
+      }
+      setTimeout(function () { fail(new Error(name + ': keine Antwort')); }, 8000);
+    });
+  }
+
+  /** Eine Zahlenliste aus beliebig verpackten Ergebnissen holen. */
+  function idList(res) {
+    const cands = [res, res && res.result, res && res.result && res.result.spotlightList, res && res.spotlightList, res && res.result && res.result.userIds];
+    for (let i = 0; i < cands.length; i++) if (Array.isArray(cands[i])) return cands[i].map(function (x) { return Number(x && typeof x === 'object' ? x.userId : x); }).filter(function (n) { return !isNaN(n); });
+    return [];
+  }
+
+  let peopleTimer = null;
+  let peopleBusy = false;
+  function refreshPeople() {
+    if (!joined || peopleBusy) return;
+    peopleBusy = true;
+    Promise.all([
+      callZ('getAttendeeslist', {}).then(function (r) { return (r && r.result && r.result.attendeesList) || (r && r.attendeesList) || []; }),
+      callZ('getCurrentUser', {}).then(function (r) { return (r && r.result && r.result.currentUser) || (r && r.currentUser) || null; }).catch(function () { return null; }),
+      callZ('getSpotlightList', {}).then(idList).catch(function () { return null; }),
+    ])
+      .then(function (r) {
+        send({ type: 'regie-teilnehmende', list: safeData(r[0]), self: safeData(r[1]), spotlight: r[2] });
+      })
+      .catch(function (e) {
+        send({ type: 'regie-log', text: 'Teilnehmerliste nicht lesbar: ' + (e && (e.reason || e.message || JSON.stringify(e))) });
+      })
+      .then(function () { peopleBusy = false; });
+  }
+  function schedulePeople(ms) {
+    clearTimeout(peopleTimer);
+    peopleTimer = setTimeout(refreshPeople, ms === undefined ? 400 : ms);
+  }
+
+  /** Befehle von MeetingBackstage an Zoom (nur als Host oder Co-Host möglich). */
+  function runCommand(msg) {
+    if (msg.type === 'regie-leave' && window.ZoomMtg) {
+      window.ZoomMtg.leaveMeeting({});
+      return true;
+    }
+    if (msg.type !== 'regie-spotlight') return false;
+    const ops = Array.isArray(msg.ops) ? msg.ops : [];
+    let chain = Promise.resolve();
+    ops.forEach(function (op) {
+      chain = chain.then(function () { return callZ('operateSpotlight', { operate: op.operate, userId: Number(op.userId) }); });
+    });
+    chain
+      .then(function () {
+        send({ type: 'regie-ergebnis', requestId: msg.requestId, ok: true });
+      })
+      .catch(function (err) {
+        const text = String((err && (err.errorMessage || err.reason || err.message)) || '').trim();
+        const code = err && (err.errorCode !== undefined ? err.errorCode : err.code);
+        send({ type: 'regie-ergebnis', requestId: msg.requestId, ok: false, error: text || 'unbekannt', code: code === undefined ? null : code, raw: safeData(err) });
+      })
+      .then(function () { schedulePeople(300); });
+    return true;
+  }
+
   function loadSdk(version) {
     if (window.ZoomMtg) return Promise.resolve();
     const base = `/zoom-sdk/${version}`;
@@ -165,6 +254,15 @@
           } catch (e) {
             /* Ereignis gibt es nicht in jeder Version */
           }
+          ['onUserJoin', 'onUserLeave', 'onUserUpdate'].forEach(function (ev) {
+            try {
+              Z.inMeetingServiceListener(ev, function () { schedulePeople(); });
+            } catch (e) {
+              /* Ereignis gibt es nicht in jeder Version */
+            }
+          });
+          // Sicherheitsnetz: regelmäßig neu lesen (Spotlight-Änderungen in Zoom melden nicht immer ein Ereignis).
+          setInterval(function () { schedulePeople(0); }, 8000);
           Z.inMeetingServiceListener('onUserIsInWaitingRoom', function () {
             status('wartet');
           });
@@ -189,6 +287,7 @@
           success: function () {
             joined = true;
             status('verbunden');
+            schedulePeople(1500);
           },
           error: function (err) {
             const message = explain(err);
@@ -244,9 +343,8 @@
           });
       }
       else if (msg.type === 'regie-error') show('Beitritt nicht möglich.', msg.message);
-      else if (msg.type === 'regie-leave' && window.ZoomMtg) {
-        window.ZoomMtg.leaveMeeting({});
-      }
+      else if (msg.type === 'regie-teilnehmende-lesen') schedulePeople(0);
+      else runCommand(msg);
     };
     ws.onclose = function () {
       if (!joined) show('Keine Verbindung zu MeetingBackstage.', 'Läuft der Server noch („npm start“)? Dann dieses Fenster neu laden.');
@@ -268,7 +366,8 @@
     ws.onmessage = function (e) {
       try {
         const msg = JSON.parse(String(e.data));
-        if (msg.type === 'regie-leave' && window.ZoomMtg) window.ZoomMtg.leaveMeeting({});
+        if (msg.type === 'regie-teilnehmende-lesen') schedulePeople(0);
+        else runCommand(msg);
       } catch (err) {
         /* ignorieren */
       }

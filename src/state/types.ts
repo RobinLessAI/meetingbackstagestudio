@@ -361,7 +361,16 @@ export type DeckActionId =
   | 'namen-umschalten'
   | 'umfrage-schliessen'
   | 'rad-anzeigen'
-  | 'rad-drehen';
+  | 'rad-drehen'
+  | 'spotlight-1'
+  | 'spotlight-2'
+  | 'spotlight-3'
+  | 'spotlight-4'
+  | 'spotlight-5'
+  | 'spotlight-6'
+  | 'spotlight-7'
+  | 'spotlight-8'
+  | 'spotlight-9';
 
 export interface DeckState {
   tiles: DeckActionId[];
@@ -381,6 +390,8 @@ export type OutputSource = 'programm' | 'galerie' | 'grafik' | 'moderation' | 'a
 export interface Settings {
   /** Namen, deren Chat-Beiträge nicht ausgewertet werden (Moderation, Team). */
   teamNames: string[];
+  /** Spotlight-Plätze 1–9 (Namen aus Zoom) für Tasten 1–9 und Stream Deck; '' = leer. */
+  spotlightSlots: string[];
   autoDemo: boolean;
   lowerHandOnSpotlight: boolean;
   maxSpotlight: number;
@@ -404,7 +415,8 @@ export type ViewId =
   | 'steuerpult'
   | 'audio'
   | 'ausgabe'
-  | 'integrationen';
+  | 'integrationen'
+  | 'spotlight';
 
 export type ParticipantFilter =
   | 'alle'

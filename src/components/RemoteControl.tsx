@@ -9,7 +9,22 @@ import { Badge, DemoTag, IconButton, Kbd, Panel } from './ui.tsx';
 /** Aktionen, die schon heute wirken (Programm-Ausgabe für OBS). */
 const PROGRAM: DeckActionId[] = ['karte-anzeigen', 'frage-anzeigen', 'wortwolke-anzeigen', 'highlight-anzeigen', 'rad-anzeigen', 'rad-drehen', 'grafik-aus'];
 /** Aktionen für Zoom; die Adressen bleiben gleich, sobald die Regie sie in Zoom ausführen kann. */
-const ZOOM: DeckActionId[] = ['naechste-hand', 'spotlight-leeren', 'alle-stumm'];
+/** Spotlight in Zoom über die Regie (Regie muss Co-Host sein). */
+const ZOOM: DeckActionId[] = [
+  'spotlight-1',
+  'spotlight-2',
+  'spotlight-3',
+  'spotlight-4',
+  'spotlight-5',
+  'spotlight-6',
+  'spotlight-7',
+  'spotlight-8',
+  'spotlight-9',
+  'spotlight-leeren',
+  'naechste-hand',
+];
+/** Folgt später. */
+const PLANNED: DeckActionId[] = ['alle-stumm'];
 
 const keyOf = (id: DeckActionId) => Object.entries(SHORTCUTS).find(([, v]) => v === id)?.[0]?.toUpperCase();
 
@@ -28,7 +43,7 @@ export function RemoteControlPanel() {
       <tr key={id}>
         <th scope="row">
           {a.label.replace(/­/g, '')}
-          {planned && <span className="obs-table__desc">Wirkt noch nicht in Zoom (folgt mit der Zoom-Steuerung).</span>}
+          {planned && <span className="obs-table__desc">Wirkt noch nicht in Zoom (folgt in einem späteren Schritt).</span>}
         </th>
         <td className="remote__key">{key ? <Kbd>{key}</Kbd> : <span className="subtle">–</span>}</td>
         <td>
@@ -80,10 +95,11 @@ export function RemoteControlPanel() {
             {PROGRAM.map((id) => row(id, false))}
             <tr className="remote-table__group">
               <th scope="rowgroup" colSpan={4}>
-                Zoom: Spotlight und Stummschalten
+                Zoom: Spotlight (Plätze auf der Seite „Spotlight“; die Regie muss Co-Host sein)
               </th>
             </tr>
-            {ZOOM.map((id) => row(id, true))}
+            {ZOOM.map((id) => row(id, false))}
+            {PLANNED.map((id) => row(id, true))}
           </tbody>
         </table>
       </div>

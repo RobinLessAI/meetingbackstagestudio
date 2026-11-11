@@ -59,6 +59,28 @@ export interface ZoomMeeting {
   platform?: 'teams';
 }
 
+/** Person im Zoom-Meeting, gelesen über das Regie-Fenster. */
+export interface ZoomPerson {
+  userId: number;
+  name: string;
+  host: boolean;
+  cohost: boolean;
+  video: boolean | null;
+  muted: boolean | null;
+  hand: boolean;
+  handSince: number | null;
+}
+
+export interface ZoomPeopleStatus {
+  list: ZoomPerson[];
+  /** User-IDs im Spotlight. */
+  spotlight: number[];
+  spotlightKnown: boolean;
+  /** Rolle der Regie: nur Host oder Co-Host dürfen Spotlight setzen. */
+  role: 'host' | 'cohost' | 'teilnehmer' | 'unbekannt';
+  at: number | null;
+}
+
 /** Live-Chat aus Microsoft Teams (Graph-Benachrichtigungen über einen Tunnel). */
 export interface TeamsLiveStatus {
   state: 'bereit' | 'verbindet' | 'verbunden' | 'fehler';
@@ -113,6 +135,11 @@ interface SyncValue {
   disconnectZoom: () => void;
   /** Microsoft Teams: Konto, Meetings, Live-Chat. */
   teams: TeamsStatus | null;
+  /** Teilnehmende im Zoom-Meeting und Spotlight (über die Regie). */
+  zoomPeople: ZoomPeopleStatus;
+  /** userId null = Spotlight aufheben. */
+  spotlightZoom: (userId: number | null, operate?: 'replace' | 'add' | 'remove') => boolean;
+  refreshZoomPeople: () => void;
   teamsMeetings: ZoomMeetingsState;
   loadTeamsMeetings: () => void;
   disconnectTeams: () => void;
@@ -142,6 +169,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [actionKey, setActionKey] = useState<string | null>(null);
   const [zoomMeetings, setZoomMeetings] = useState<ZoomMeetingsState>({ loading: false, meetings: [], error: null, at: null });
   const [teams, setTeams] = useState<TeamsStatus | null>(null);
+  const [zoomPeople, setZoomPeople] = useState<ZoomPeopleStatus>({ list: [], spotlight: [], spotlightKnown: false, role: 'unbekannt', at: null });
   const teamsRef = useRef<TeamsStatus | null>(null);
   teamsRef.current = teams;
   const [teamsMeetings, setTeamsMeetings] = useState<ZoomMeetingsState>({ loading: false, meetings: [], error: null, at: null });
@@ -173,6 +201,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         if (msg.watch) setWatch(msg.watch);
         if (msg.regie) setRegie(msg.regie);
         if (msg.teams) setTeams(msg.teams);
+        if (msg.zoomTeilnehmende) setZoomPeople(msg.zoomTeilnehmende);
         if (msg.aktionSchluessel) setActionKey(msg.aktionSchluessel);
         if (Array.isArray(msg.vorlagen)) setTemplates(msg.vorlagen);
         const saved = msg.saved?.state as Partial<AppState> | undefined;
@@ -210,6 +239,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         else if (b.state === 'bereit' && a?.state === 'verbunden') notify('Teams-Chat wird nicht mehr mitgelesen', 'info');
         break;
       }
+      case 'zoom-teilnehmende':
+        if (msg.status) setZoomPeople(msg.status);
+        break;
+      case 'zoom-aktion':
+        notify(String(msg.message ?? ''), msg.ok ? 'erfolg' : 'fehler');
+        break;
       case 'teams-meetings':
         setTeamsMeetings({ loading: false, meetings: msg.meetings ?? [], error: msg.ok ? null : String(msg.error ?? 'Unbekannter Fehler'), at: msg.at ?? Date.now() });
         break;
@@ -351,6 +386,13 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     setTeamsMeetings({ loading: false, meetings: [], error: null, at: null });
   }, []);
   const startTeamsLive = useCallback((link: string, topic?: string) => socket.current?.send({ type: 'teams-live-start', link: link.trim(), topic }) ?? false, []);
+  const spotlightZoom = useCallback(
+    (userId: number | null, operate: 'replace' | 'add' | 'remove' = 'replace') => socket.current?.send({ type: 'zoom-spotlight', userId, operate }) ?? false,
+    [],
+  );
+  const refreshZoomPeople = useCallback(() => {
+    socket.current?.send({ type: 'zoom-teilnehmende-lesen' });
+  }, []);
   const stopTeamsLive = useCallback(() => {
     socket.current?.send({ type: 'teams-live-stop' });
   }, []);
@@ -399,13 +441,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       connectZoom,
       disconnectZoom,
       teams,
+      zoomPeople,
+      spotlightZoom,
+      refreshZoomPeople,
       teamsMeetings,
       loadTeamsMeetings,
       disconnectTeams,
       startTeamsLive,
       stopTeamsLive,
     }),
-    [teams, teamsMeetings, loadTeamsMeetings, disconnectTeams, startTeamsLive, stopTeamsLive, regie, available, status, outputs, savedAt, watch, lastImport, startWatch, stopWatch, openRegie, leaveRegie, actionKey, setActionHandler, templates, saveTemplates, zoomMeetings, loadZoomMeetings, requestAuthUrl, connectZoom, disconnectZoom],
+    [teams, zoomPeople, spotlightZoom, refreshZoomPeople, teamsMeetings, loadTeamsMeetings, disconnectTeams, startTeamsLive, stopTeamsLive, regie, available, status, outputs, savedAt, watch, lastImport, startWatch, stopWatch, openRegie, leaveRegie, actionKey, setActionHandler, templates, saveTemplates, zoomMeetings, loadZoomMeetings, requestAuthUrl, connectZoom, disconnectZoom],
   );
   return <SyncCtx.Provider value={value}>{children}</SyncCtx.Provider>;
 }

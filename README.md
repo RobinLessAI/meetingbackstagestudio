@@ -66,7 +66,22 @@ In Zoom „Bildschirm freigeben“ → Fenster „MeetingBackstage · Präsentat
 
 Am einfachsten ist eine einzige OBS-Browserquelle **„Programm“** (`ausgabe.html?grafik=programm`) über dem Zoom-Bild. Sie ist durchsichtig, bis du in der App bei einer Grafik auf **„Ins Programm“** klickst; eine andere Grafik ersetzt die laufende, „Im Programm“ oder „Ausblenden“ nimmt sie heraus. Die kleine Vorschau links unten (und groß unter „OBS-Ausgabe“) zeigt genau, was die Quelle gerade zeigt.
 
-Stream Deck: Aktion „Website“ mit „GET-Anfrage im Hintergrund“ und einer Adresse wie `http://localhost:4300/aktion/karte-anzeigen?schluessel=…`. Alle Adressen mit deinem Schlüssel stehen in der App unter „OBS-Ausgabe → Fernsteuerung“ (der Schlüssel liegt in `daten/aktion-schluessel.txt`). Tastenkürzel: K Weltkarte, U Umfrage, W Wortwolke, H Chat-Highlight, D Glücksrad drehen, X ausblenden (nur wenn das App-Fenster vorne ist). Spotlight und Stummschalten haben bereits Adressen (`naechste-hand`, `spotlight-leeren`, `alle-stumm`), wirken aber erst mit der Zoom-Steuerung in einem späteren Schritt.
+Stream Deck: Aktion „Website“ mit „GET-Anfrage im Hintergrund“ und einer Adresse wie `http://localhost:4300/aktion/karte-anzeigen?schluessel=…`. Alle Adressen mit deinem Schlüssel stehen in der App unter „OBS-Ausgabe → Fernsteuerung“ (der Schlüssel liegt in `daten/aktion-schluessel.txt`). Tastenkürzel: K Weltkarte, U Umfrage, W Wortwolke, H Chat-Highlight, D Glücksrad drehen, X ausblenden (nur wenn das App-Fenster vorne ist). Spotlight siehe unten; „Alle stummschalten“ (`alle-stumm`) wirkt noch nicht in Zoom.
+
+## Spotlight in Zoom (Tasten 1–9, Stream Deck)
+
+Die Seite **Spotlight** zeigt live, wer im Zoom-Meeting ist (gelesen über das Regie-Fenster), mit Handzeichen, Video und Mikrofon.
+Ein Klick setzt eine Person ins Spotlight, „+“ fügt weitere hinzu. Für schnelle Wechsel gibt es **feste Plätze 1–9**: Name eintragen
+(oder in der Liste „Platz …“ wählen); „Anna“ findet auch „Anna Schulz (sie/ihr)“. Die Plätze bleiben gespeichert.
+
+- **Tasten** (App-Fenster vorne): `1`–`9` Platz ins Spotlight, nochmal drücken hebt es auf; `0` hebt jedes Spotlight auf; `N` holt die
+  Hand, die am längsten oben ist.
+- **Stream Deck:** `http://localhost:4300/aktion/spotlight-1?schluessel=…` bis `spotlight-9`, dazu `spotlight-leeren` und `naechste-hand`.
+- **Überall auf dem Mac:** In „Kurzbefehle“ die Aktion „Inhalte von URL abrufen“ mit dieser Adresse anlegen und einen Tastaturkurzbefehl vergeben.
+
+Voraussetzung: Zoom lässt Spotlight nur Host und Co-Host setzen. In Zoom unter **Teilnehmer** bei „MeetingBackstage (Regie)“ auf
+**Mehr → Zum Co-Host machen** (Co-Host muss in den Zoom-Einstellungen eingeschaltet sein). Zoom verlangt außerdem mindestens drei
+Personen im Meeting, und die Person im Spotlight braucht eingeschaltetes Video.
 
 ## Live-Chat aus Zoom einrichten (einmalig)
 

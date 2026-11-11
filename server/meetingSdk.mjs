@@ -79,3 +79,53 @@ export function normalizeSdkChat(raw, now = Date.now()) {
     : `sdk:${crypto.createHash('sha1').update(`${senderName}|${text}|${Math.floor(at / 1000)}`).digest('hex').slice(0, 16)}`;
   return { key, senderName, text: text.trim(), at, private: !toEveryone };
 }
+
+/** Ersten vorhandenen Wert aus mehreren möglichen Feldnamen lesen (das SDK benennt Felder je Version anders). */
+const first = (o, keys) => {
+  for (const k of keys) if (o && o[k] !== undefined && o[k] !== null) return o[k];
+  return undefined;
+};
+
+/**
+ * Teilnehmerliste aus dem Meeting SDK (getAttendeeslist) in ein schlankes Format bringen.
+ * Die Regie selbst wird herausgefiltert; Rolle der Regie: host, cohost oder teilnehmer.
+ */
+export function normalizeAttendees(rawList, rawSelf, spotlight) {
+  const selfId = Number(first(rawSelf, ['userId', 'userid', 'id']));
+  const list = (Array.isArray(rawList) ? rawList : [])
+    .map((u) => {
+      const userId = Number(first(u, ['userId', 'userid', 'id']));
+      const name = String(first(u, ['userName', 'displayName', 'name']) ?? '').trim();
+      if (!Number.isFinite(userId) || !name) return null;
+      const video = first(u, ['bVideoOn', 'isVideoOn', 'videoOn', 'video']);
+      const muted = first(u, ['muted', 'isMuted', 'bMute']);
+      const hand = first(u, ['bRaiseHand', 'isRaiseHand', 'raiseHand', 'raisedHand']);
+      return {
+        userId,
+        name,
+        host: Boolean(first(u, ['isHost'])),
+        cohost: Boolean(first(u, ['isCoHost', 'bCoHost', 'isCohost'])),
+        video: video === undefined ? null : Boolean(video),
+        muted: muted === undefined ? null : Boolean(muted),
+        hand: Boolean(hand),
+      };
+    })
+    .filter((u) => u && u.userId !== selfId);
+  const isHost = Boolean(first(rawSelf, ['isHost']));
+  const isCoHost = Boolean(first(rawSelf, ['isCoHost', 'bCoHost', 'isCohost'])) || String(first(rawSelf, ['role', 'userRole']) ?? '').toLowerCase().includes('cohost');
+  return {
+    list,
+    spotlight: Array.isArray(spotlight) ? spotlight.map(Number).filter(Number.isFinite) : [],
+    spotlightKnown: Array.isArray(spotlight),
+    role: isHost ? 'host' : isCoHost ? 'cohost' : rawSelf ? 'teilnehmer' : 'unbekannt',
+  };
+}
+
+/** Verständliche Meldung, wenn Zoom ein Spotlight ablehnt. */
+export function spotlightError(error, code, role) {
+  if (role === 'teilnehmer') {
+    return 'Zoom lässt das Spotlight nur Host oder Co-Host setzen. In Zoom unter „Teilnehmer“ bei „MeetingBackstage (Regie)“ auf „Mehr“ → „Zum Co-Host machen“ klicken.';
+  }
+  const text = String(error ?? '').trim();
+  return `Zoom hat das Spotlight abgelehnt${text ? `: ${text}` : ''}${code !== null && code !== undefined ? ` (${code})` : ''}. Spotlight braucht mindestens drei Personen im Meeting, und die Person muss ihr Video eingeschaltet haben.`;
+}

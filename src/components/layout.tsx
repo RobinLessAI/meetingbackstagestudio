@@ -40,6 +40,7 @@ const ICONS: Record<ViewId, LucideIcon> = {
   audio: AudioLines,
   ausgabe: MonitorPlay,
   integrationen: Plug,
+  spotlight: Star,
 };
 
 export function Brand() {

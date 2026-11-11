@@ -277,6 +277,7 @@ export function createInitialState(now: number = Date.now()): AppState {
     participantView: { query: '', role: 'alle', status: 'alle', sort: 'liste' },
     settings: {
       teamNames: [],
+      spotlightSlots: Array(9).fill(''),
       autoDemo: false,
       lowerHandOnSpotlight: false,
       maxSpotlight: 4,

@@ -16,7 +16,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
-import { meetingSignature, normalizeSdkChat, parseMeetingLink } from './meetingSdk.mjs';
+import { meetingSignature, normalizeAttendees, normalizeSdkChat, parseMeetingLink, spotlightError } from './meetingSdk.mjs';
 import { resetAnswers } from './resetAnswers.mjs';
 import { createZoomAccount } from './zoomAccount.mjs';
 import { createTeamsAccount, createTeamsLive } from './teams.mjs';
@@ -59,7 +59,7 @@ const TEAMS_TENANT_ID = process.env.TEAMS_TENANT_ID ?? '';
 const TEAMS_PUBLIC_URL = process.env.TEAMS_PUBLIC_URL ?? '';
 const REGIE_NAME = 'MeetingBackstage (Regie)';
 /** Stand des Regie-Fensters; muss mit REGIE_STAND in public/regie.js übereinstimmen. */
-const REGIE_STAND = 4;
+const REGIE_STAND = 5;
 const SDK_VERSION = SDK_MAIN?.match(/zoom-meeting-([\d.]+)\.min\.js/)?.[1] ?? null;
 /** Programmversion und Git-Stand (z. B. „0.1.0 · 6489819“), damit Updates erkennbar sind. */
 const APP_VERSION = (() => {
@@ -258,6 +258,57 @@ function handleRegieChat(data) {
   if (!pushLive(chat)) return;
   regie.messages += 1;
   broadcast('steuerung', { type: 'regie-status', status: regieStatus() });
+}
+
+// ------------------------------------------------ Teilnehmende und Spotlight in Zoom
+let zoomPeople = { list: [], spotlight: [], spotlightKnown: false, role: 'unbekannt', at: null };
+const handSince = new Map(); // userId -> Zeitpunkt, seit dem die Hand oben ist
+let attendeesLogged = false;
+let requestSeq = 0;
+const pendingRequests = new Map(); // requestId -> { ws, label }
+
+function peopleStatus() {
+  return { ...zoomPeople, list: zoomPeople.list.map((u) => ({ ...u, handSince: handSince.get(u.userId) ?? null })) };
+}
+const broadcastPeople = () => broadcast('steuerung', { type: 'zoom-teilnehmende', status: peopleStatus() });
+
+function handleAttendees(msg) {
+  if (!attendeesLogged && Array.isArray(msg.list) && msg.list.length) {
+    attendeesLogged = true;
+    log(`Regie: Teilnehmende im Rohformat: ${JSON.stringify(msg.list[0]).slice(0, 300)} · Regie: ${JSON.stringify(msg.self ?? null).slice(0, 200)}`);
+  }
+  const next = normalizeAttendees(msg.list, msg.self, msg.spotlight);
+  // Kennt diese SDK-Version keine Spotlight-Liste, die zuletzt bekannte behalten.
+  if (!next.spotlightKnown) next.spotlight = zoomPeople.spotlight.filter((id) => next.list.some((u) => u.userId === id));
+  const now = Date.now();
+  for (const u of next.list) {
+    if (u.hand && !handSince.has(u.userId)) handSince.set(u.userId, now);
+    if (!u.hand) handSince.delete(u.userId);
+  }
+  for (const id of [...handSince.keys()]) if (!next.list.some((u) => u.userId === id)) handSince.delete(id);
+  zoomPeople = { ...next, at: now };
+  broadcastPeople();
+}
+
+/** Spotlight in Zoom setzen: ops = [{ operate: 'add' | 'replace' | 'remove', userId }]. */
+function sendSpotlight(ws, ops, label) {
+  const regieWs = [...roles.entries()].find(([, r]) => r === 'regie')?.[0];
+  if (!regieWs || regie.state !== 'verbunden') {
+    send(ws, { type: 'zoom-aktion', ok: false, message: 'Die Regie ist nicht im Meeting. Zuerst auf der Seite „Meeting“ beitreten.' });
+    return;
+  }
+  if (zoomPeople.role === 'teilnehmer') {
+    send(ws, { type: 'zoom-aktion', ok: false, message: spotlightError('', null, 'teilnehmer') });
+    return;
+  }
+  if (!ops.length) {
+    send(ws, { type: 'zoom-aktion', ok: true, message: label });
+    return;
+  }
+  const requestId = `s${++requestSeq}`;
+  pendingRequests.set(requestId, { ws, label });
+  setTimeout(() => pendingRequests.delete(requestId), 15_000).unref?.();
+  send(regieWs, { type: 'regie-spotlight', requestId, ops });
 }
 
 /** Neue Live-Nachricht (Zoom oder Teams) an alle Steuerungen; false, wenn schon bekannt. */
@@ -475,7 +526,7 @@ wss.on('connection', (ws, rolle) => {
   if (role === 'ausgabe' || role === 'vorschau') {
     if (lastSnapshot) send(ws, { type: 'snapshot', snapshot: lastSnapshot });
   } else if (role === 'steuerung') {
-    send(ws, { type: 'hello', saved, ...counts(), watch: watchStatus(), regie: regieStatus(), teams: teamsStatus(), aktionSchluessel: ACTION_KEY, vorlagen: templates });
+    send(ws, { type: 'hello', saved, ...counts(), watch: watchStatus(), regie: regieStatus(), teams: teamsStatus(), zoomTeilnehmende: peopleStatus(), aktionSchluessel: ACTION_KEY, vorlagen: templates });
     if (liveChat.length) send(ws, { type: 'live-chat', messages: liveChat });
   }
   broadcastCounts();
@@ -539,6 +590,26 @@ wss.on('connection', (ws, rolle) => {
       case 'regie-leave':
         broadcast('regie', { type: 'regie-leave' });
         break;
+      case 'zoom-spotlight': {
+        // Eine Person ins Spotlight (ersetzt) oder dazu (add) oder heraus (remove); userId null = alle heraus.
+        const operate = msg.operate === 'add' || msg.operate === 'remove' ? msg.operate : 'replace';
+        if (msg.userId === null || msg.userId === undefined) {
+          sendSpotlight(ws, zoomPeople.spotlight.map((id) => ({ operate: 'remove', userId: id })), 'Spotlight aufgehoben');
+          break;
+        }
+        const person = zoomPeople.list.find((u) => u.userId === Number(msg.userId));
+        if (!person) {
+          send(ws, { type: 'zoom-aktion', ok: false, message: 'Diese Person ist nicht mehr im Meeting.' });
+          break;
+        }
+        const label =
+          operate === 'remove' ? `${person.name} aus dem Spotlight genommen` : operate === 'add' ? `${person.name} zusätzlich im Spotlight` : `${person.name} im Spotlight`;
+        sendSpotlight(ws, [{ operate, userId: person.userId }], label);
+        break;
+      }
+      case 'zoom-teilnehmende-lesen':
+        broadcast('regie', { type: 'regie-teilnehmende-lesen' });
+        break;
       case 'teams-meetings':
         try {
           send(ws, { type: 'teams-meetings', ok: true, meetings: await teamsAccount.listMeetings(), at: Date.now() });
@@ -574,6 +645,9 @@ wss.on('connection', (ws, rolle) => {
     if (role === 'regie' && !hasRole('regie')) {
       log('Regie-Fenster geschlossen.');
       setRegie({ state: 'bereit', since: null, error: null });
+      zoomPeople = { list: [], spotlight: [], spotlightKnown: false, role: 'unbekannt', at: null };
+      handSince.clear();
+      broadcastPeople();
     }
     broadcastCounts();
   });
@@ -600,7 +674,26 @@ function handleRegieMessage(ws, msg) {
       if (msg.state !== regie.state || error !== regie.error) {
         log(`Regie: ${msg.state}${error ? ` – ${error}` : ''}`);
         setRegie({ state: msg.state, error, since: msg.state === 'verbunden' ? Date.now() : regie.since });
+        if (msg.state === 'bereit' || msg.state === 'fehler') {
+          zoomPeople = { list: [], spotlight: [], spotlightKnown: false, role: 'unbekannt', at: null };
+          handSince.clear();
+          broadcastPeople();
+        }
       }
+      break;
+    }
+    case 'regie-teilnehmende':
+      handleAttendees(msg);
+      break;
+    case 'regie-ergebnis': {
+      const req = pendingRequests.get(String(msg.requestId ?? ''));
+      pendingRequests.delete(String(msg.requestId ?? ''));
+      if (!msg.ok) log(`Regie: Spotlight abgelehnt: ${JSON.stringify(msg.raw ?? msg.error).slice(0, 300)}`);
+      const result = msg.ok
+        ? { type: 'zoom-aktion', ok: true, message: req?.label ?? 'Erledigt' }
+        : { type: 'zoom-aktion', ok: false, message: spotlightError(msg.error, msg.code, zoomPeople.role) };
+      if (req) send(req.ws, result);
+      else broadcast('steuerung', result);
       break;
     }
     case 'regie-chat':

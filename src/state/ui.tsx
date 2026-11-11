@@ -5,6 +5,7 @@ import type { GraphicKind, ViewId } from './types.ts';
 export const VIEWS: Array<{ id: ViewId; label: string; short: string; demo?: boolean }> = [
   { id: 'meeting', label: 'Meeting', short: 'Meeting' },
   { id: 'grafiken', label: 'Live Grafiken', short: 'Grafiken' },
+  { id: 'spotlight', label: 'Spotlight', short: 'Spotlight' },
   { id: 'ausgabe', label: 'OBS-Ausgabe', short: 'OBS' },
   { id: 'integrationen', label: 'Zoom & Einstellungen', short: 'Zoom' },
   { id: 'veranstaltung', label: 'Veranstaltung', short: 'Start', demo: true },

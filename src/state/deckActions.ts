@@ -15,6 +15,7 @@ import {
   MicOff,
   PartyPopper,
   RotateCw,
+  Star,
   StarOff,
   Tag,
   Vote,
@@ -26,6 +27,9 @@ import { MUTE_ALL_EXEMPT } from './reducer.ts';
 import { useStore } from './store.tsx';
 import type { DeckActionId } from './types.ts';
 import { useUi } from './ui.tsx';
+import { useZoomSpotlight } from './zoomSpotlight.ts';
+import { findPerson, nextRaisedHand } from '../lib/spotlight.ts';
+import { useSync } from '../sync/SyncProvider.tsx';
 
 export interface DeckAction {
   id: DeckActionId;
@@ -45,6 +49,15 @@ export interface DeckAction {
 export const DECK_CATALOG: DeckActionId[] = [
   'naechste-hand',
   'spotlight-leeren',
+  'spotlight-1',
+  'spotlight-2',
+  'spotlight-3',
+  'spotlight-4',
+  'spotlight-5',
+  'spotlight-6',
+  'spotlight-7',
+  'spotlight-8',
+  'spotlight-9',
   'alle-stumm',
   'galerie-wechseln',
   'galerie-zentrum',
@@ -77,6 +90,16 @@ export const SHORTCUTS: Record<string, DeckActionId> = {
   x: 'grafik-aus',
   d: 'rad-drehen',
   r: 'reaktion-applaus',
+  '1': 'spotlight-1',
+  '2': 'spotlight-2',
+  '3': 'spotlight-3',
+  '4': 'spotlight-4',
+  '5': 'spotlight-5',
+  '6': 'spotlight-6',
+  '7': 'spotlight-7',
+  '8': 'spotlight-8',
+  '9': 'spotlight-9',
+  '0': 'spotlight-leeren',
 };
 
 const keyFor = (id: DeckActionId) =>
@@ -87,6 +110,8 @@ export function useDeckActions(): Record<DeckActionId, DeckAction> {
   const { state, derived, dispatch, notify } = useStore();
   const commands = useCommands();
   const ui = useUi();
+  const zoom = useZoomSpotlight();
+  const { zoomPeople } = useSync();
 
   return useMemo(() => {
     const now = Date.now();
@@ -105,8 +130,16 @@ export function useDeckActions(): Record<DeckActionId, DeckAction> {
         icon: Hand,
         active: false,
         live: true,
-        status: next ? `${next.participant.shortName} · wartet ${duration(now - next.raisedAt)}` : 'Keine Hand wartet',
-        run: commands.nextHandToSpotlight,
+        status: zoom.live
+          ? (() => {
+              const z = nextRaisedHand(zoomPeople.list, zoomPeople.spotlight);
+              return z ? `${z.name}${z.handSince ? ` · wartet ${duration(now - z.handSince)}` : ''}` : 'Keine Hand wartet';
+            })()
+          : next
+            ? `${next.participant.shortName} · wartet ${duration(now - next.raisedAt)}`
+            : 'Keine Hand wartet',
+        // Mit Regie im Meeting wirkt es in Zoom, sonst in der Simulation.
+        run: zoom.live ? zoom.nextHand : commands.nextHandToSpotlight,
       },
       {
         id: 'spotlight-leeren',
@@ -115,9 +148,29 @@ export function useDeckActions(): Record<DeckActionId, DeckAction> {
         icon: StarOff,
         active: false,
         live: true,
-        status: state.spotlight.length ? `${state.spotlight.length} im Spotlight` : 'Spotlight leer',
-        run: commands.clearSpotlight,
+        status: zoom.live
+          ? zoomPeople.spotlight.length
+            ? `${zoomPeople.spotlight.length} im Spotlight`
+            : 'Spotlight leer'
+          : state.spotlight.length
+            ? `${state.spotlight.length} im Spotlight`
+            : 'Spotlight leer',
+        run: zoom.live ? zoom.clear : commands.clearSpotlight,
       },
+      ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => {
+        const name = state.settings.spotlightSlots?.[n - 1]?.trim() ?? '';
+        const person = name ? findPerson(zoomPeople.list, name) : null;
+        return {
+          id: `spotlight-${n}` as DeckActionId,
+          label: `Spotlight Platz ${n}${name ? `: ${name}` : ''}`,
+          hint: 'Setzt die Person dieses Platzes in Zoom ins Spotlight; nochmal drücken hebt es auf.',
+          icon: Star,
+          active: !!person && zoomPeople.spotlight.includes(person.userId),
+          live: true,
+          status: !name ? 'Platz leer' : person ? (zoomPeople.spotlight.includes(person.userId) ? 'Im Spotlight' : 'Im Meeting') : 'Nicht im Meeting',
+          run: () => zoom.slot(n),
+        };
+      }),
       {
         id: 'alle-stumm',
         label: 'Alle Teil\u00ADnehmenden stumm\u00ADschalten',
@@ -301,6 +354,6 @@ export function useDeckActions(): Record<DeckActionId, DeckAction> {
     return Object.fromEntries(
       list.map((a) => [a.id, { ...a, shortcut: keyFor(a.id) }]),
     ) as Record<DeckActionId, DeckAction>;
-  }, [state, derived, commands, ui, dispatch, notify]);
+  }, [state, derived, commands, ui, dispatch, notify, zoom, zoomPeople]);
 }
 
