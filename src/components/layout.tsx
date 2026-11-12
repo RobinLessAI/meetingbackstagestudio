@@ -1,3 +1,4 @@
+import { LogoMark, LogoWordmark } from './Logo.tsx';
 import {
   AudioLines,
   CalendarClock,
@@ -51,17 +52,9 @@ const ICONS: Record<ViewId, LucideIcon> = {
 export function Brand() {
   return (
     <div className="brand">
-      <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden>
-        <rect width="32" height="32" rx="5" fill="var(--raised)" />
-        <rect x="7" y="7" width="3" height="18" rx="1" fill="var(--text-3)" />
-        <rect x="14.5" y="7" width="3" height="18" rx="1" fill="var(--text-3)" />
-        <rect x="22" y="7" width="3" height="18" rx="1" fill="var(--text-3)" />
-        <rect x="5" y="17" width="7" height="4" rx="1" fill="var(--accent)" />
-        <rect x="12.5" y="10" width="7" height="4" rx="1" fill="var(--text)" />
-        <rect x="20" y="14" width="7" height="4" rx="1" fill="var(--text)" />
-      </svg>
+      <LogoMark size={30} className="brand__mark" />
       <div className="brand__text">
-        <span className="brand__name">MeetingBackstage</span>
+        <LogoWordmark height={15} className="brand__name" />
         <span className="brand__tag">Studio</span>
       </div>
     </div>

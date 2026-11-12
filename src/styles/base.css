@@ -1,31 +1,32 @@
 /*
  * MeetingBackstage Studio – visuelles System
+ * Markenfarben: Navy #11243c / #17364c, Petrol #026c75 / #0a747d, Graublau #a2bdc3, Hellgrau #f2f2f2.
  * Layout: feste Seitenleiste, Statusleiste oben, ruhige Arbeitsfläche aus Panels.
- * Dunkle Oberfläche als Standard, helle Oberfläche über data-theme="light" (Schalter oben rechts).
- * Ein Akzentton (Bernstein) nur für aktive Zustände.
+ * Dunkle Oberfläche (Navy) als Standard, helle Oberfläche über data-theme="light" (Schalter oben rechts).
+ * Ein Akzentton (Petrol) nur für aktive Zustände; auf Navy aufgehellt, damit er lesbar bleibt.
  * Status-Farben (grün = spricht/offen, rot = stumm/Fehler) sind semantisch und kein Akzent.
  */
 :root {
   color-scheme: dark;
 
-  --bg: #0d0f12;
-  --panel: #14171b;
-  --raised: #1a1e23;
-  --hover: #22272e;
-  --line: #262c33;
-  --line-strong: #39414b;
-  --line-hover: #4a535f;
-  --row-hover: rgb(255 255 255 / 0.02);
-  --text: #e8ebee;
-  --text-2: #aab3bd;
-  --text-3: #8a949f;
-  --stage: #07080a;
+  --bg: #0b1726;
+  --panel: #11243c;
+  --raised: #17364c;
+  --hover: #1c4058;
+  --line: #1e3a52;
+  --line-strong: #2c5069;
+  --line-hover: #3d6680;
+  --row-hover: rgb(255 255 255 / 0.03);
+  --text: #f2f2f2;
+  --text-2: #b4cbd1;
+  --text-3: #93b0b8;
+  --stage: #0b1726;
 
-  --accent: #f0b43c;
-  --accent-ink: #1b1405;
-  --accent-hover: #f6c25a;
-  --accent-soft: rgb(240 180 60 / 0.13);
-  --accent-line: rgb(240 180 60 / 0.5);
+  --accent: #3cb4bd;
+  --accent-ink: #072a2f;
+  --accent-hover: #5cc3cb;
+  --accent-soft: rgb(60 180 189 / 0.15);
+  --accent-line: rgb(60 180 189 / 0.55);
 
   --ok: #4cc38a;
   --ok-soft: rgb(76 195 138 / 0.14);
@@ -36,15 +37,19 @@
   --info: #8fb6e6;
   --info-soft: rgb(143 182 230 / 0.12);
 
-  --map-ocean: #0f1418;
-  --map-grid: #1b2329;
-  --map-land: #2a323b;
-  --map-borders: #151a1f;
+  --logo-a: #ffffff;
+  --logo-b: #ffffff;
+  --logo-b-tag: #a2bdc3;
+
+  --map-ocean: #0d1c2e;
+  --map-grid: #15293f;
+  --map-land: #25445c;
+  --map-borders: #0f2034;
   --map-outline: rgb(255 255 255 / 0.6);
   --map-states: rgb(255 255 255 / 0.16);
-  --map-dot-stroke: #0b0d10;
-  --overlay-bg: rgb(13 15 18 / 0.88);
-  --highlight-bg: rgb(13 15 19 / 0.95);
+  --map-dot-stroke: #0b1726;
+  --overlay-bg: rgb(11 23 38 / 0.88);
+  --highlight-bg: rgb(11 23 38 / 0.95);
 
   --font-ui: 'Barlow', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-cond: 'Barlow Semi Condensed', 'Barlow', 'Arial Narrow', system-ui, sans-serif;
@@ -70,39 +75,43 @@
 :root[data-theme='light'] {
   color-scheme: light;
 
-  --bg: #f3f4f6;
+  --bg: #f2f2f2;
   --panel: #ffffff;
-  --raised: #eceef1;
-  --hover: #e4e7eb;
-  --line: #dadee3;
-  --line-strong: #c2c8cf;
-  --line-hover: #a3abb5;
-  --row-hover: rgb(0 0 0 / 0.025);
-  --text: #15181c;
-  --text-2: #49525d;
-  --text-3: #66707b;
-  --stage: #07080a;
+  --raised: #e9eff1;
+  --hover: #dfe8eb;
+  --line: #d5e0e4;
+  --line-strong: #a2bdc3;
+  --line-hover: #86a5ad;
+  --row-hover: rgb(17 36 60 / 0.03);
+  --text: #11243c;
+  --text-2: #3d5568;
+  --text-3: #536a7a;
+  --stage: #0b1726;
 
-  --accent: #b7790a;
+  --accent: #026c75;
   --accent-ink: #ffffff;
-  --accent-hover: #a06806;
-  --accent-soft: rgb(183 121 10 / 0.12);
-  --accent-line: rgb(183 121 10 / 0.5);
+  --accent-hover: #01575f;
+  --accent-soft: rgb(2 108 117 / 0.1);
+  --accent-line: rgb(2 108 117 / 0.5);
 
-  --ok: #1d8553;
-  --ok-soft: rgb(29 133 83 / 0.1);
+  --ok: #17734a;
+  --ok-soft: rgb(23 115 74 / 0.1);
   --danger: #c7323c;
   --danger-soft: rgb(199 50 60 / 0.09);
-  --warn: #b25a17;
-  --warn-soft: rgb(178 90 23 / 0.1);
+  --warn: #9c4f12;
+  --warn-soft: rgb(156 79 18 / 0.1);
   --info: #2c68ad;
   --info-soft: rgb(44 104 173 / 0.09);
 
-  --map-ocean: #e8eef3;
-  --map-grid: #d9e1e8;
-  --map-land: #c4ccd5;
-  --map-borders: #eef1f4;
-  --map-outline: #8d97a2;
+  --logo-a: #11243c;
+  --logo-b: #026c75;
+  --logo-b-tag: #026c75;
+
+  --map-ocean: #e6eef1;
+  --map-grid: #d8e3e7;
+  --map-land: #b9cdd3;
+  --map-borders: #f2f6f7;
+  --map-outline: #7f9aa3;
   --map-states: rgb(255 255 255 / 0.85);
   --map-dot-stroke: #ffffff;
   --overlay-bg: rgb(255 255 255 / 0.92);
@@ -111,24 +120,24 @@
 
 :root[data-theme='light'] :is(.presentation, .highlight-stage, .stage__screen, .theme-dark, .out--embedded) {
   color-scheme: dark;
-  --bg: #0d0f12;
-  --panel: #14171b;
-  --raised: #1a1e23;
-  --hover: #22272e;
-  --line: #262c33;
-  --line-strong: #39414b;
-  --line-hover: #4a535f;
-  --row-hover: rgb(255 255 255 / 0.02);
-  --text: #e8ebee;
-  --text-2: #aab3bd;
-  --text-3: #8a949f;
-  --stage: #07080a;
+  --bg: #0b1726;
+  --panel: #11243c;
+  --raised: #17364c;
+  --hover: #1c4058;
+  --line: #1e3a52;
+  --line-strong: #2c5069;
+  --line-hover: #3d6680;
+  --row-hover: rgb(255 255 255 / 0.03);
+  --text: #f2f2f2;
+  --text-2: #b4cbd1;
+  --text-3: #93b0b8;
+  --stage: #0b1726;
 
-  --accent: #f0b43c;
-  --accent-ink: #1b1405;
-  --accent-hover: #f6c25a;
-  --accent-soft: rgb(240 180 60 / 0.13);
-  --accent-line: rgb(240 180 60 / 0.5);
+  --accent: #3cb4bd;
+  --accent-ink: #072a2f;
+  --accent-hover: #5cc3cb;
+  --accent-soft: rgb(60 180 189 / 0.15);
+  --accent-line: rgb(60 180 189 / 0.55);
 
   --ok: #4cc38a;
   --ok-soft: rgb(76 195 138 / 0.14);
@@ -139,15 +148,19 @@
   --info: #8fb6e6;
   --info-soft: rgb(143 182 230 / 0.12);
 
-  --map-ocean: #0f1418;
-  --map-grid: #1b2329;
-  --map-land: #2a323b;
-  --map-borders: #151a1f;
+  --logo-a: #ffffff;
+  --logo-b: #ffffff;
+  --logo-b-tag: #a2bdc3;
+
+  --map-ocean: #0d1c2e;
+  --map-grid: #15293f;
+  --map-land: #25445c;
+  --map-borders: #0f2034;
   --map-outline: rgb(255 255 255 / 0.6);
   --map-states: rgb(255 255 255 / 0.16);
-  --map-dot-stroke: #0b0d10;
-  --overlay-bg: rgb(13 15 18 / 0.88);
-  --highlight-bg: rgb(13 15 19 / 0.95);
+  --map-dot-stroke: #0b1726;
+  --overlay-bg: rgb(11 23 38 / 0.88);
+  --highlight-bg: rgb(11 23 38 / 0.95);
   color: var(--text);
 }
 

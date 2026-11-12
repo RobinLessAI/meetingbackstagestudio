@@ -1,50 +1,50 @@
 import type { CloudLook, GraphicLook, GraphicLooks, MapLook, PollLook, WheelLook } from '../state/types.ts';
 
-/** Gemeinsame Grundwerte: dunkle Box rechts, wie bisher. */
+/** Gemeinsame Grundwerte: Navy-Box rechts in den MeetingBackstage-Farben. */
 const BASE: GraphicLook = {
   position: 'mitte-rechts',
   width: 34,
   height: 0,
   marginX: 3,
   marginY: 6,
-  background: '#090a0d',
+  background: '#11243c',
   backgroundOpacity: 92,
   border: true,
-  borderColor: '#39414b',
+  borderColor: '#2c5069',
   corners: 'rund',
   shadow: false,
   padding: 100,
   font: 'standard',
   scale: 100,
-  text: '#e8ebee',
-  muted: '#8a949f',
-  accent: '#f0b43c',
+  text: '#f2f2f2',
+  muted: '#a2bdc3',
+  accent: '#3cb4bd',
   showTitle: true,
   title: '',
   titleAlign: 'links',
   showMeta: true,
   fullBackground: 'dunkel',
-  fullColor: '#07080a',
+  fullColor: '#0b1726',
   fullOpacity: 100,
 };
 
 export const DEFAULT_MAP_LOOK: MapLook = {
   ...BASE,
   height: 88,
-  land: '#2a323b',
-  ocean: '#0f1418',
+  land: '#25445c',
+  ocean: '#0d1c2e',
   oceanOpacity: 100,
-  borders: '#151a1f',
-  pin: '#f0b43c',
+  borders: '#0f2034',
+  pin: '#3cb4bd',
   pinSize: 100,
   showLabels: true,
-  labelColor: '#e8ebee',
+  labelColor: '#f2f2f2',
   showCounts: true,
 };
 
 export const DEFAULT_POLL_LOOK: PollLook = {
   ...BASE,
-  barColor: '#8f99a5',
+  barColor: '#7f9ba3',
   trackColor: '#ffffff',
   trackOpacity: 8,
   highlightLeader: true,
@@ -59,7 +59,7 @@ export const DEFAULT_POLL_LOOK: PollLook = {
 export const DEFAULT_CLOUD_LOOK: CloudLook = {
   ...BASE,
   colorMode: 'akzent',
-  wordColor: '#e8ebee',
+  wordColor: '#f2f2f2',
   maxWords: 40,
   minSize: 100,
   maxSize: 100,
@@ -74,25 +74,25 @@ export const DEFAULT_WHEEL_LOOK: WheelLook = {
   width: 46,
   height: 0,
   wheelColors: 'bunt',
-  wheelColorA: '#f0b43c',
-  wheelColorB: '#2a323b',
+  wheelColorA: '#0a747d',
+  wheelColorB: '#17364c',
   wheelText: '#ffffff',
-  wheelRim: '#e8ebee',
-  pointerColor: '#f0b43c',
+  wheelRim: '#f2f2f2',
+  pointerColor: '#3cb4bd',
   showWinner: true,
-  winnerBackground: '#f0b43c',
-  winnerText: '#1b1405',
+  winnerBackground: '#3cb4bd',
+  winnerText: '#072a2f',
 };
 
 export const DEFAULT_LOOKS: GraphicLooks = { karte: DEFAULT_MAP_LOOK, umfrage: DEFAULT_POLL_LOOK, wortwolke: DEFAULT_CLOUD_LOOK, gluecksrad: DEFAULT_WHEEL_LOOK };
 
 /** Vorlagen für die gemeinsamen Werte (Box, Text, Vollbild). Grafik-eigene Farben passen sich mit an. */
 export const LOOK_PRESETS: Array<{ id: string; label: string; look: Partial<MapLook & PollLook & CloudLook & WheelLook> }> = [
-  { id: 'dunkel', label: 'Dunkel', look: { background: '#090a0d', backgroundOpacity: 92, text: '#e8ebee', muted: '#8a949f', accent: '#f0b43c', borderColor: '#39414b', border: true, land: '#2a323b', ocean: '#0f1418', oceanOpacity: 100, borders: '#151a1f', labelColor: '#e8ebee', barColor: '#8f99a5', trackColor: '#ffffff', wordColor: '#e8ebee', wheelRim: '#e8ebee', wheelText: '#ffffff', fullBackground: 'dunkel' } },
-  { id: 'hell', label: 'Hell', look: { background: '#ffffff', backgroundOpacity: 96, text: '#15181c', muted: '#5b6570', accent: '#b7790a', borderColor: '#d5dae0', border: true, land: '#c9d0d8', ocean: '#eef2f6', oceanOpacity: 100, borders: '#ffffff', labelColor: '#15181c', barColor: '#7d8792', trackColor: '#000000', wordColor: '#15181c', wheelRim: '#15181c', wheelText: '#ffffff', fullBackground: 'farbe', fullColor: '#f3f4f6', fullOpacity: 100 } },
-  { id: 'glas', label: 'Glas', look: { background: '#0b0d12', backgroundOpacity: 55, text: '#ffffff', muted: '#c6ccd3', accent: '#ffd166', borderColor: '#ffffff', border: true, land: '#ffffff', ocean: '#000000', oceanOpacity: 0, borders: '#0b0d12', labelColor: '#ffffff', barColor: '#d8dde3', trackColor: '#ffffff', wordColor: '#ffffff', shadow: true, fullBackground: 'transparent' } },
-  { id: 'transparent', label: 'Ohne Box', look: { backgroundOpacity: 0, border: false, shadow: false, text: '#ffffff', muted: '#e1e5ea', accent: '#ffd166', ocean: '#000000', oceanOpacity: 0, land: '#ffffff', borders: '#000000', labelColor: '#ffffff', barColor: '#ffffff', wordColor: '#ffffff', fullBackground: 'transparent' } },
-  { id: 'akzent', label: 'Akzent', look: { background: '#f0b43c', backgroundOpacity: 100, text: '#1b1405', muted: '#4a3a12', accent: '#1b1405', borderColor: '#1b1405', border: false, land: '#1b1405', ocean: '#f0b43c', oceanOpacity: 0, borders: '#f0b43c', labelColor: '#1b1405', barColor: '#6b5418', trackColor: '#1b1405', wordColor: '#1b1405', corners: 'eckig', fullBackground: 'farbe', fullColor: '#f0b43c', fullOpacity: 100 } },
+  { id: 'dunkel', label: 'Navy', look: { background: '#11243c', backgroundOpacity: 92, text: '#f2f2f2', muted: '#a2bdc3', accent: '#3cb4bd', borderColor: '#2c5069', border: true, land: '#25445c', ocean: '#0d1c2e', oceanOpacity: 100, borders: '#0f2034', labelColor: '#f2f2f2', barColor: '#7f9ba3', trackColor: '#ffffff', wordColor: '#f2f2f2', wheelRim: '#f2f2f2', wheelText: '#ffffff', fullBackground: 'dunkel' } },
+  { id: 'hell', label: 'Hell', look: { background: '#ffffff', backgroundOpacity: 96, text: '#11243c', muted: '#536a7a', accent: '#026c75', borderColor: '#d5e0e4', border: true, land: '#b9cdd3', ocean: '#e6eef1', oceanOpacity: 100, borders: '#ffffff', labelColor: '#11243c', barColor: '#7f9ba3', trackColor: '#11243c', wordColor: '#11243c', wheelRim: '#11243c', wheelText: '#ffffff', fullBackground: 'farbe', fullColor: '#f2f2f2', fullOpacity: 100 } },
+  { id: 'glas', label: 'Glas', look: { background: '#0b1726', backgroundOpacity: 55, text: '#ffffff', muted: '#c9dade', accent: '#5cc3cb', borderColor: '#ffffff', border: true, land: '#ffffff', ocean: '#000000', oceanOpacity: 0, borders: '#0b1726', labelColor: '#ffffff', barColor: '#d6e3e6', trackColor: '#ffffff', wordColor: '#ffffff', shadow: true, fullBackground: 'transparent' } },
+  { id: 'transparent', label: 'Ohne Box', look: { backgroundOpacity: 0, border: false, shadow: false, text: '#ffffff', muted: '#e1ebee', accent: '#5cc3cb', ocean: '#000000', oceanOpacity: 0, land: '#ffffff', borders: '#000000', labelColor: '#ffffff', barColor: '#ffffff', wordColor: '#ffffff', fullBackground: 'transparent' } },
+  { id: 'akzent', label: 'Petrol', look: { background: '#026c75', backgroundOpacity: 100, text: '#ffffff', muted: '#cfe5e8', accent: '#ffffff', borderColor: '#ffffff', border: false, land: '#ffffff', ocean: '#026c75', oceanOpacity: 0, borders: '#026c75', labelColor: '#ffffff', barColor: '#a2bdc3', trackColor: '#ffffff', wordColor: '#ffffff', corners: 'eckig', fullBackground: 'farbe', fullColor: '#026c75', fullOpacity: 100 } },
 ];
 
 /** Gespeicherte Looks um neue Felder ergänzen. */

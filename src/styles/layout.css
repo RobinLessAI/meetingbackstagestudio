@@ -47,9 +47,10 @@
   min-height: 0;
 }
 .brand { display: flex; align-items: center; gap: 10px; padding: 2px 6px 6px; }
-.brand__text { display: flex; flex-direction: column; line-height: 1.1; }
-.brand__name { font-family: var(--font-cond); font-weight: 600; font-size: 1.125rem; letter-spacing: 0.02em; }
-.brand__tag { font-size: var(--fs-xs); color: var(--text-3); }
+.brand__mark { flex: none; display: block; }
+.brand__text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.brand__name { display: block; width: auto; max-width: 100%; }
+.brand__tag { font-family: var(--font-cond); font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--logo-b-tag, var(--text-3)); }
 
 .nav { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .nav__link {
@@ -323,7 +324,7 @@ button.topbar__chip:hover { background: var(--hover); color: var(--text); }
   border-radius: var(--r-sm);
   overflow: hidden;
   /* Schachbrett zeigt, dass die Ausgabe durchsichtig ist */
-  background: repeating-conic-gradient(#15181c 0% 25%, #101215 0% 50%) 50% / 16px 16px;
+  background: repeating-conic-gradient(#0f2033 0% 25%, #0b1828 0% 50%) 50% / 16px 16px;
 }
 .program-monitor__screen iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; color-scheme: normal; }
 .program-monitor__local { position: absolute; inset: 0; border: 0; border-radius: 0; background: transparent; padding: 0; }

@@ -17,4 +17,4 @@ export function inkFor(hex: string): string {
 }
 
 /** Gut unterscheidbare Farben für „bunt“ (Umfrage, Wortwolke). */
-export const PALETTE = ['#f0b43c', '#5fb3f0', '#7bd389', '#f07a8a', '#b48cf0', '#f0a35f', '#4fd1c5', '#e3e36a'];
+export const PALETTE = ['#3cb4bd', '#5fb3f0', '#7bd389', '#f07a8a', '#b48cf0', '#f0a35f', '#f0b43c', '#e3e36a'];
