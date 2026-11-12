@@ -48,7 +48,7 @@
     const code = Number(err && (err.errorCode ?? err.code));
     const text = String((err && (err.errorMessage || err.reason || err.message)) || '').trim();
     const hints = {
-      3712: 'Die Signatur wurde abgelehnt. Prüfe, ob in deiner Zoom-App das Meeting SDK eingeschaltet ist und Client-ID und Client-Geheimnis in .env.local stimmen.',
+      3712: 'Die Signatur wurde abgelehnt. Prüfe, ob in deiner Zoom-App das Meeting SDK eingeschaltet ist und Client-ID und Client-Geheimnis stimmen (lokal in .env.local, auf dem Server in /etc/meetingbackstage/studio.env).',
       3705: 'Die Signatur ist abgelaufen. Bitte erneut versuchen.',
       3004: 'Falscher Kenncode. Trage den Kenncode des Meetings in MeetingBackstage ein und öffne die Regie erneut.',
       3008: 'Das Meeting hat noch nicht begonnen. Starte zuerst das Meeting als Host.',
