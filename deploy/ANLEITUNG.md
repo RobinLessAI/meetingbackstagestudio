@@ -21,8 +21,7 @@ Die Datei ohne `.pub` bleibt geheim auf deinem Mac.
 
 1. <https://console.hetzner.cloud> → Projekt anlegen → **Server hinzufügen**.
 2. Standort: **Nürnberg** oder **Falkenstein**.
-3. Image: **Ubuntu 24.04**.
-4. Typ: der kleinste mit 2 vCPU und 4 GB RAM (x86 „CX“ oder Arm „CAX“, beides geht).
+4. Image **Ubuntu 24.04** (nicht 26.04). Typ: **CPX02** (1 GB) reicht zum Testen, **CPX12** (2 GB) für die ersten Kunden; später per Klick hochstufen. Das Skript legt eine Auslagerungsdatei an, damit das Bauen auch mit wenig Arbeitsspeicher klappt.
 5. **SSH-Key**: den kopierten Schlüssel aus Schritt 1 einfügen.
 6. **Backups** einschalten.
 7. Name z. B. `meetingbackstage-1` → **Erstellen**. Die **IPv4-Adresse** notieren.

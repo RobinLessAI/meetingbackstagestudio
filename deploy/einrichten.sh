@@ -40,6 +40,18 @@ apt-get update -q
 apt-get upgrade -yq
 apt-get install -yq git curl ufw fail2ban unattended-upgrades debian-keyring debian-archive-keyring apt-transport-https gnupg
 
+step "Auslagerungsdatei (2 GB), damit das Bauen auch auf kleinen Servern klappt"
+if ! swapon --show | grep -q '/swapfile'; then
+  if [[ ! -f /swapfile ]]; then
+    fallocate -l 2G /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile >/dev/null
+  fi
+  swapon /swapfile
+  grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+free -h | sed -n '1,3p'
+
 step "Automatische Sicherheitsupdates einschalten"
 dpkg-reconfigure -f noninteractive unattended-upgrades
 
