@@ -440,7 +440,8 @@ export type ViewId =
   | 'ausgabe'
   | 'integrationen'
   | 'spotlight'
-  | 'dran';
+  | 'dran'
+  | 'verwaltung';
 
 export type ParticipantFilter =
   | 'alle'

@@ -116,12 +116,18 @@ export function Output({ options }: { options: OutputOptions }) {
 
   useEffect(() => {
     // Die Programm-Vorschau in der App zählt nicht als OBS-Quelle.
-    const socket = openSyncSocket(new URLSearchParams(window.location.search).get('vorschau') === '1' ? 'vorschau' : 'ausgabe', {
-      onStatus: setStatus,
-      onMessage: (msg) => {
-        if (msg.type === 'snapshot' && msg.snapshot?.v === 1) setSnapshot(msg.snapshot);
+    const params = new URLSearchParams(window.location.search);
+    // Im Web-Modus steht der geheime Schlüssel des Kontos in der Adresse (k=…); in der App reicht die Anmeldung.
+    const socket = openSyncSocket(
+      params.get('vorschau') === '1' ? 'vorschau' : 'ausgabe',
+      {
+        onStatus: setStatus,
+        onMessage: (msg) => {
+          if (msg.type === 'snapshot' && msg.snapshot?.v === 1) setSnapshot(msg.snapshot);
+        },
       },
-    });
+      params.get('k'),
+    );
     return () => socket.close();
   }, []);
 

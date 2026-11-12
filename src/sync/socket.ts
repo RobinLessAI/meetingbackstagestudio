@@ -1,3 +1,4 @@
+import { isWeb } from '../web/mode.ts';
 // WebSocket-Verbindung zum lokalen MeetingBackstage-Server mit automatischem Wiederverbinden.
 
 export type SocketStatus = 'verbinde' | 'verbunden' | 'getrennt';
@@ -9,22 +10,28 @@ export interface SyncSocket {
 
 export type SyncRole = 'steuerung' | 'ausgabe' | 'vorschau';
 
-export function syncUrl(rolle: SyncRole): string {
+export function syncUrl(rolle: SyncRole, key?: string | null): string {
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${proto}://${window.location.host}/sync?rolle=${rolle}`;
+  return `${proto}://${window.location.host}/sync?rolle=${rolle}${key ? `&k=${encodeURIComponent(key)}` : ''}`;
 }
 
-/** Ob die Seite überhaupt von einem lokalen Server stammen kann (nicht z. B. als Datei oder fremde Seite). */
+/**
+ * Ob die Seite von einem MeetingBackstage-Server stammt (lokal oder im Web-Modus),
+ * nicht z. B. als Datei oder als reine Vorschau ohne Server.
+ */
 export const canUseLocalServer = () =>
-  ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) &&
-  window.location.protocol.startsWith('http');
+  window.location.protocol.startsWith('http') &&
+  (isWeb() || ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname));
 
 export function openSyncSocket(
   rolle: SyncRole,
   handlers: {
     onMessage: (msg: any) => void;
     onStatus: (status: SocketStatus) => void;
+    /** Vom Server getrennt mit Grund (4001 = Konto gesperrt/abgemeldet, 4003 = Schlüssel erneuert). */
+    onKicked?: (code: number) => void;
   },
+  key?: string | null,
 ): SyncSocket {
   let ws: WebSocket | null = null;
   let closed = false;
@@ -35,7 +42,7 @@ export function openSyncSocket(
     if (closed) return;
     handlers.onStatus('verbinde');
     try {
-      ws = new WebSocket(syncUrl(rolle));
+      ws = new WebSocket(syncUrl(rolle, key));
     } catch {
       schedule();
       return;
@@ -51,8 +58,9 @@ export function openSyncSocket(
         /* unvollständige Nachricht ignorieren */
       }
     };
-    ws.onclose = () => {
+    ws.onclose = (e) => {
       ws = null;
+      if (e.code === 4001 || e.code === 4003) handlers.onKicked?.(e.code);
       if (!closed) {
         handlers.onStatus('getrennt');
         schedule();

@@ -1,14 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { GraphicKind, ViewId } from './types.ts';
+import { currentUser, isWeb } from '../web/mode.ts';
 
 /** Alle Bereiche. demo = nur simuliert, standardmäßig ausgeblendet. */
-export const VIEWS: Array<{ id: ViewId; label: string; short: string; demo?: boolean }> = [
+export const VIEWS: Array<{ id: ViewId; label: string; short: string; demo?: boolean; admin?: boolean }> = [
   { id: 'meeting', label: 'Meeting', short: 'Meeting' },
   { id: 'grafiken', label: 'Live Grafiken', short: 'Grafiken' },
   { id: 'spotlight', label: 'Spotlight', short: 'Spotlight' },
   { id: 'dran', label: 'Wer war dran', short: 'Dran' },
   { id: 'ausgabe', label: 'OBS-Ausgabe', short: 'OBS' },
   { id: 'integrationen', label: 'Zoom & Einstellungen', short: 'Zoom' },
+  { id: 'verwaltung', label: 'Verwaltung', short: 'Verwaltung', admin: true },
   { id: 'veranstaltung', label: 'Veranstaltung', short: 'Start', demo: true },
   { id: 'teilnehmende', label: 'Teilnehmende', short: 'Personen', demo: true },
   { id: 'galerie', label: 'Galerie Studio', short: 'Galerie', demo: true },
@@ -90,7 +92,8 @@ export function UiProvider({ children }: { children: ReactNode }) {
   const [presentation, setPresentation] = useState<GraphicKind | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [showDemo, setShowDemoState] = useState(readDemo);
-  const views = useMemo(() => VIEWS.filter((v) => showDemo || !v.demo), [showDemo]);
+  // Verwaltung nur im Web-Modus für die Verwaltung sichtbar.
+  const views = useMemo(() => VIEWS.filter((v) => (showDemo || !v.demo) && (!v.admin || (isWeb() && !!currentUser()?.admin))), [showDemo]);
   const setShowDemo = useCallback((on: boolean) => {
     setShowDemoState(on);
     try {

@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { openInZoomApp } from '../lib/zoomLink.ts';
+import { isWeb } from '../web/mode.ts';
 import { isTeamsLink, teamsAppUrl, teamsThreadId } from '../lib/teamsLink.ts';
 import { Badge, Button, Segmented } from '../components/ui.tsx';
 import { filterMeetings, type MeetingFilter } from './meetingFilter.ts';
@@ -89,7 +90,7 @@ export function MeetingLists({
   const [tab, setTabState] = useState<ListTab>(() => {
     try {
       const t = localStorage.getItem('mb-meeting-tab');
-      return t === 'teams' || t === 'gespeichert' ? t : 'zoom';
+      return (t === 'teams' && !isWeb()) || t === 'gespeichert' ? (t as ListTab) : 'zoom';
     } catch {
       return 'zoom';
     }
@@ -114,15 +115,17 @@ export function MeetingLists({
         >
           <Repeat size={15} aria-hidden /> Aus meinem Zoom-Konto
         </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'teams'}
-          className={`tab${tab === 'teams' ? ' is-active' : ''}`}
-          onClick={() => setTab('teams')}
-        >
-          <Users size={15} aria-hidden /> Aus Microsoft Teams
-        </button>
+        {!isWeb() && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'teams'}
+            className={`tab${tab === 'teams' ? ' is-active' : ''}`}
+            onClick={() => setTab('teams')}
+          >
+            <Users size={15} aria-hidden /> Aus Microsoft Teams
+          </button>
+        )}
         <button
           type="button"
           role="tab"
@@ -354,6 +357,15 @@ function ZoomMeetings({ onJoin, disabled }: { onJoin: JoinFn; disabled: boolean 
   }, [connected, zoomMeetings.at, zoomMeetings.loading, loadZoomMeetings]);
 
   if (!available) return <p className="subtle meet-list__empty">Nur in der App auf dem Mac verfügbar.</p>;
+
+  if (!account?.redirectConfigured && isWeb()) {
+    return (
+      <div className="meet-list">
+        <p className="muted">Bald kannst du hier dein Zoom-Konto mit einem Klick verbinden. Dann erscheinen deine geplanten Meetings in dieser Liste.</p>
+        <p className="field-hint">Bis dahin: Meeting-Link unten bei „Per Link verbinden“ einfügen oder unter „Meine Veranstaltungen“ speichern.</p>
+      </div>
+    );
+  }
 
   if (!account?.redirectConfigured) {
     return (

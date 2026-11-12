@@ -1,6 +1,6 @@
 /** Adresse des Präsentationsfensters (Bildschirmfreigabe ohne OBS). */
-export function presentationUrl(baseUrl: string): string {
-  return `${baseUrl}/ausgabe.html?modus=praesentation`;
+export function presentationUrl(baseUrl: string, key?: string | null): string {
+  return `${baseUrl}/ausgabe.html?modus=praesentation${key ? `&k=${encodeURIComponent(key)}` : ''}`;
 }
 
 /** Öffnet das Präsentationsfenster als eigenes Browserfenster, damit es sich in Zoom einzeln freigeben lässt. */

@@ -63,7 +63,7 @@ export function PortalWindow({
     if (focusPortalWindow(name)) return;
     const win = window.open('', name, `width=${width},height=${height}`);
     if (!win) {
-      notify('Das Fenster wurde blockiert. Bitte Pop-ups für localhost erlauben.', 'fehler');
+      notify('Das Fenster wurde blockiert. Bitte Pop-ups für diese Seite erlauben.', 'fehler');
       onClosed();
       return;
     }

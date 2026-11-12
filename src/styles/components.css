@@ -407,6 +407,8 @@
 .callout--danger svg { color: var(--danger); }
 .callout--accent { border-color: var(--accent-line); background: var(--accent-soft); }
 .callout--accent svg { color: var(--accent); }
+.callout--ok { border-color: rgb(76 195 138 / 0.45); background: var(--ok-soft); }
+.callout--ok svg { color: var(--ok); }
 
 .avatar {
   display: inline-grid;

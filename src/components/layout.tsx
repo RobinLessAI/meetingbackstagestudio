@@ -12,6 +12,7 @@ import {
   Sparkles,
   Star,
   ListChecks,
+  ShieldCheck,
   Sun,
   Users,
   Video,
@@ -29,6 +30,7 @@ import { GRAPHIC_PAGES } from '../views/graphics/pages.ts';
 import { useGraphicCounts } from '../views/graphics/counts.ts';
 import { regieLabel } from './LiveChat.tsx';
 import { ProgramMonitor } from './ProgramMonitor.tsx';
+import { AccountMenu } from '../web/AccountMenu.tsx';
 import { DemoTag, Dialog, Kbd, Switch } from './ui.tsx';
 
 const ICONS: Record<ViewId, LucideIcon> = {
@@ -43,6 +45,7 @@ const ICONS: Record<ViewId, LucideIcon> = {
   integrationen: Plug,
   spotlight: Star,
   dran: ListChecks,
+  verwaltung: ShieldCheck,
 };
 
 export function Brand() {
@@ -275,6 +278,7 @@ export function TopBar() {
         <button type="button" className="icon-btn" onClick={() => setHelpOpen(true)} aria-label="Tastenkürzel anzeigen" title="Tastenkürzel (?)">
           <CircleHelp size={18} aria-hidden />
         </button>
+        <AccountMenu />
       </div>
     </header>
   );

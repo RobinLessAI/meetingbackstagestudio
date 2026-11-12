@@ -5,6 +5,7 @@ import { useStore } from '../state/store.tsx';
 import { useUi } from '../state/ui.tsx';
 import { useSync, type RegieStatus, type TeamsStatus } from '../sync/SyncProvider.tsx';
 import { Badge, Button, DemoTag, Field, Panel, Switch } from './ui.tsx';
+import { isWeb } from '../web/mode.ts';
 
 export function regieLabel(
   r: RegieStatus | null,
@@ -81,7 +82,7 @@ export function RegieStart({ compact = false }: { compact?: boolean }) {
     } catch {
       /* optional */
     }
-    if (!openRegie(meeting, passcode)) notify('Das Regie-Fenster wurde blockiert. Bitte Pop-ups für localhost erlauben.', 'fehler');
+    if (!openRegie(meeting, passcode)) notify('Das Regie-Fenster wurde blockiert. Bitte Pop-ups für diese Seite erlauben.', 'fehler');
   };
 
   if (!regie.configured) {
@@ -92,6 +93,8 @@ export function RegieStart({ compact = false }: { compact?: boolean }) {
           <>
             Das Zoom Meeting SDK fehlt. Im Terminal <code>npm install</code> ausführen und die App neu starten.
           </>
+        ) : isWeb() ? (
+          <>Zoom ist auf dem Server noch nicht eingerichtet. Bitte wende dich an den Support.</>
         ) : (
           <>
             In <code>.env.local</code> fehlt: {regie.missing.join(', ')}. Danach die App neu starten.
@@ -159,6 +162,38 @@ export function RegieStart({ compact = false }: { compact?: boolean }) {
 
 /** Einrichtung und Status des Live-Chats aus Zoom (Regie-Fenster über das Meeting SDK). */
 export function ZoomLiveChatSetup() {
+  return isWeb() ? <WebZoomSetup /> : <LocalZoomSetup />;
+}
+
+/** Web-Modus: alles läuft über den Server; hier nur Status und der Weg zur Seite „Meeting“. */
+function WebZoomSetup() {
+  const { regie, available } = useSync();
+  const { go } = useUi();
+  const l = regieLabel(regie, available);
+  return (
+    <Panel eyebrow="Zoom · Meeting SDK" title="Live-Chat aus Zoom" actions={<Badge tone={l.tone}>{l.text}</Badge>} className="zoom-setup">
+      <div className="stack">
+        <p className="muted">
+          „{regie?.name ?? 'MeetingBackstage (Regie)'}“ tritt deinem Meeting als sichtbarer Teilnehmer bei, ohne Kamera und Mikrofon, und liest den
+          Chat mit. Jede Nachricht an alle geht sofort an Weltkarte, Umfrage, Wortwolke und Glücksrad.
+        </p>
+        <div className="row">
+          <Button variant="primary" icon={MonitorPlay} onClick={() => go('meeting')}>
+            Zur Seite „Meeting“
+          </Button>
+        </div>
+        {regie?.appVersion && (
+          <p className="subtle mono version-line">
+            Version {regie.appVersion}
+            {regie.sdkVersion ? ` · Zoom SDK ${regie.sdkVersion}` : ''}
+          </p>
+        )}
+      </div>
+    </Panel>
+  );
+}
+
+function LocalZoomSetup() {
   const { regie, available, watch, startWatch, stopWatch, lastImport } = useSync();
   const { go } = useUi();
   const { notify } = useStore();

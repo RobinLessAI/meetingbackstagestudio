@@ -2,14 +2,16 @@ import { ObsOutputsPanel } from '../components/ObsOutputs.tsx';
 import { ProgramMonitor } from '../components/ProgramMonitor.tsx';
 import { RemoteControlPanel } from '../components/RemoteControl.tsx';
 import { Button, Panel } from '../components/ui.tsx';
-import { MonitorUp } from 'lucide-react';
+import { KeyRound, MonitorUp } from 'lucide-react';
+import { useState } from 'react';
+import { isWeb } from '../web/mode.ts';
 import { openPresentationWindow, presentationUrl } from '../lib/presentation.ts';
 import { useStore } from '../state/store.tsx';
 import { useSync } from '../sync/SyncProvider.tsx';
 
 /** OBS-Ausgabe: Programm-Vorschau, Erklärung, Adressen und Fernsteuerung. */
 export function ObsView() {
-  const { baseUrl, available } = useSync();
+  const { baseUrl, available, outputKey } = useSync();
   const { notify } = useStore();
   return (
     <div className="view">
@@ -62,7 +64,7 @@ export function ObsView() {
               icon={MonitorUp}
               disabled={!available}
               onClick={() => {
-                if (!openPresentationWindow(baseUrl)) notify('Das Fenster wurde blockiert. Bitte Pop-ups für localhost erlauben.', 'fehler');
+                if (!openPresentationWindow(baseUrl)) notify('Das Fenster wurde blockiert. Bitte Pop-ups für diese Seite erlauben.', 'fehler');
               }}
             >
               Präsentationsfenster öffnen
@@ -78,12 +80,52 @@ export function ObsView() {
           </li>
         </ol>
         <p className="field-hint">
-          Adresse zum Öffnen in einem anderen Browser: <code>{presentationUrl(baseUrl)}</code>
+          Adresse zum Öffnen in einem anderen Browser: <code>{presentationUrl(baseUrl, outputKey)}</code>
         </p>
       </Panel>
 
       <ObsOutputsPanel />
+      {isWeb() && <KeysPanel />}
       <RemoteControlPanel />
     </div>
+  );
+}
+
+/** Web-Modus: Schlüssel in den OBS- und Stream-Deck-Adressen erneuern. */
+function KeysPanel() {
+  const { renewKeys } = useSync();
+  const [confirm, setConfirm] = useState(false);
+  return (
+    <Panel eyebrow="Sicherheit" title="Geheime Adressen">
+      <p className="muted">
+        Deine OBS-Adressen und Stream-Deck-Adressen enthalten einen geheimen Schlüssel. Wer eine Adresse kennt, sieht deine Grafiken bzw. kann
+        Aktionen auslösen. Hast du eine Adresse versehentlich geteilt, erzeuge neue Schlüssel. Danach musst du die Adressen in OBS und im Stream
+        Deck neu eintragen; die alten funktionieren nicht mehr.
+      </p>
+      <div className="row">
+        {confirm ? (
+          <>
+            <span className="subtle">Wirklich? Alle bisherigen OBS- und Stream-Deck-Adressen hören sofort auf zu funktionieren.</span>
+            <Button
+              variant="danger"
+              icon={KeyRound}
+              onClick={() => {
+                renewKeys();
+                setConfirm(false);
+              }}
+            >
+              Ja, neue Schlüssel
+            </Button>
+            <Button variant="ghost" onClick={() => setConfirm(false)}>
+              Abbrechen
+            </Button>
+          </>
+        ) : (
+          <Button icon={KeyRound} onClick={() => setConfirm(true)}>
+            Neue Schlüssel erzeugen
+          </Button>
+        )}
+      </div>
+    </Panel>
   );
 }

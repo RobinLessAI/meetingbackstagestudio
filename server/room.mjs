@@ -92,7 +92,9 @@ export function createRoom({ id, dataDir, web, cfg, log: baseLog, keys, renewKey
   async function writeTemplates(list) {
     // Nur gültige Einträge, höchstens 200, damit die Datei überschaubar bleibt.
     const clean = (Array.isArray(list) ? list : [])
-      .filter((t) => t && typeof t.id === 'string' && typeof t.name === 'string' && typeof t.kind === 'string' && t.data && typeof t.data === 'object')
+      .filter(
+        (t) => t && typeof t.id === 'string' && typeof t.name === 'string' && typeof t.kind === 'string' && t.data && typeof t.data === 'object',
+      )
       .slice(0, 200)
       .map((t) => ({ id: t.id.slice(0, 64), name: t.name.slice(0, 60), kind: t.kind.slice(0, 20), data: t.data, at: Number(t.at) || Date.now() }));
     await fsp.mkdir(dataDir, { recursive: true });
@@ -206,7 +208,8 @@ export function createRoom({ id, dataDir, web, cfg, log: baseLog, keys, renewKey
   function regieJoin(meetingInput, passcodeInput) {
     const st = regieStatus();
     if (!st.sdkInstalled) throw new Error('Das Zoom Meeting SDK fehlt. Bitte im Terminal „npm install“ ausführen und neu starten.');
-    if (st.missing.length) throw new Error(web ? 'Zoom ist auf dem Server noch nicht eingerichtet.' : `In .env.local fehlt: ${st.missing.join(', ')}.`);
+    if (st.missing.length)
+      throw new Error(web ? 'Zoom ist auf dem Server noch nicht eingerichtet.' : `In .env.local fehlt: ${st.missing.join(', ')}.`);
     const { meetingId, passcode } = parseMeetingLink(meetingInput);
     if (!meetingId) throw new Error('Keine gültige Meeting-ID erkannt. Bitte den Zoom-Link oder die 9- bis 11-stellige Nummer einfügen.');
     return {
@@ -254,7 +257,9 @@ export function createRoom({ id, dataDir, web, cfg, log: baseLog, keys, renewKey
   function handleAttendees(msg) {
     if (!attendeesLogged && Array.isArray(msg.list) && msg.list.length && !web) {
       attendeesLogged = true;
-      log(`Regie: Teilnehmende im Rohformat: ${JSON.stringify(msg.list[0]).slice(0, 300)} · Regie: ${JSON.stringify(msg.self ?? null).slice(0, 200)}`);
+      log(
+        `Regie: Teilnehmende im Rohformat: ${JSON.stringify(msg.list[0]).slice(0, 300)} · Regie: ${JSON.stringify(msg.self ?? null).slice(0, 200)}`,
+      );
     }
     const next = normalizeAttendees(msg.list, msg.self, msg.spotlight);
     // Kennt diese SDK-Version keine Spotlight-Liste, die zuletzt bekannte behalten.
@@ -266,7 +271,8 @@ export function createRoom({ id, dataDir, web, cfg, log: baseLog, keys, renewKey
       if (u.muted === false && !micSince.has(u.userId)) micSince.set(u.userId, now);
       if (u.muted !== false) micSince.delete(u.userId);
     }
-    for (const map of [handSince, micSince, spokeAt]) for (const uid of [...map.keys()]) if (!next.list.some((u) => u.userId === uid)) map.delete(uid);
+    for (const map of [handSince, micSince, spokeAt])
+      for (const uid of [...map.keys()]) if (!next.list.some((u) => u.userId === uid)) map.delete(uid);
     zoomPeople = { ...next, at: now };
     broadcastPeople();
   }
@@ -459,7 +465,11 @@ export function createRoom({ id, dataDir, web, cfg, log: baseLog, keys, renewKey
         // Eine Person ins Spotlight (ersetzt) oder dazu (add) oder heraus (remove); userId null = alle heraus.
         const operate = msg.operate === 'add' || msg.operate === 'remove' ? msg.operate : 'replace';
         if (msg.userId === null || msg.userId === undefined) {
-          sendSpotlight(ws, zoomPeople.spotlight.map((uid) => ({ operate: 'remove', userId: uid })), 'Spotlight aufgehoben');
+          sendSpotlight(
+            ws,
+            zoomPeople.spotlight.map((uid) => ({ operate: 'remove', userId: uid })),
+            'Spotlight aufgehoben',
+          );
           break;
         }
         const person = zoomPeople.list.find((u) => u.userId === Number(msg.userId));
@@ -468,7 +478,11 @@ export function createRoom({ id, dataDir, web, cfg, log: baseLog, keys, renewKey
           break;
         }
         const label =
-          operate === 'remove' ? `${person.name} aus dem Spotlight genommen` : operate === 'add' ? `${person.name} zusätzlich im Spotlight` : `${person.name} im Spotlight`;
+          operate === 'remove'
+            ? `${person.name} aus dem Spotlight genommen`
+            : operate === 'add'
+              ? `${person.name} zusätzlich im Spotlight`
+              : `${person.name} im Spotlight`;
         sendSpotlight(ws, [{ operate, userId: person.userId }], label);
         break;
       }
@@ -489,7 +503,12 @@ export function createRoom({ id, dataDir, web, cfg, log: baseLog, keys, renewKey
         break;
       case 'teams-live-start':
         if (!teamsEnabled || !teamsAccount.status().connected) {
-          send(ws, { type: 'error', message: teamsEnabled ? 'Bitte zuerst unter „Aus Microsoft Teams“ mit Microsoft anmelden.' : 'Microsoft Teams ist in der Web-Version noch nicht verfügbar.' });
+          send(ws, {
+            type: 'error',
+            message: teamsEnabled
+              ? 'Bitte zuerst unter „Aus Microsoft Teams“ mit Microsoft anmelden.'
+              : 'Microsoft Teams ist in der Web-Version noch nicht verfügbar.',
+          });
           break;
         }
         teamsLive.start(String(msg.link ?? ''), String(msg.topic ?? ''));
@@ -625,7 +644,10 @@ export function createRoom({ id, dataDir, web, cfg, log: baseLog, keys, renewKey
     action(actionId) {
       if (!/^[a-z0-9-]{2,40}$/.test(actionId)) return { status: 400, body: { ok: false, fehler: 'Unbekannte Aktion.' } };
       // Nur an eine Steuerung schicken (die zuletzt geöffnete), sonst würde doppelt umgeschaltet.
-      const target = [...roles.entries()].filter(([, r]) => r === 'steuerung').map(([ws]) => ws).pop();
+      const target = [...roles.entries()]
+        .filter(([, r]) => r === 'steuerung')
+        .map(([ws]) => ws)
+        .pop();
       if (!target) return { status: 409, body: { ok: false, fehler: 'Die Steuerung ist nicht geöffnet. Bitte MeetingBackstage im Browser öffnen.' } };
       send(target, { type: 'aktion', id: actionId });
       return { status: 200, body: { ok: true, aktion: actionId } };

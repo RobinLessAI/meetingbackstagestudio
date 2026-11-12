@@ -12,6 +12,7 @@ import { DEFAULT_VIEW, UiProvider, useUi, VIEWS } from './state/ui.tsx';
 import { ObsView } from './views/ObsView.tsx';
 import { SpotlightView } from './views/SpotlightView.tsx';
 import { RosterView } from './views/RosterView.tsx';
+import { AdminView } from './web/AdminView.tsx';
 import { RosterPopupWindow, useRosterSync } from './components/RosterList.tsx';
 import { MeetingView } from './views/MeetingView.tsx';
 import { AudioView } from './views/AudioView.tsx';
@@ -147,6 +148,7 @@ function Shell() {
         {view === 'meeting' && <MeetingView />}
         {view === 'spotlight' && <SpotlightView />}
         {view === 'dran' && <RosterView />}
+        {view === 'verwaltung' && <AdminView />}
       </main>
       <MuteAllDialog />
       <Presentation />

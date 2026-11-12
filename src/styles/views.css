@@ -1385,3 +1385,32 @@ a.icon-btn { text-decoration: none; }
 .request__tag--mic { background: color-mix(in srgb, #5fb3f0 24%, transparent); color: var(--text); }
 .request__tag--on { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--text); }
 .request__actions { display: flex; align-items: center; gap: 4px; flex: none; }
+
+/* Anmeldung (Web-Modus) */
+.auth { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 32px 16px; background: var(--bg); box-sizing: border-box; }
+.auth--loading { background: var(--bg); }
+.auth__card { width: min(440px, 100%); display: flex; flex-direction: column; gap: 16px; padding: 28px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); box-sizing: border-box; }
+.auth__title { margin: 4px 0 0; font-size: 22px; }
+.auth__tabs { margin: 0 -4px; }
+.auth__form { display: flex; flex-direction: column; gap: 14px; }
+.auth__form .btn { align-self: stretch; justify-content: center; }
+.auth__links { display: flex; justify-content: space-between; gap: 12px; }
+.auth__foot { font-size: var(--fs-sm); text-align: center; }
+
+/* Kontomenü */
+.account { position: relative; }
+.account__btn { display: inline-flex; align-items: center; gap: 6px; max-width: 220px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--raised); color: var(--text); font: inherit; font-size: var(--fs-sm); cursor: pointer; }
+.account__btn:hover { background: var(--hover); }
+.account__btn:focus-visible { outline: none; box-shadow: var(--focus); }
+.account__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account__menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 220px; display: flex; flex-direction: column; padding: 6px; border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--panel); box-shadow: 0 10px 30px rgb(0 0 0 / 0.35); }
+.account__email { margin: 4px 8px 6px; font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.account__item { display: flex; align-items: center; gap: 8px; padding: 8px; border: 0; border-radius: var(--r-sm); background: none; color: var(--text); font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; }
+.account__item:hover { background: var(--hover); }
+.account__item:focus-visible { outline: none; box-shadow: var(--focus); }
+
+/* Verwaltung */
+.admin__empty { padding: 16px; margin: 0; }
+.admin__who { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.admin__email { font-weight: 600; overflow-wrap: anywhere; }
+.admin__actions { flex-wrap: wrap; gap: 6px; }

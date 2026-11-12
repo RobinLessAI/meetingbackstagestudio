@@ -21,9 +21,9 @@ export const OBS_OUTPUTS: Array<{ id: string; label: string; desc: string; param
 
 /** OBS-Adresse für eine bestimmte Grafik (Vollbild). */
 export function useObsUrl(kind: GraphicKind | 'programm') {
-  const { baseUrl } = useSync();
+  const { baseUrl, outputKey } = useSync();
   const def = OBS_OUTPUTS.find((o) => o.id === kind) ?? OBS_OUTPUTS[0];
-  return outputUrl(baseUrl, def.params);
+  return outputUrl(baseUrl, def.params, outputKey);
 }
 
 export function CopyObsUrlButton({ kind }: { kind: GraphicKind }) {
@@ -43,7 +43,7 @@ export function CopyObsUrlButton({ kind }: { kind: GraphicKind }) {
 }
 
 export function ObsOutputsPanel() {
-  const { baseUrl, available, status, outputs } = useSync();
+  const { baseUrl, available, status, outputs, outputKey } = useSync();
   const { notify } = useStore();
   return (
     <Panel
@@ -73,7 +73,7 @@ export function ObsOutputsPanel() {
           </thead>
           <tbody>
             {OBS_OUTPUTS.map((o) => {
-              const url = outputUrl(baseUrl, o.params);
+              const url = outputUrl(baseUrl, o.params, outputKey);
               return (
                 <tr key={o.id}>
                   <th scope="row">

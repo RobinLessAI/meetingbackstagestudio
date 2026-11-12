@@ -7,6 +7,7 @@ import { useStore } from '../state/store.tsx';
 import { useUi } from '../state/ui.tsx';
 import { useSync, type RegieStatus, type TeamsLiveStatus } from '../sync/SyncProvider.tsx';
 import { isTeamsLink } from '../lib/teamsLink.ts';
+import { isWeb } from '../web/mode.ts';
 import { MeetingLists } from './MeetingLists.tsx';
 
 const readStored = (key: string) => {
@@ -88,7 +89,7 @@ export function MeetingView() {
     }
     if (isTeamsLink(link)) {
       if (!startTeamsLive(link, topic)) notify('Keine Verbindung zum Server.', 'fehler');
-    } else if (!openRegie(link, code ?? '')) notify('Das Regie-Fenster wurde blockiert. Bitte Pop-ups für localhost erlauben.', 'fehler');
+    } else if (!openRegie(link, code ?? '')) notify('Das Regie-Fenster wurde blockiert. Bitte Pop-ups für diese Seite erlauben.', 'fehler');
     // Fortschritt und Meldungen stehen in der Karte unten: dorthin scrollen.
     document.getElementById('meet-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -114,7 +115,8 @@ export function MeetingView() {
     }
     if (!regie) return 'Verbinde mit dem Server …';
     if (!regie.sdkInstalled) return 'Das Zoom Meeting SDK fehlt. Im Terminal „npm install“ ausführen und die App neu starten.';
-    if (regie.missing.length) return `In .env.local fehlt: ${regie.missing.join(', ')}. Danach die App neu starten.`;
+    if (regie.missing.length)
+      return isWeb() ? 'Zoom ist auf dem Server noch nicht eingerichtet. Bitte wende dich an den Support.' : `In .env.local fehlt: ${regie.missing.join(', ')}. Danach die App neu starten.`;
     return null;
   }
   const blocker = blockerFor(meeting);

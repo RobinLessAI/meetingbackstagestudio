@@ -16,7 +16,10 @@ export const MIN_PASSWORD = 10;
 
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
 const token = () => crypto.randomBytes(32).toString('base64url');
-export const normalizeEmail = (e) => String(e ?? '').trim().toLowerCase();
+export const normalizeEmail = (e) =>
+  String(e ?? '')
+    .trim()
+    .toLowerCase();
 const validEmail = (e) => /^[^\s@]{1,64}@[^\s@]{1,255}\.[a-z]{2,}$/i.test(e) && e.length <= 254;
 
 function scrypt(password, salt) {
@@ -127,18 +130,25 @@ export function createAccounts({ dir, adminEmails = [], log = () => {}, now = ()
     async register({ email, password, name }) {
       const e = normalizeEmail(email);
       if (!validEmail(e)) throw new AccountError('email', 'Bitte eine gültige E-Mail-Adresse eingeben.');
-      if (String(password ?? '').length < MIN_PASSWORD) throw new AccountError('passwort', `Das Passwort braucht mindestens ${MIN_PASSWORD} Zeichen.`);
+      if (String(password ?? '').length < MIN_PASSWORD)
+        throw new AccountError('passwort', `Das Passwort braucht mindestens ${MIN_PASSWORD} Zeichen.`);
       if (String(password).length > 200) throw new AccountError('passwort', 'Das Passwort ist zu lang.');
       const existing = byEmail(e);
       if (existing) {
         // Nicht verraten, ob es die Adresse schon gibt: gleiche Antwort, aber keine neue Mail mit Konto.
-        return { user: null, verifyToken: existing.verifiedAt ? null : issueToken(existing.id, 'bestaetigen', VERIFY_HOURS), existing: publicUser(existing) };
+        return {
+          user: null,
+          verifyToken: existing.verifiedAt ? null : issueToken(existing.id, 'bestaetigen', VERIFY_HOURS),
+          existing: publicUser(existing),
+        };
       }
       const isAdmin = admins.has(e);
       const user = {
         id: crypto.randomUUID(),
         email: e,
-        name: String(name ?? '').trim().slice(0, 80),
+        name: String(name ?? '')
+          .trim()
+          .slice(0, 80),
         hash: await hashPassword(password),
         createdAt: now(),
         verifiedAt: null,
@@ -170,9 +180,15 @@ export function createAccounts({ dir, adminEmails = [], log = () => {}, now = ()
       // Auch ohne Konto rechnen, damit die Antwortzeit nichts verrät.
       const ok = u ? await checkPassword(password, u.hash) : (await hashPassword(password), false);
       if (!u || !ok) throw new AccountError('falsch', 'E-Mail oder Passwort stimmt nicht.', 401);
-      if (!u.verifiedAt) throw new AccountError('unbestaetigt', 'Bitte zuerst die E-Mail-Adresse bestätigen. Der Link steht in der Mail nach der Registrierung.', 403);
+      if (!u.verifiedAt)
+        throw new AccountError('unbestaetigt', 'Bitte zuerst die E-Mail-Adresse bestätigen. Der Link steht in der Mail nach der Registrierung.', 403);
       if (u.status === 'gesperrt') throw new AccountError('gesperrt', 'Dieses Konto ist gesperrt. Bitte wende dich an den Support.', 403);
-      if (u.status !== 'aktiv') throw new AccountError('wartet', 'Dein Konto ist angelegt und wartet auf die Freischaltung. Du bekommst eine Mail, sobald es losgehen kann.', 403);
+      if (u.status !== 'aktiv')
+        throw new AccountError(
+          'wartet',
+          'Dein Konto ist angelegt und wartet auf die Freischaltung. Du bekommst eine Mail, sobald es losgehen kann.',
+          403,
+        );
       u.lastLoginAt = now();
       const t = newSession(u.id);
       await persist();
@@ -211,7 +227,8 @@ export function createAccounts({ dir, adminEmails = [], log = () => {}, now = ()
     },
 
     async resetPassword(t, password) {
-      if (String(password ?? '').length < MIN_PASSWORD) throw new AccountError('passwort', `Das Passwort braucht mindestens ${MIN_PASSWORD} Zeichen.`);
+      if (String(password ?? '').length < MIN_PASSWORD)
+        throw new AccountError('passwort', `Das Passwort braucht mindestens ${MIN_PASSWORD} Zeichen.`);
       const k = takeToken(t, 'passwort');
       const u = k && byId(k.userId);
       if (!u) throw new AccountError('link', 'Der Link ist ungültig oder abgelaufen. Bitte „Passwort vergessen“ erneut nutzen.');
@@ -225,7 +242,8 @@ export function createAccounts({ dir, adminEmails = [], log = () => {}, now = ()
     async changePassword(userId, oldPassword, newPassword) {
       const u = byId(userId);
       if (!u || !(await checkPassword(oldPassword, u.hash))) throw new AccountError('falsch', 'Das bisherige Passwort stimmt nicht.', 401);
-      if (String(newPassword ?? '').length < MIN_PASSWORD) throw new AccountError('passwort', `Das Passwort braucht mindestens ${MIN_PASSWORD} Zeichen.`);
+      if (String(newPassword ?? '').length < MIN_PASSWORD)
+        throw new AccountError('passwort', `Das Passwort braucht mindestens ${MIN_PASSWORD} Zeichen.`);
       u.hash = await hashPassword(newPassword);
       await persist();
     },

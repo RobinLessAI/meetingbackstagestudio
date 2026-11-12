@@ -156,6 +156,10 @@ interface SyncValue {
   saveTemplates: (list: StyleTemplate[]) => void;
   /** Schlüssel für Aktions-Adressen (Stream Deck), null ohne Server. */
   actionKey: string | null;
+  /** Geheimer Teil der OBS-Adressen (nur Web-Modus). */
+  outputKey: string | null;
+  /** Neue Schlüssel für OBS und Stream Deck (alte Adressen gelten danach nicht mehr). */
+  renewKeys: () => void;
   /** Empfänger für Aktionen, die über den Server ankommen (Stream Deck). */
   setActionHandler: (handler: ((id: string) => void) | null) => void;
 }
@@ -173,6 +177,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [lastImport, setLastImport] = useState<SyncValue['lastImport']>(null);
   const [regie, setRegie] = useState<RegieStatus | null>(null);
   const [actionKey, setActionKey] = useState<string | null>(null);
+  const [outputKey, setOutputKey] = useState<string | null>(null);
   const [zoomMeetings, setZoomMeetings] = useState<ZoomMeetingsState>({ loading: false, meetings: [], error: null, at: null });
   const [teams, setTeams] = useState<TeamsStatus | null>(null);
   const [zoomPeople, setZoomPeople] = useState<ZoomPeopleStatus>({ list: [], spotlight: [], spotlightKnown: false, role: 'unbekannt', at: null });
@@ -209,6 +214,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         if (msg.teams) setTeams(msg.teams);
         if (msg.zoomTeilnehmende) setZoomPeople(msg.zoomTeilnehmende);
         if (msg.aktionSchluessel) setActionKey(msg.aktionSchluessel);
+        setOutputKey(msg.ausgabeSchluessel ?? null);
         if (Array.isArray(msg.vorlagen)) setTemplates(msg.vorlagen);
         const saved = msg.saved?.state as Partial<AppState> | undefined;
         // Eine eigene Veranstaltung nach Neuladen oder Absturz automatisch wiederherstellen.
@@ -279,6 +285,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         connectWaiter.current?.({ ok: Boolean(msg.ok), message: String(msg.message ?? '') });
         connectWaiter.current = null;
         break;
+      case 'schluessel':
+        setActionKey(msg.aktionSchluessel ?? null);
+        setOutputKey(msg.ausgabeSchluessel ?? null);
+        notify('Neue Schlüssel erzeugt. Bitte die OBS-Adressen und Stream-Deck-Tasten neu eintragen.', 'warnung');
+        break;
       case 'vorlagen':
         if (Array.isArray(msg.vorlagen)) setTemplates(msg.vorlagen);
         break;
@@ -321,6 +332,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     const s = openSyncSocket('steuerung', {
       onStatus: setStatus,
       onMessage: (m) => onMessage.current(m),
+      // Im Web-Modus: Konto gesperrt oder Sitzung beendet → zurück zur Anmeldung.
+      onKicked: (code) => {
+        if (code === 4001) window.location.href = '/?hinweis=getrennt';
+      },
     });
     socket.current = s;
     return () => {
@@ -419,6 +434,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const setActionHandler = useCallback((handler: ((id: string) => void) | null) => {
     actionHandler.current = handler;
   }, []);
+  const renewKeys = useCallback(() => {
+    socket.current?.send({ type: 'schluessel-erneuern' });
+  }, []);
   const leaveRegie = useCallback(() => {
     socket.current?.send({ type: 'regie-leave' });
   }, []);
@@ -438,6 +456,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       openRegie,
       leaveRegie,
       actionKey,
+      outputKey,
+      renewKeys,
       setActionHandler,
       templates,
       saveTemplates,
@@ -456,7 +476,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       startTeamsLive,
       stopTeamsLive,
     }),
-    [teams, zoomPeople, spotlightZoom, refreshZoomPeople, teamsMeetings, loadTeamsMeetings, disconnectTeams, startTeamsLive, stopTeamsLive, regie, available, status, outputs, savedAt, watch, lastImport, startWatch, stopWatch, openRegie, leaveRegie, actionKey, setActionHandler, templates, saveTemplates, zoomMeetings, loadZoomMeetings, requestAuthUrl, connectZoom, disconnectZoom],
+    [teams, zoomPeople, spotlightZoom, refreshZoomPeople, teamsMeetings, loadTeamsMeetings, disconnectTeams, startTeamsLive, stopTeamsLive, regie, available, status, outputs, savedAt, watch, lastImport, startWatch, stopWatch, openRegie, leaveRegie, actionKey, outputKey, renewKeys, setActionHandler, templates, saveTemplates, zoomMeetings, loadZoomMeetings, requestAuthUrl, connectZoom, disconnectZoom],
   );
   return <SyncCtx.Provider value={value}>{children}</SyncCtx.Provider>;
 }
@@ -467,7 +487,9 @@ export function useSync(): SyncValue {
   return v;
 }
 
-/** OBS-Adresse für eine Grafik. */
-export function outputUrl(base: string, params: Record<string, string>): string {
-  return `${base}/ausgabe.html?${new URLSearchParams(params).toString()}`;
+/** OBS-Adresse für eine Grafik; im Web-Modus mit dem geheimen Schlüssel des Kontos. */
+export function outputUrl(base: string, params: Record<string, string>, key?: string | null): string {
+  const q = new URLSearchParams(params);
+  if (key) q.set('k', key);
+  return `${base}/ausgabe.html?${q.toString()}`;
 }

@@ -37,6 +37,36 @@ Die App startet leer mit der Seite **Meeting** (Zoom-Link eingeben) und zeigt da
 
 Der Server ist nur auf diesem Rechner erreichbar. Eine eigene Veranstaltung („Veranstaltung“ → „Neue Veranstaltung“) wird automatisch unter `daten/veranstaltung.json` gespeichert und nach einem Neustart wiederhergestellt.
 
+## Web-Modus mit Kundenkonten (in Arbeit)
+
+Für den späteren Betrieb unter `studio.meetingbackstage.de` gibt es einen Web-Modus: Kundinnen und Kunden legen ein Konto an,
+bestätigen ihre E-Mail-Adresse, du schaltest sie frei, und jedes Konto hat seine eigenen Veranstaltungen, Vorlagen, OBS-Adressen
+und Stream-Deck-Tasten. Die lokale Version (`npm start`) bleibt davon unberührt.
+
+Auf dem eigenen Rechner ausprobieren (Daten landen getrennt in `daten/web/` und `daten/konten/`):
+
+```
+MB_WEB=1 MB_ADMIN_EMAILS=deine@adresse.de npm start
+```
+
+1. `http://localhost:4300` öffnen, **Konto anlegen** mit der Adresse aus `MB_ADMIN_EMAILS`.
+2. Mails werden noch nicht verschickt: Der Bestätigungslink steht im Terminal-Hinweis bzw. in `daten/web/mails.log`. Link öffnen,
+   dann anmelden. Diese Adresse ist die **Verwaltung** und sofort freigeschaltet.
+3. In einem zweiten Browser (oder privaten Fenster) ein weiteres Konto anlegen und bestätigen. Es wartet dann auf Freischaltung:
+   unter **Verwaltung** freischalten, sperren, entsperren oder löschen.
+
+Was der Web-Modus anders macht:
+- Ohne Anmeldung kein Zugriff. Sitzungen gelten 30 Tage, Passwörter werden nur als Hash gespeichert, nach 8 falschen Versuchen ist
+  15 Minuten Pause.
+- OBS-Adressen enthalten einen geheimen Schlüssel (`…&k=…`), Stream-Deck-Adressen ebenso. Unter „OBS-Ausgabe → Geheime Adressen“
+  lassen sie sich erneuern.
+- **Sperren** trennt sofort alle Fenster des Kontos (Steuerung, Regie, OBS, Stream Deck), **Löschen** entfernt auch alle Daten.
+- Chatnachrichten werden nicht gespeichert, nur während der Sitzung gehalten.
+- Chat-Export aus dem Zoom-Ordner und Microsoft Teams gibt es nur in der lokalen Version.
+
+Weitere Einstellungen für den Server: `MB_PUBLIC_URL` (öffentliche Adresse, z. B. `https://studio.meetingbackstage.de`),
+`MB_TRUST_PROXY=1` (hinter einem Proxy mit https), `MB_HOST`, `PORT`.
+
 ## Grafiken in OBS einbinden
 
 1. In OBS: Quelle hinzufügen → **Browser**.
