@@ -134,11 +134,24 @@ Einmalig in deiner Zoom-App auf <https://marketplace.zoom.us> → **Manage** →
 nur für dein eigenes Zoom-Konto. Für Kunden mit eigenem Zoom-Konto muss die App veröffentlicht werden (auf Wunsch nicht öffentlich
 gelistet). Ohne Veröffentlichung meldet die Regie „Zoom erlaubt der Regie noch keine Meetings anderer Zoom-Konten“.
 
+## 8. Hauptseite meetingbackstage.de
+
+Die Hauptseite liegt im Repository unter `website/` (Texte in `website/seiten/`, Aussehen in `website/assets/site.css`).
+`mb-aktualisieren` baut sie bei jedem Update und veröffentlicht sie nach `/var/www/meetingbackstage`. Dabei hält es auch die
+Webserver-Konfiguration aktuell (www → ohne www, eigene 404-Seite, Sicherheits-Header). Die Konfiguration wird vor dem Übernehmen
+geprüft; ist sie fehlerhaft, bleibt die bisherige aktiv. Die vorherige Fassung liegt in `/etc/caddy/Caddyfile.vorher`.
+
+**Vor dem Veröffentlichen ausfüllen:** Impressum, Datenschutz und Nutzungsbedingungen enthalten gelb markierte Lücken (Name,
+Anschrift usw.). `npm run website` zeigt an, wie viele noch offen sind. Die Rechtstexte sind Entwürfe und sollten geprüft werden.
+
+**Kontaktadresse:** Die Seite nennt `info@meetingbackstage.de`. In der konsoleH eine Mailbox oder Weiterleitung mit dieser Adresse anlegen.
+
 ## Im Alltag
 
 | Was | Befehl auf dem Server |
 | --- | --- |
 | Neue Version einspielen (nicht während eines Workshops) | `mb-aktualisieren` |
+| Nur Hauptseite/Webserver neu veröffentlichen | `bash /opt/meetingbackstage/deploy/webserver.sh` |
 | Läuft es? | `systemctl status meetingbackstage` |
 | Protokoll live ansehen | `journalctl -u meetingbackstage -f` |
 | Einstellungen ändern | `nano /etc/meetingbackstage/studio.env`, danach `systemctl restart meetingbackstage` |

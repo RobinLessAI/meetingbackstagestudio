@@ -233,3 +233,7 @@ meetingbackstagestudio/
 - Symbole: Lucide (ISC). WebSocket: `ws` (MIT).
 - Zoom Meeting SDK für Web (`@zoom/meetingsdk`), es gelten die Nutzungsbedingungen von Zoom.
 - Personen und Inhalte der Beispieldaten sind erfunden.
+
+## Hauptseite (meetingbackstage.de)
+
+Statische Seite in `website/`: Inhalte in `website/seiten/*.html` (Kopf mit `pfad`, `titel`, `beschreibung`), Stil in `website/assets/site.css`, Logos und Schrift (Urbanist, frei lizenziert) in `website/assets/`. `npm run website` baut nach `website/dist` (inklusive `sitemap.xml`, `robots.txt`), auf dem Server erledigt das `mb-aktualisieren` über `deploy/webserver.sh`.

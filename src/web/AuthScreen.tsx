@@ -24,7 +24,8 @@ const HINTS: Record<string, { tone: 'ok' | 'warn'; text: string }> = {
 export function AuthScreen({ minPassword }: { minPassword: number }) {
   const params = new URLSearchParams(window.location.search);
   const resetToken = params.get('passwort');
-  const [mode, setMode] = useState<Mode>(resetToken ? 'neu' : 'anmelden');
+  // ?konto=neu (Link „Konto anlegen“ auf meetingbackstage.de) öffnet direkt die Registrierung
+  const [mode, setMode] = useState<Mode>(resetToken ? 'neu' : params.get('konto') === 'neu' ? 'registrieren' : 'anmelden');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [password2, setPassword2] = useState('');
@@ -37,7 +38,7 @@ export function AuthScreen({ minPassword }: { minPassword: number }) {
 
   // Hinweis aus der Adresse nur einmal zeigen; Adresse aufräumen (der Passwort-Link bleibt, bis er benutzt ist).
   useEffect(() => {
-    if (params.get('hinweis')) window.history.replaceState(null, '', resetToken ? `/?passwort=${resetToken}` : '/');
+    if (params.get('hinweis') || params.get('konto')) window.history.replaceState(null, '', resetToken ? `/?passwort=${resetToken}` : '/');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

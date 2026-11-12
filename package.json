@@ -12,7 +12,8 @@
     "test": "node --test --no-warnings=ExperimentalWarning \"tests/*.test.ts\"",
     "map:generate": "node scripts/generate-world-map.mjs",
     "start": "npm run build && node server/server.mjs",
-    "server": "node server/server.mjs"
+    "server": "node server/server.mjs",
+    "website": "node website/bauen.mjs"
   },
   "dependencies": {
     "@fontsource/barlow": "^5.3.0",

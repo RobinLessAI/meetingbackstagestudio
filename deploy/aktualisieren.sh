@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# MeetingBackstage Studio – neue Version vom GitHub holen, bauen und neu starten.
+# MeetingBackstage Studio – neue Version vom GitHub holen, bauen, Hauptseite veröffentlichen und neu starten.
 # Aufruf auf dem Server: mb-aktualisieren
 # Achtung: Der Neustart trennt laufende Verbindungen kurz (Regie, OBS verbinden sich selbst neu).
 # Deshalb nicht während eines Workshops ausführen.
@@ -21,6 +21,8 @@ fi
 echo "Aktualisiere $old → $new …"
 sudo -u "$APP_USER" bash -c "cd '$APP_DIR' && npm ci --no-audit --no-fund && npm run build"
 cp "$APP_DIR/deploy/aktualisieren.sh" /usr/local/bin/mb-aktualisieren
+# Hauptseite (meetingbackstage.de) bauen und veröffentlichen, Webserver-Konfiguration aktuell halten
+bash "$APP_DIR/deploy/webserver.sh" || echo "Hinweis: Hauptseite/Webserver nicht aktualisiert (siehe Meldung oben). Das Studio läuft trotzdem weiter."
 systemctl restart meetingbackstage
 sleep 2
 curl -fsS http://127.0.0.1:4300/api/status && echo && echo "Läuft mit Version $new."

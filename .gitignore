@@ -6,3 +6,4 @@ dist
 # Zugangsdaten und gespeicherte Veranstaltungen bleiben lokal
 .env.local
 daten/
+website/dist

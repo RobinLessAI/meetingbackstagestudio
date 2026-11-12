@@ -8,7 +8,7 @@
 #
 # 1. Parameter: Adresse des Studios (DNS-Eintrag muss schon auf diesen Server zeigen)
 # 2. Parameter: deine E-Mail-Adresse (Verwaltung + Kontakt für das https-Zertifikat)
-# 3. Parameter (optional): Hauptdomain, zeigt vorerst eine einfache „Bald verfügbar“-Seite
+# 3. Parameter (optional): Hauptdomain (z. B. meetingbackstage.de) für die Hauptseite aus website/
 #
 # Das Skript lässt sich gefahrlos erneut ausführen.
 set -euo pipefail
@@ -38,7 +38,7 @@ step "System aktualisieren und Grundpakete installieren"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -q
 apt-get upgrade -yq
-apt-get install -yq git curl ufw fail2ban unattended-upgrades debian-keyring debian-archive-keyring apt-transport-https gnupg
+apt-get install -yq git curl rsync ufw fail2ban unattended-upgrades debian-keyring debian-archive-keyring apt-transport-https gnupg
 
 step "Auslagerungsdatei (2 GB), damit das Bauen auch auf kleinen Servern klappt"
 if ! swapon --show | grep -q '/swapfile'; then
@@ -175,40 +175,11 @@ systemctl daemon-reload
 systemctl enable meetingbackstage >/dev/null
 systemctl restart meetingbackstage
 
-step "Webserver mit https"
-{
-  echo "{"
-  echo "  email $ADMIN_EMAIL"
-  echo "}"
-  echo
-  echo "$STUDIO_DOMAIN {"
-  echo "  encode zstd gzip"
-  echo "  reverse_proxy 127.0.0.1:4300"
-  echo "  header {"
-  echo "    Strict-Transport-Security \"max-age=31536000\""
-  echo "    -Server"
-  echo "  }"
-  echo "}"
-  if [[ -n "$MAIN_DOMAIN" ]]; then
-    echo
-    echo "$MAIN_DOMAIN, www.$MAIN_DOMAIN {"
-    echo "  root * /var/www/meetingbackstage"
-    echo "  file_server"
-    echo "  header -Server"
-    echo "}"
-  fi
-} > /etc/caddy/Caddyfile
-if [[ -n "$MAIN_DOMAIN" && ! -f /var/www/meetingbackstage/index.html ]]; then
-  mkdir -p /var/www/meetingbackstage
-  cat > /var/www/meetingbackstage/index.html <<HTML
-<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MeetingBackstage</title>
-<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#0d0f12;color:#e8ebee;font:16px system-ui,sans-serif;text-align:center">
-<div><h1 style="font-size:28px">MeetingBackstage</h1><p>Live-Grafiken und Regie für Zoom-Workshops. Bald verfügbar.</p>
-<p><a style="color:#f0b43c" href="https://$STUDIO_DOMAIN">Zum Studio</a></p></div></body></html>
-HTML
+step "Webserver mit https und Hauptseite"
+if [[ -n "$MAIN_DOMAIN" ]] && ! grep -q '^MB_MAIN_DOMAIN=' "$ENV_FILE"; then
+  echo "MB_MAIN_DOMAIN=$MAIN_DOMAIN" >> "$ENV_FILE"
 fi
-systemctl reload caddy || systemctl restart caddy
+bash "$APP_DIR/deploy/webserver.sh"
 
 step "Befehl für Updates: mb-aktualisieren"
 cp "$APP_DIR/deploy/aktualisieren.sh" /usr/local/bin/mb-aktualisieren
