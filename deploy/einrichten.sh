@@ -62,11 +62,18 @@ ufw allow 443/tcp >/dev/null
 ufw --force enable >/dev/null
 systemctl enable --now fail2ban >/dev/null
 
-step "Node.js 22 installieren"
-if ! command -v node >/dev/null || [[ "$(node -v)" != v22* ]]; then
-  curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-  apt-get install -yq nodejs
+step "Node.js installieren (mindestens Version 22)"
+node_ok() { command -v node >/dev/null && [[ "$(node -p 'process.versions.node.split(".")[0]')" -ge 22 ]]; }
+if ! node_ok; then
+  # Zuerst die offizielle Node-Quelle; klappt das nicht (z. B. bei ganz neuen Ubuntu-Versionen), das Paket von Ubuntu.
+  if ! { curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt-get install -yq nodejs; }; then
+    echo "Node-Quelle nicht verfügbar, nehme das Paket von Ubuntu …"
+    rm -f /etc/apt/sources.list.d/nodesource.list
+    apt-get update -q
+    apt-get install -yq nodejs npm
+  fi
 fi
+node_ok || { echo "Node.js 22 oder neuer ließ sich nicht installieren. Bitte die Meldungen oben an Claude schicken."; exit 1; }
 node -v
 
 step "Caddy (Webserver mit automatischem https) installieren"
