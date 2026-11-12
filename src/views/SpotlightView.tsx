@@ -1,6 +1,7 @@
 import { useId, useMemo, useState } from 'react';
 import { ArrowRight, CircleAlert, Copy, Crosshair, Crown, Hand, Mic, MicOff, Plus, RefreshCw, Star, StarOff, Video, VideoOff, X } from 'lucide-react';
 import { copyText } from '../components/LiveChat.tsx';
+import { RequestsPanel } from '../components/RequestsPanel.tsx';
 import { Badge, Button, Empty, IconButton, Kbd, Panel, Segmented } from '../components/ui.tsx';
 import { duration } from '../lib/time.ts';
 import { useNow, useStore } from '../state/store.tsx';
@@ -85,6 +86,8 @@ export function SpotlightView() {
           {zoomPeople.spotlight.length ? `${zoomPeople.spotlight.length} im Spotlight` : 'niemand im Spotlight'}
         </p>
       )}
+
+      <RequestsPanel />
 
       <div className="spot-mode">
         <Segmented<'mehrere' | 'eine'>

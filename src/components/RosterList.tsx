@@ -9,6 +9,7 @@ import { useZoomSpotlight } from '../state/zoomSpotlight.ts';
 import { useSync, type ZoomPerson } from '../sync/SyncProvider.tsx';
 import { Button, Empty, IconButton, Segmented, Switch } from './ui.tsx';
 import { focusPortalWindow, PortalWindow } from './PortalWindow.tsx';
+import { RequestsPanel } from './RequestsPanel.tsx';
 import { useUi } from '../state/ui.tsx';
 
 export const MARKS: Array<{ id: RosterMark; label: string; short: string; icon: typeof Mic }> = [
@@ -333,6 +334,7 @@ export function RosterPopupWindow() {
               Fenster schließen
             </Button>
           </header>
+          <RequestsPanel compact />
           <RosterList popup />
         </>
       )}

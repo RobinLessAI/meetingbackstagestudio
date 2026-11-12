@@ -69,12 +69,18 @@ export interface ZoomPerson {
   muted: boolean | null;
   hand: boolean;
   handSince: number | null;
+  /** Mikrofon an seit (null = stumm oder unbekannt). */
+  micSince?: number | null;
+  /** Zuletzt von Zoom als Sprecher gemeldet. */
+  spokeAt?: number | null;
 }
 
 export interface ZoomPeopleStatus {
   list: ZoomPerson[];
   /** User-IDs im Spotlight. */
   spotlight: number[];
+  /** Gerade von Zoom gemeldete Sprecher. */
+  speakers?: number[];
   spotlightKnown: boolean;
   /** Rolle der Regie: nur Host oder Co-Host dürfen Spotlight setzen. */
   role: 'host' | 'cohost' | 'teilnehmer' | 'unbekannt';

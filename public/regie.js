@@ -5,7 +5,7 @@
   'use strict';
 
   /** Stand dieses Fensters; muss mit REGIE_STAND in server/server.mjs übereinstimmen. */
-  const REGIE_STAND = 5;
+  const REGIE_STAND = 6;
   const params = new URLSearchParams(window.location.search);
   const ui = {
     box: document.getElementById('mb-regie'),
@@ -250,6 +250,19 @@
           try {
             Z.inMeetingServiceListener('onChatMsgSent', function (data) {
               send({ type: 'regie-log', text: `Chat gesendet: ${JSON.stringify(safeData(data)).slice(0, 300)}` });
+            });
+          } catch (e) {
+            /* Ereignis gibt es nicht in jeder Version */
+          }
+          // Wer gerade spricht (Zoom meldet den bzw. die aktiven Sprecher bei jedem Wechsel).
+          let lastSpeakers = '';
+          try {
+            Z.inMeetingServiceListener('onActiveSpeaker', function (data) {
+              const list = (Array.isArray(data) ? data : [data]).map(function (x) { return Number(x && x.userId); }).filter(function (n) { return !isNaN(n); });
+              const key = list.join(',');
+              if (key === lastSpeakers) return;
+              lastSpeakers = key;
+              send({ type: 'regie-sprecher', userIds: list });
             });
           } catch (e) {
             /* Ereignis gibt es nicht in jeder Version */

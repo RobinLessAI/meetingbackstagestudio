@@ -74,6 +74,9 @@ Die Seite **Spotlight** zeigt live, wer im Zoom-Meeting ist (gelesen über das R
 Umschalter **Mehrere gleichzeitig** (Standard): Klick oder Taste nimmt eine Person dazu, nochmal nimmt nur sie heraus, bis zu 9 Personen; das Zielkreuz-Symbol setzt nur diese Person. **Nur eine Person**: Klick oder Taste ersetzt die vorige, „+“ nimmt doch jemanden dazu. Oben stehen alle, die gerade im Spotlight sind, mit × zum Herausnehmen. Für schnelle Wechsel gibt es **feste Plätze 1–9**: Name eintragen
 (oder in der Liste „Platz …“ wählen); „Anna“ findet auch „Anna Schulz (sie/ihr)“. Die Plätze bleiben gespeichert.
 
+- **Meldet sich gerade** (oben auf „Spotlight“, auf „Wer war dran“ und im Pop-up): wer gerade spricht (von Zoom gemeldet),
+  wer die Hand hebt (mit Wartezeit) und wer das Mikrofon an hat, jeweils mit Spotlight-Knopf. Sprechende stehen oben, dann Hände,
+  dann offene Mikrofone; wer in der letzten Minute gesprochen hat, bleibt kurz stehen. Der Host ist ausgenommen.
 - **Tasten** (App-Fenster vorne): `1`–`9` Platz ins Spotlight (je nach Umschalter dazu oder statt der vorigen), nochmal drücken nimmt ihn heraus; `0` hebt jedes Spotlight auf; `N` holt die
   Hand, die am längsten oben ist.
 - **Stream Deck:** `http://localhost:4300/aktion/spotlight-1?schluessel=…` bis `spotlight-9`, dazu `spotlight-leeren` und `naechste-hand`.

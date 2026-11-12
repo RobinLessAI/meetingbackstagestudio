@@ -1,5 +1,6 @@
 import { ExternalLink } from 'lucide-react';
 import { focusRosterPopup, RosterList } from '../components/RosterList.tsx';
+import { RequestsPanel } from '../components/RequestsPanel.tsx';
 import { Button, Panel } from '../components/ui.tsx';
 import { useUi } from '../state/ui.tsx';
 
@@ -21,6 +22,7 @@ export function RosterView() {
           Als Pop-up öffnen
         </Button>
       </header>
+      <RequestsPanel />
       <Panel>
         <RosterList />
       </Panel>

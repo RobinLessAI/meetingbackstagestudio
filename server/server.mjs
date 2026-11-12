@@ -59,7 +59,7 @@ const TEAMS_TENANT_ID = process.env.TEAMS_TENANT_ID ?? '';
 const TEAMS_PUBLIC_URL = process.env.TEAMS_PUBLIC_URL ?? '';
 const REGIE_NAME = 'MeetingBackstage (Regie)';
 /** Stand des Regie-Fensters; muss mit REGIE_STAND in public/regie.js übereinstimmen. */
-const REGIE_STAND = 5;
+const REGIE_STAND = 6;
 const SDK_VERSION = SDK_MAIN?.match(/zoom-meeting-([\d.]+)\.min\.js/)?.[1] ?? null;
 /** Programmversion und Git-Stand (z. B. „0.1.0 · 6489819“), damit Updates erkennbar sind. */
 const APP_VERSION = (() => {
@@ -263,12 +263,24 @@ function handleRegieChat(data) {
 // ------------------------------------------------ Teilnehmende und Spotlight in Zoom
 let zoomPeople = { list: [], spotlight: [], spotlightKnown: false, role: 'unbekannt', at: null };
 const handSince = new Map(); // userId -> Zeitpunkt, seit dem die Hand oben ist
+const micSince = new Map(); // userId -> Zeitpunkt, seit dem das Mikrofon an ist
+const spokeAt = new Map(); // userId -> zuletzt als Sprecher gemeldet
+let speakers = []; // aktuell von Zoom gemeldete Sprecher
 let attendeesLogged = false;
 let requestSeq = 0;
 const pendingRequests = new Map(); // requestId -> { ws, label }
 
 function peopleStatus() {
-  return { ...zoomPeople, list: zoomPeople.list.map((u) => ({ ...u, handSince: handSince.get(u.userId) ?? null })) };
+  return {
+    ...zoomPeople,
+    speakers: speakers.filter((id) => zoomPeople.list.some((u) => u.userId === id)),
+    list: zoomPeople.list.map((u) => ({
+      ...u,
+      handSince: handSince.get(u.userId) ?? null,
+      micSince: micSince.get(u.userId) ?? null,
+      spokeAt: spokeAt.get(u.userId) ?? null,
+    })),
+  };
 }
 const broadcastPeople = () => broadcast('steuerung', { type: 'zoom-teilnehmende', status: peopleStatus() });
 
@@ -284,8 +296,10 @@ function handleAttendees(msg) {
   for (const u of next.list) {
     if (u.hand && !handSince.has(u.userId)) handSince.set(u.userId, now);
     if (!u.hand) handSince.delete(u.userId);
+    if (u.muted === false && !micSince.has(u.userId)) micSince.set(u.userId, now);
+    if (u.muted !== false) micSince.delete(u.userId);
   }
-  for (const id of [...handSince.keys()]) if (!next.list.some((u) => u.userId === id)) handSince.delete(id);
+  for (const map of [handSince, micSince, spokeAt]) for (const id of [...map.keys()]) if (!next.list.some((u) => u.userId === id)) map.delete(id);
   zoomPeople = { ...next, at: now };
   broadcastPeople();
 }
@@ -647,6 +661,9 @@ wss.on('connection', (ws, rolle) => {
       setRegie({ state: 'bereit', since: null, error: null });
       zoomPeople = { list: [], spotlight: [], spotlightKnown: false, role: 'unbekannt', at: null };
       handSince.clear();
+      micSince.clear();
+      spokeAt.clear();
+      speakers = [];
       broadcastPeople();
     }
     broadcastCounts();
@@ -677,6 +694,9 @@ function handleRegieMessage(ws, msg) {
         if (msg.state === 'bereit' || msg.state === 'fehler') {
           zoomPeople = { list: [], spotlight: [], spotlightKnown: false, role: 'unbekannt', at: null };
           handSince.clear();
+          micSince.clear();
+          spokeAt.clear();
+          speakers = [];
           broadcastPeople();
         }
       }
@@ -685,6 +705,13 @@ function handleRegieMessage(ws, msg) {
     case 'regie-teilnehmende':
       handleAttendees(msg);
       break;
+    case 'regie-sprecher': {
+      speakers = (Array.isArray(msg.userIds) ? msg.userIds : []).map(Number).filter(Number.isFinite).slice(0, 20);
+      const now = Date.now();
+      for (const id of speakers) spokeAt.set(id, now);
+      broadcastPeople();
+      break;
+    }
     case 'regie-ergebnis': {
       const req = pendingRequests.get(String(msg.requestId ?? ''));
       pendingRequests.delete(String(msg.requestId ?? ''));

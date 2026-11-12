@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import WebSocket from 'ws';
 // @ts-expect-error – JavaScript-Modul ohne Typen
 import { normalizeAttendees, spotlightError } from '../server/meetingSdk.mjs';
-import { findPerson, nextRaisedHand, spotlightOp } from '../src/lib/spotlight.ts';
+import { currentRequests, findPerson, nextRaisedHand, spotlightOp } from '../src/lib/spotlight.ts';
 import type { ZoomPerson } from '../src/sync/SyncProvider.tsx';
 
 const PORT = 4421;
@@ -88,6 +88,28 @@ test('Mehrere gleichzeitig: dazunehmen, einzeln herausnehmen, höchstens neun', 
   assert.equal(spotlightOp([2, 3], 3, false), 'replace');
 });
 
+test('Meldet sich gerade: Sprechende zuerst, dann Hände, dann offene Mikrofone, ohne Host', () => {
+  const p = (userId: number, x: Partial<ZoomPerson>): ZoomPerson => ({ userId, name: `P${userId}`, host: false, cohost: false, video: true, muted: true, hand: false, handSince: null, ...x });
+  const now = 1_000_000;
+  const list = [
+    p(1, { host: true, muted: false }),
+    p(2, { hand: true, handSince: now - 30_000 }),
+    p(3, { muted: false, micSince: now - 5_000 }),
+    p(4, { muted: false, micSince: now - 1_000 }),
+    p(5, { hand: true, handSince: now - 90_000 }),
+    p(6, { muted: false }),
+    p(7, { spokeAt: now - 20_000 }),
+    p(8, { spokeAt: now - 120_000 }),
+    p(9, {}),
+  ];
+  const r = currentRequests(list, [6, 1], now);
+  assert.deepEqual(r.map((x) => x.person.userId), [6, 5, 2, 4, 3, 7]);
+  assert.equal(r[0].speaking, true);
+  assert.equal(r.at(-1)?.spokeRecently, true);
+  // Stumm gemeldete Sprecher zählen nicht als „spricht“.
+  assert.equal(currentRequests([p(10, { muted: true })], [10], now)[0]?.spokeRecently ?? false, false);
+});
+
 function client(rolle: string) {
   const ws = new WebSocket(`ws://127.0.0.1:${PORT}/sync?rolle=${rolle}`);
   const next = (type: string, ms = 4000) =>
@@ -121,6 +143,14 @@ test('Spotlight von der App über den Server an die Regie und zurück', async ()
   assert.equal(status.list.length, 3);
   assert.equal(status.role, 'cohost');
   assert.ok(status.list.find((u: ZoomPerson) => u.userId === 300).handSince > 0);
+
+  // Zoom meldet Anna als Sprecherin: steht in der Liste, mit Zeitpunkt.
+  const spoken = app.next('zoom-teilnehmende');
+  reg.send({ type: 'regie-sprecher', userIds: [300] });
+  const sp = (await spoken).status;
+  assert.deepEqual(sp.speakers, [300]);
+  assert.ok(sp.list.find((u: ZoomPerson) => u.userId === 300).spokeAt > 0);
+  assert.ok(sp.list.find((u: ZoomPerson) => u.userId === 200).micSince > 0, 'Robin hat das Mikrofon an');
 
   // App setzt Anna ins Spotlight: Regie bekommt den Befehl.
   const cmd = reg.next('regie-spotlight');
