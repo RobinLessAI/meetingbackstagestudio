@@ -302,7 +302,14 @@ async function handleAccountApi(req, res, url) {
       case '/api/konto/registrieren': {
         if (!ipLimiter.take(`reg:${ip}`)) return json(res, 429, { fehler: 'Zu viele Versuche. Bitte später erneut versuchen.' });
         const r = await accounts.register({ email: body.email, password: body.passwort, name: body.name });
-        if (r.verifyToken) await mailer.send({ to: normalizeEmail(body.email), ...MAILS.bestaetigen(`${PUBLIC_URL}/api/konto/bestaetigen?token=${r.verifyToken}`) });
+        if (r.verifyToken) {
+          try {
+            await mailer.send({ to: normalizeEmail(body.email), ...MAILS.bestaetigen(`${PUBLIC_URL}/api/konto/bestaetigen?token=${r.verifyToken}`) });
+          } catch (e) {
+            log(`Bestätigungs-Mail nicht gesendet: ${e.message}`);
+            return json(res, 502, { fehler: 'Das Konto ist angelegt, aber die Bestätigungs-Mail konnte nicht gesendet werden. Bitte später erneut „Konto anlegen“ mit denselben Daten versuchen.' });
+          }
+        }
         return json(res, 200, { ok: true });
       }
       case '/api/konto/anmelden': {
@@ -318,7 +325,14 @@ async function handleAccountApi(req, res, url) {
       case '/api/konto/passwort-vergessen': {
         if (!ipLimiter.take(`reset:${ip}`)) return json(res, 429, { fehler: 'Zu viele Versuche. Bitte später erneut versuchen.' });
         const r = await accounts.requestReset(body.email);
-        if (r) await mailer.send({ to: r.user.email, ...MAILS.passwort(`${PUBLIC_URL}/?passwort=${r.token}`) });
+        if (r) {
+          try {
+            await mailer.send({ to: r.user.email, ...MAILS.passwort(`${PUBLIC_URL}/?passwort=${r.token}`) });
+          } catch (e) {
+            log(`Passwort-Mail nicht gesendet: ${e.message}`);
+            return json(res, 502, { fehler: 'Die E-Mail konnte gerade nicht gesendet werden. Bitte später erneut versuchen.' });
+          }
+        }
         return json(res, 200, { ok: true }); // gleiche Antwort, ob es die Adresse gibt oder nicht
       }
       case '/api/konto/passwort-neu': {
@@ -534,8 +548,11 @@ server.listen(PORT, HOST, () => {
   if (WEB) {
     console.log(`  Konten:            ${accounts.count()} · Verwaltung: ${ADMIN_EMAILS.length ? ADMIN_EMAILS.join(', ') : 'keine (MB_ADMIN_EMAILS setzen)'}`);
     console.log(
-      MAIL_BREVO_KEY ? `  E-Mails:           Versand über Brevo als ${MAIL_FROM}` : '  E-Mails:           ohne Versanddienst, stehen im Terminal und in daten/web/mails.log',
+      MAIL_BREVO_KEY ? `  E-Mails:           Versand über Brevo als ${MAIL_FROM}` : `  E-Mails:           ohne Versanddienst, stehen in ${path.join(WEB_DIR, 'mails.log')}`,
     );
+    if (MAIL_BREVO_KEY && !MAIL_BREVO_KEY.startsWith('xkeysib-')) {
+      console.log('  WARNUNG:           MB_MAIL_BREVO_KEY sieht nicht wie ein Brevo-API-Schlüssel aus (beginnt nicht mit „xkeysib-“). Mails werden fehlschlagen.');
+    }
   } else {
     console.log(`  OBS-Browserquelle: ${base}/ausgabe.html?grafik=programm`);
     console.log('  Weitere Ausgabe-Adressen stehen in der App unter „OBS-Ausgabe“.');
