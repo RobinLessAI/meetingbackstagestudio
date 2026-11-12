@@ -64,6 +64,8 @@ Was der Web-Modus anders macht:
 - Chatnachrichten werden nicht gespeichert, nur während der Sitzung gehalten.
 - Chat-Export aus dem Zoom-Ordner und Microsoft Teams gibt es nur in der lokalen Version.
 
+Online bringen auf einem eigenen Server: Schritt-für-Schritt in [`deploy/ANLEITUNG.md`](deploy/ANLEITUNG.md) (Einrichtungsskript `deploy/einrichten.sh`, Updates mit `mb-aktualisieren`). E-Mails über Brevo mit `MB_MAIL_BREVO_KEY` und `MB_MAIL_FROM`.
+
 Weitere Einstellungen für den Server: `MB_PUBLIC_URL` (öffentliche Adresse, z. B. `https://studio.meetingbackstage.de`),
 `MB_TRUST_PROXY=1` (hinter einem Proxy mit https), `MB_HOST`, `PORT`.
 

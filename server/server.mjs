@@ -18,7 +18,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { AccountError, createAccounts, createLimiter, MIN_PASSWORD, normalizeEmail, publicUser } from './accounts.mjs';
-import { createMailer, MAILS } from './mailer.mjs';
+import { brevoTransport, createMailer, MAILS } from './mailer.mjs';
 import { createRoom } from './room.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -101,6 +101,9 @@ const SECURE_COOKIE = PUBLIC.protocol === 'https:';
 const TRUST_PROXY = process.env.MB_TRUST_PROXY === '1';
 const ADMIN_EMAILS = (process.env.MB_ADMIN_EMAILS ?? '').split(',').map((e) => e.trim()).filter(Boolean);
 const COOKIE = 'mb_sitzung';
+// E-Mail-Versand (Web-Modus): ohne Schlüssel nur ins Protokoll (Entwicklung).
+const MAIL_FROM = process.env.MB_MAIL_FROM ?? 'MeetingBackstage <no-reply@meetingbackstage.de>';
+const MAIL_BREVO_KEY = process.env.MB_MAIL_BREVO_KEY ?? '';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -151,7 +154,9 @@ const localRoom = WEB ? null : createRoom({ id: 'lokal', dataDir: DATA_DIR, web:
 const rooms = new Map(); // Konto-ID -> Raum (nur Web)
 const WEB_DIR = path.join(DATA_DIR, 'web');
 const accounts = WEB ? createAccounts({ dir: WEB_DIR, adminEmails: ADMIN_EMAILS, log }) : null;
-const mailer = WEB ? createMailer({ dir: WEB_DIR, log }) : null;
+const mailer = WEB
+  ? createMailer({ dir: WEB_DIR, log, from: MAIL_FROM, transport: MAIL_BREVO_KEY ? brevoTransport({ apiKey: MAIL_BREVO_KEY, from: MAIL_FROM, apiUrl: process.env.MB_MAIL_BREVO_URL }) : null })
+  : null;
 const accountDir = (id) => path.join(DATA_DIR, 'konten', id.replace(/[^a-f0-9-]/gi, ''));
 
 function roomFor(user) {
@@ -528,7 +533,9 @@ server.listen(PORT, HOST, () => {
   console.log(`  Steuerung:         ${base}/`);
   if (WEB) {
     console.log(`  Konten:            ${accounts.count()} · Verwaltung: ${ADMIN_EMAILS.length ? ADMIN_EMAILS.join(', ') : 'keine (MB_ADMIN_EMAILS setzen)'}`);
-    console.log('  E-Mails:           ohne Versanddienst, stehen im Terminal und in daten/web/mails.log');
+    console.log(
+      MAIL_BREVO_KEY ? `  E-Mails:           Versand über Brevo als ${MAIL_FROM}` : '  E-Mails:           ohne Versanddienst, stehen im Terminal und in daten/web/mails.log',
+    );
   } else {
     console.log(`  OBS-Browserquelle: ${base}/ausgabe.html?grafik=programm`);
     console.log('  Weitere Ausgabe-Adressen stehen in der App unter „OBS-Ausgabe“.');

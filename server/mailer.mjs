@@ -23,6 +23,27 @@ export function createMailer({ dir, log, from = 'MeetingBackstage <no-reply@meet
   };
 }
 
+/**
+ * Versand über Brevo (EU-Anbieter, kostenloser Einstieg) per HTTP-Schnittstelle.
+ * Absender-Domain muss bei Brevo bestätigt sein (DNS-Einträge für SPF/DKIM).
+ */
+export function brevoTransport({ apiKey, from, fetchImpl = fetch, apiUrl }) {
+  const url = apiUrl || 'https://api.brevo.com/v3/smtp/email';
+  const m = String(from).match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
+  const sender = m ? { name: m[1] || 'MeetingBackstage', email: m[2] } : { name: 'MeetingBackstage', email: String(from).trim() };
+  return async (mail) => {
+    const res = await fetchImpl(url, {
+      method: 'POST',
+      headers: { 'api-key': apiKey, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ sender, to: [{ email: mail.to }], subject: mail.subject, textContent: mail.text }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`E-Mail-Versand fehlgeschlagen (${res.status})${body ? `: ${body.slice(0, 200)}` : ''}`);
+    }
+  };
+}
+
 /** Die Texte der Mails an einer Stelle. */
 export const MAILS = {
   bestaetigen: (link) => ({
