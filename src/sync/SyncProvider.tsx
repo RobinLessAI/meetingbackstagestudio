@@ -42,7 +42,7 @@ export interface RegieStatus {
   appVersion?: string;
   sdkVersion?: string | null;
   /** Verbindung zum Zoom-Konto (für „Meetings aus Zoom“). */
-  account?: { connected: boolean; redirectConfigured: boolean; scope: string };
+  account?: { connected: boolean; redirectConfigured: boolean; scope: string; email?: string | null; oneClick?: boolean };
 }
 
 /** Meeting aus dem eigenen Zoom-Konto. */

@@ -358,11 +358,20 @@ function ZoomMeetings({ onJoin, disabled }: { onJoin: JoinFn; disabled: boolean 
 
   if (!available) return <p className="subtle meet-list__empty">Nur in der App auf dem Mac verfügbar.</p>;
 
-  if (!account?.redirectConfigured && isWeb()) {
+  // Web: ein Klick, Zoom leitet direkt zurück (kein Einfügen nötig).
+  if (isWeb() && !connected) {
     return (
       <div className="meet-list">
-        <p className="muted">Bald kannst du hier dein Zoom-Konto mit einem Klick verbinden. Dann erscheinen deine geplanten Meetings in dieser Liste.</p>
-        <p className="field-hint">Bis dahin: Meeting-Link unten bei „Per Link verbinden“ einfügen oder unter „Meine Veranstaltungen“ speichern.</p>
+        <p className="muted">
+          Verbinde einmalig dein Zoom-Konto. Danach erscheinen hier deine geplanten und wiederkehrenden Meetings, und die Regie darf deinen
+          Meetings beitreten, solange du selbst darin bist.
+        </p>
+        <div>
+          <a className="btn btn--primary" href="/api/zoom/verbinden">
+            <ExternalLink size={15} aria-hidden /> Mit Zoom verbinden
+          </a>
+        </div>
+        <p className="field-hint">Du wirst zu Zoom weitergeleitet, bestätigst dort mit „Erlauben“ und kommst automatisch hierher zurück.</p>
       </div>
     );
   }
@@ -448,6 +457,7 @@ function ZoomMeetings({ onJoin, disabled }: { onJoin: JoinFn; disabled: boolean 
       reload={loadZoomMeetings}
       disconnect={disconnectZoom}
       disconnectLabel="Zoom-Konto trennen"
+      accountLabel={account?.email ? `Verbunden mit ${account.email}` : undefined}
       onJoin={onJoin}
       disabled={disabled}
     />

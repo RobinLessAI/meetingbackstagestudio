@@ -159,7 +159,7 @@ export function createRoom({ id, dataDir, web, cfg, log: baseLog, keys, renewKey
     return {
       ...regie,
       name: cfg.regieName,
-      account: zoomAccount.status(),
+      account: { ...zoomAccount.status(), oneClick: web },
       appVersion: cfg.appVersion,
       sdkVersion: cfg.sdkVersion,
       configured: Boolean(cfg.zoomClientId && cfg.zoomClientSecret && cfg.sdkMain),
@@ -205,19 +205,33 @@ export function createRoom({ id, dataDir, web, cfg, log: baseLog, keys, renewKey
   }
 
   /** Beitrittsdaten für das Regie-Fenster (Signatur wird hier erzeugt, das Geheimnis bleibt auf dem Server). */
-  function regieJoin(meetingInput, passcodeInput) {
+  async function regieJoin(meetingInput, passcodeInput) {
     const st = regieStatus();
     if (!st.sdkInstalled) throw new Error('Das Zoom Meeting SDK fehlt. Bitte im Terminal „npm install“ ausführen und neu starten.');
     if (st.missing.length)
       throw new Error(web ? 'Zoom ist auf dem Server noch nicht eingerichtet.' : `In .env.local fehlt: ${st.missing.join(', ')}.`);
     const { meetingId, passcode } = parseMeetingLink(meetingInput);
     if (!meetingId) throw new Error('Keine gültige Meeting-ID erkannt. Bitte den Zoom-Link oder die 9- bis 11-stellige Nummer einfügen.');
+    // Web: Meetings gehören meist zu fremden Zoom-Konten. Dafür verlangt Zoom ein OBF-Token des verbundenen Kontos.
+    // Klappt das nicht, versucht die Regie es ohne (eigene Meetings gehen auch so) und nennt den Grund, falls Zoom ablehnt.
+    let obfToken = null;
+    let obfProblem = null;
+    if (web && zoomAccount.status().connected) {
+      try {
+        obfToken = await zoomAccount.obfToken(meetingId);
+      } catch (e) {
+        obfProblem = e.message;
+        log(`Regie: kein OBF-Token (${e.message})`);
+      }
+    }
     return {
       sdkKey: cfg.zoomClientId,
       signature: meetingSignature({ clientId: cfg.zoomClientId, clientSecret: cfg.zoomClientSecret, meetingNumber: meetingId }),
       meetingNumber: meetingId,
       passWord: String(passcodeInput ?? '').trim() || passcode,
       userName: cfg.regieName,
+      ...(obfToken ? { obfToken } : {}),
+      ...(obfProblem ? { obfProblem } : {}),
     };
   }
 
@@ -525,11 +539,11 @@ export function createRoom({ id, dataDir, web, cfg, log: baseLog, keys, renewKey
     }
   }
 
-  function handleRegieMessage(ws, msg) {
+  async function handleRegieMessage(ws, msg) {
     switch (msg.type) {
       case 'regie-hello':
         try {
-          const join = regieJoin(msg.meeting, msg.passcode);
+          const join = await regieJoin(msg.meeting, msg.passcode);
           send(ws, { type: 'regie-join', join, version: { app: cfg.appVersion, sdk: cfg.sdkVersion, regieStand: cfg.regieStand } });
           log(`Regie: tritt Meeting ${join.meetingNumber} als „${cfg.regieName}“ bei …`);
           setRegie({ state: 'verbindet', meeting: join.meetingNumber, since: null, error: null });
@@ -589,6 +603,23 @@ export function createRoom({ id, dataDir, web, cfg, log: baseLog, keys, renewKey
     },
     teamsAccount,
     broadcastTeams,
+
+    /** Web: Rückkehr von Zoom mit Code (Weiterleitung direkt auf den Server). */
+    async zoomConnectCode(code) {
+      await zoomAccount.connect({ code });
+      broadcast('steuerung', { type: 'regie-status', status: regieStatus() });
+    },
+    /** Web: Adresse der Zoom-Freigabe mit einmaligem state. */
+    zoomAuthorizeUrl: (state) => zoomAccount.authorizeUrl(state),
+    /** Zoom-Konto, das mit diesem Raum verbunden ist (für das Entfernen der App über Zoom). */
+    zoomUserId: () => zoomAccount.zoomUserId(),
+    /** Die App wurde bei Zoom entfernt: Anmeldung löschen und Steuerungen informieren. */
+    async zoomForget() {
+      await zoomAccount.forget();
+      broadcast('steuerung', { type: 'regie-status', status: regieStatus() });
+    },
+    /** Konto wird gelöscht: Anmeldung bei Zoom zurückziehen. */
+    zoomDisconnect: () => zoomAccount.disconnect(),
     regieStatus,
     counts,
     savedAt: () => saved?.savedAt ?? null,
@@ -626,7 +657,7 @@ export function createRoom({ id, dataDir, web, cfg, log: baseLog, keys, renewKey
         } catch {
           return;
         }
-        if (role === 'regie') handleRegieMessage(ws, msg);
+        if (role === 'regie') handleRegieMessage(ws, msg).catch((e) => log(`Regie: ${e.message}`));
         else if (role === 'steuerung') await handleSteuerung(ws, msg);
       });
       ws.on('close', () => {

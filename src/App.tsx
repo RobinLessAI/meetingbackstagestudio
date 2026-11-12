@@ -7,7 +7,7 @@ import { SHORTCUTS, useDeckActions } from './state/deckActions.ts';
 import { useAutoDemo } from './state/simulation.ts';
 import { StoreProvider, useStore } from './state/store.tsx';
 import { SyncProvider, useSync } from './sync/SyncProvider.tsx';
-import type { DeckActionId } from './state/types.ts';
+import type { DeckActionId, ViewId } from './state/types.ts';
 import { DEFAULT_VIEW, UiProvider, useUi, VIEWS } from './state/ui.tsx';
 import { ObsView } from './views/ObsView.tsx';
 import { SpotlightView } from './views/SpotlightView.tsx';
@@ -101,8 +101,30 @@ function useRemoteActions() {
   }, [setActionHandler, notify]);
 }
 
+const ZOOM_RETURN: Record<string, { text: string; ok: boolean }> = {
+  verbunden: { text: 'Dein Zoom-Konto ist verbunden. Deine Meetings stehen jetzt in der Liste.', ok: true },
+  abgebrochen: { text: 'Die Verbindung mit Zoom wurde abgebrochen.', ok: false },
+  abgelaufen: { text: 'Die Verbindung mit Zoom hat zu lange gedauert. Bitte noch einmal „Mit Zoom verbinden“.', ok: false },
+  fehler: { text: 'Zoom-Konto konnte nicht verbunden werden. Bitte später erneut versuchen.', ok: false },
+};
+
+/** Web: Rückkehr von „Mit Zoom verbinden“ (/?zoom=…) melden, zur Meeting-Seite gehen und die Adresse aufräumen. */
+function useZoomReturn(go: (view: ViewId) => void) {
+  const { notify } = useStore();
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get('zoom');
+    if (!result) return;
+    window.history.replaceState(null, '', '/');
+    const r = ZOOM_RETURN[result] ?? ZOOM_RETURN.fehler;
+    notify(r.text, r.ok ? 'erfolg' : 'fehler');
+    go('meeting');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+}
+
 function Shell() {
   const { view, views, go, showDemo } = useUi();
+  useZoomReturn(go);
   const { state } = useStore();
   useAutoDemo();
   useShortcuts();

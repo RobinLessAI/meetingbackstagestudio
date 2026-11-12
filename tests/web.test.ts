@@ -1,7 +1,11 @@
-// Web-Modus: Kundenkonten, Freischaltung, Trennung der Konten, Sperre, Passwort, Schutz gegen Durchprobieren.
+// Web-Modus: Kundenkonten, Freischaltung, Trennung der Konten, Sperre, Passwort, Schutz gegen Durchprobieren,
+// „Mit Zoom verbinden“ (nachgebauter Zoom-Server), OBF-Token für die Regie, App-Entfernung über Zoom.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
+import { createHmac } from 'node:crypto';
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -12,7 +16,36 @@ const BASE = `http://127.0.0.1:${PORT}`;
 const dir = mkdtempSync(join(tmpdir(), 'mb-web-'));
 let proc: ChildProcess;
 
+// Nachgebauter Zoom-Server: Anmeldung (OAuth), /users/me, OBF-Token, Zurückziehen
+const WEBHOOK_SECRET = 'webhook-geheim';
+const zoomCalls: string[] = [];
+const fakeZoom = http.createServer((req, res) => {
+  const u = new URL(req.url ?? '/', 'http://x');
+  let body = '';
+  req.on('data', (c) => (body += c));
+  req.on('end', () => {
+    zoomCalls.push(`${req.method} ${u.pathname}${u.search}`);
+    const send = (status: number, data: unknown) => res.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(data));
+    if (u.pathname === '/oauth/token') {
+      const p = new URLSearchParams(body);
+      if (req.headers.authorization !== `Basic ${Buffer.from('cid:cs').toString('base64')}`) return send(401, { reason: 'client' });
+      if (p.get('grant_type') === 'authorization_code' && p.get('code') === 'gut' && p.get('redirect_uri') === `http://localhost:${PORT}/api/zoom/zurueck`) {
+        return send(200, { access_token: 'at-1', refresh_token: 'rt-1', expires_in: 3600, scope: 'meeting:read:list_meetings user:read:user user:read:token' });
+      }
+      return send(400, { reason: 'Invalid authorization code' });
+    }
+    if (u.pathname === '/oauth/revoke') return send(200, { status: 'success' });
+    if (req.headers.authorization !== 'Bearer at-1') return send(401, { message: 'Invalid access token.' });
+    if (u.pathname === '/v2/users/me') return send(200, { id: 'zu-anna', account_id: 'acc-anna', email: 'anna@zoom.example' });
+    if (u.pathname === '/v2/users/me/token' && u.searchParams.get('type') === 'onbehalf') return send(200, { token: `obf-${u.searchParams.get('meeting_id')}` });
+    if (u.pathname === '/v2/users/me/meetings') return send(200, { meetings: [{ id: 81234567890, topic: 'Workshop', type: 2, start_time: '2026-12-01T10:00:00Z' }] });
+    send(404, {});
+  });
+});
+
 before(async () => {
+  await new Promise<void>((r) => fakeZoom.listen(0, '127.0.0.1', r));
+  const zoomBase = `http://127.0.0.1:${(fakeZoom.address() as AddressInfo).port}`;
   proc = spawn(process.execPath, ['server/server.mjs'], {
     env: {
       ...process.env,
@@ -24,6 +57,9 @@ before(async () => {
       MB_ENV_FILE: join(dir, 'keine.env'),
       ZOOM_CLIENT_ID: 'cid',
       ZOOM_CLIENT_SECRET: 'cs',
+      ZOOM_WEBHOOK_SECRET_TOKEN: WEBHOOK_SECRET,
+      MB_ZOOM_OAUTH_BASE: `${zoomBase}/oauth`,
+      MB_ZOOM_API_URL: `${zoomBase}/v2`,
     },
     stdio: 'pipe',
   });
@@ -40,6 +76,8 @@ before(async () => {
 
 after(() => {
   proc.kill();
+  fakeZoom.closeAllConnections();
+  fakeZoom.close();
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -205,6 +243,81 @@ test('Sperre wirkt sofort: Fenster getrennt, keine Anmeldung, OBS aus', async ()
   assert.ok(anna);
 });
 
+/** Ereignis so signieren, wie Zoom es tut. */
+function zoomEvent(body: unknown, secret = WEBHOOK_SECRET) {
+  const raw = JSON.stringify(body);
+  const ts = String(Math.floor(Date.now() / 1000));
+  const sig = `v0=${createHmac('sha256', secret).update(`v0:${ts}:${raw}`).digest('hex')}`;
+  return fetch(`${BASE}/api/zoom/ereignis`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-zm-request-timestamp': ts, 'x-zm-signature': sig },
+    body: raw,
+  });
+}
+
+test('Mit Zoom verbinden: Weiterleitung, Rückkehr, OBF-Token für die Regie, App-Entfernung', async () => {
+  // Ohne Anmeldung zurück zur Startseite
+  assert.equal((await fetch(`${BASE}/api/zoom/verbinden`, { redirect: 'manual' })).headers.get('location'), '/');
+
+  const start = await fetch(`${BASE}/api/zoom/verbinden`, { headers: { cookie: anna }, redirect: 'manual' });
+  assert.equal(start.status, 302);
+  const authorize = new URL(start.headers.get('location')!);
+  assert.match(authorize.pathname, /\/oauth\/authorize$/);
+  assert.equal(authorize.searchParams.get('client_id'), 'cid');
+  assert.equal(authorize.searchParams.get('redirect_uri'), `http://localhost:${PORT}/api/zoom/zurueck`);
+  const state = authorize.searchParams.get('state')!;
+  assert.ok(state.length >= 20);
+
+  const back = (q: string, cookie = anna) => fetch(`${BASE}/api/zoom/zurueck?${q}`, { headers: { cookie }, redirect: 'manual' });
+  // Fremder state oder anderes Konto: abgelehnt, und der state ist danach verbraucht
+  assert.equal((await back('code=gut&state=erfunden')).headers.get('location'), '/?zoom=abgelaufen');
+  assert.equal((await back(`code=gut&state=${state}`, admin)).headers.get('location'), '/?zoom=abgelaufen');
+  assert.equal((await back(`code=gut&state=${state}`)).headers.get('location'), '/?zoom=abgelaufen');
+
+  // Richtiger Ablauf
+  const state2 = new URL((await fetch(`${BASE}/api/zoom/verbinden`, { headers: { cookie: anna }, redirect: 'manual' })).headers.get('location')!).searchParams.get('state')!;
+  assert.equal((await back(`code=gut&state=${state2}`)).headers.get('location'), '/?zoom=verbunden');
+  const a = socket('steuerung', anna);
+  const hello = await a.next('hello');
+  assert.equal(hello.regie.account.connected, true);
+  assert.equal(hello.regie.account.email, 'anna@zoom.example');
+  const annaId = hello.konto.id;
+  const tokenFile = join(dir, 'konten', annaId, 'zoom-anmeldung.json');
+  assert.equal(JSON.parse(readFileSync(tokenFile, 'utf8')).zoomUserId, 'zu-anna');
+
+  // Meetings aus dem verbundenen Konto
+  a.send({ type: 'zoom-meetings' });
+  assert.equal((await a.next('zoom-meetings')).meetings[0].topic, 'Workshop');
+
+  // Regie bekommt ein OBF-Token für genau dieses Meeting
+  const r = socket('regie', anna);
+  assert.ok(await r.opened);
+  r.send({ type: 'regie-hello', meeting: 'https://zoom.us/j/81234567890?pwd=abc' });
+  const joinData = (await r.next('regie-join')).join;
+  assert.equal(joinData.obfToken, 'obf-81234567890');
+  assert.ok(zoomCalls.some((c) => c === 'GET /v2/users/me/token?type=onbehalf&meeting_id=81234567890'));
+
+  // Zoom-Ereignisse: falsche Signatur abgelehnt, Adressprüfung beantwortet
+  assert.equal((await zoomEvent({ event: 'app_deauthorized', payload: { user_id: 'zu-anna' } }, 'falsch')).status, 401);
+  const check = await (await zoomEvent({ event: 'endpoint.url_validation', payload: { plainToken: 'abc' } })).json();
+  assert.equal(check.encryptedToken, createHmac('sha256', WEBHOOK_SECRET).update('abc').digest('hex'));
+
+  // App bei Zoom entfernt: Anmeldung weg, Steuerung erfährt es sofort
+  assert.equal((await zoomEvent({ event: 'app_deauthorized', payload: { user_id: 'zu-anna', account_id: 'acc-anna' } })).status, 200);
+  await new Promise((res) => setTimeout(res, 200));
+  assert.ok(!existsSync(tokenFile));
+  const last = a.msgs.filter((m) => m.type === 'regie-status').at(-1);
+  assert.equal(last.status.account.connected, false);
+
+  // Erneut verbinden (für den Lösch-Test: dort wird die Anmeldung bei Zoom zurückgezogen)
+  const state3 = new URL((await fetch(`${BASE}/api/zoom/verbinden`, { headers: { cookie: anna }, redirect: 'manual' })).headers.get('location')!).searchParams.get('state')!;
+  assert.equal((await back(`code=gut&state=${state3}`)).headers.get('location'), '/?zoom=verbunden');
+  // Abgebrochen bei Zoom
+  const state4 = new URL((await fetch(`${BASE}/api/zoom/verbinden`, { headers: { cookie: anna }, redirect: 'manual' })).headers.get('location')!).searchParams.get('state')!;
+  assert.equal((await back(`error=access_denied&state=${state4}`)).headers.get('location'), '/?zoom=abgebrochen');
+  for (const s of [a, r]) s.ws.close();
+});
+
 test('Passwort vergessen: neuer Link, altes Passwort und alte Sitzungen ungültig', async () => {
   // Gleiche Antwort für unbekannte Adressen (verrät nichts)
   assert.equal((await post('/api/konto/passwort-vergessen', { email: 'niemand@example.org' })).status, 200);
@@ -244,6 +357,8 @@ test('Löschen entfernt Konto und Daten', async () => {
   assert.ok(existsSync(join(dir, 'konten', annaId)));
   assert.equal((await post('/api/verwaltung/konto', { id: annaId, aktion: 'loeschen' }, admin)).status, 200);
   assert.ok(!existsSync(join(dir, 'konten', annaId)));
+  // Die Zoom-Anmeldung wurde bei Zoom zurückgezogen
+  assert.ok(zoomCalls.includes('POST /oauth/revoke'));
   assert.equal((await login('anna@example.org')).res.status, 401);
   // Die Verwaltung kann sich nicht selbst sperren
   const chefId = konten.find((k: any) => k.email === 'chef@example.org').id;

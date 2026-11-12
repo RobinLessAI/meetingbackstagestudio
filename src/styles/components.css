@@ -56,6 +56,7 @@
   font-weight: 500;
   font-size: var(--fs-md);
   white-space: nowrap;
+  text-decoration: none;
   transition: background 120ms, border-color 120ms, color 120ms;
 }
 .btn:hover:not(:disabled) { background: var(--hover); border-color: var(--line-hover); }

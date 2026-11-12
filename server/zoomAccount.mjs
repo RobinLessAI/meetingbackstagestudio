@@ -5,11 +5,25 @@
 // wird in MeetingBackstage eingefügt. Die Zugangs-Token liegen nur lokal in
 // daten/zoom-anmeldung.json und werden automatisch erneuert.
 //
+// Im Web-Modus leitet Zoom direkt auf studio…/api/zoom/zurueck zurück (kein Einfügen nötig).
+//
 // Benötigte Berechtigungen in der Zoom-App: meeting:read:list_meetings (Meetings auflisten),
-// optional user:read:user (persönlicher Meetingraum).
+// user:read:user (persönlicher Meetingraum, Zuordnung beim Entfernen der App) und
+// user:read:token (OBF-Token: damit darf die Regie Meetings fremder Zoom-Konten betreten,
+// solange die verbundene Person selbst im Meeting ist).
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
+import crypto from 'node:crypto';
 import path from 'node:path';
+
+/** Prüft die Signatur eines Zoom-Ereignisses (x-zm-signature = v0=HMAC(secret, "v0:<zeit>:<inhalt>")). */
+export function zoomSignatureOk(secret, headers, raw, now = Date.now()) {
+  const ts = String(headers['x-zm-request-timestamp'] ?? '');
+  const sig = String(headers['x-zm-signature'] ?? '');
+  if (!secret || !/^\d+$/.test(ts) || Math.abs(now / 1000 - Number(ts)) > 300) return false;
+  const expected = `v0=${crypto.createHmac('sha256', secret).update(`v0:${ts}:${raw}`).digest('hex')}`;
+  return sig.length === expected.length && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+}
 
 /** Den Code aus der eingefügten Weiterleitungsadresse (oder nur den Code) lesen. */
 export function parseAuthCode(input) {
@@ -68,6 +82,10 @@ export function createZoomAccount({ clientId, clientSecret, redirectUri, dataDir
       refresh: body.refresh_token ?? tokens?.refresh ?? null,
       expiresAt: Date.now() + Number(body.expires_in ?? 3600) * 1000,
       scope: body.scope ?? '',
+      // Zoom-Konto, zu dem die Anmeldung gehört (für das Entfernen der App über Zoom)
+      zoomUserId: tokens?.zoomUserId ?? null,
+      zoomAccountId: tokens?.zoomAccountId ?? null,
+      zoomEmail: tokens?.zoomEmail ?? null,
     });
   }
 
@@ -100,23 +118,77 @@ export function createZoomAccount({ clientId, clientSecret, redirectUri, dataDir
     return body;
   }
 
-  return {
-    status: () => ({ connected: Boolean(tokens), redirectConfigured: Boolean(redirectUri), scope: tokens?.scope ?? '' }),
+  /** Nach dem Verbinden: zu welchem Zoom-Konto gehört die Anmeldung? (braucht user:read:user, sonst egal) */
+  async function rememberZoomUser() {
+    try {
+      const me = await get('/users/me');
+      await save({ ...tokens, zoomUserId: me.id ?? null, zoomAccountId: me.account_id ?? null, zoomEmail: me.email ?? null });
+    } catch {
+      /* ohne Berechtigung bleibt die Zuordnung leer */
+    }
+  }
 
-    authorizeUrl: () =>
-      redirectUri ? `${OAUTH}/authorize?${new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: redirectUri })}` : null,
+  async function forget() {
+    tokens = null;
+    await fsp.rm(file, { force: true });
+  }
+
+  return {
+    status: () => ({
+      connected: Boolean(tokens),
+      redirectConfigured: Boolean(redirectUri),
+      scope: tokens?.scope ?? '',
+      email: tokens?.zoomEmail ?? null,
+    }),
+
+    /** Zoom-Konto, zu dem die gespeicherte Anmeldung gehört (oder null). */
+    zoomUserId: () => tokens?.zoomUserId ?? null,
+
+    authorizeUrl: (state) =>
+      redirectUri
+        ? `${OAUTH}/authorize?${new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: redirectUri, ...(state ? { state } : {}) })}`
+        : null,
 
     async connect(input) {
       if (!redirectUri) throw new Error('ZOOM_REDIRECT_URI fehlt in .env.local (dieselbe Adresse wie „OAuth Redirect URL“ in der Zoom-App).');
-      const code = parseAuthCode(input);
+      // Web: Zoom liefert den Code direkt ({ code }); lokal wird die eingefügte Adresse gelesen.
+      const code = typeof input === 'object' && input?.code ? String(input.code) : parseAuthCode(input);
       if (!code) throw new Error('In der eingefügten Adresse wurde kein Code gefunden. Bitte die komplette Adresse nach „Erlauben“ einfügen.');
       await tokenRequest({ grant_type: 'authorization_code', code, redirect_uri: redirectUri });
+      await rememberZoomUser();
       log('Mit dem Zoom-Konto verbunden.');
     },
 
+    /** Trennen auf Wunsch: Anmeldung bei Zoom zurückziehen (soweit möglich) und lokal löschen. */
     async disconnect() {
-      tokens = null;
-      await fsp.rm(file, { force: true });
+      const token = tokens?.refresh ?? tokens?.access;
+      if (token) {
+        await fetch(`${OAUTH}/revoke`, {
+          method: 'POST',
+          headers: { Authorization: basic, 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ token }),
+        }).catch(() => {});
+      }
+      await forget();
+    },
+
+    /** Die App wurde bei Zoom entfernt: nur lokal löschen (Zoom hat die Anmeldung schon ungültig gemacht). */
+    forget,
+
+    /**
+     * OBF-Token für ein Meeting: erlaubt der Regie den Beitritt im Namen der verbundenen Person.
+     * Zoom lässt die Regie nur hinein, solange diese Person selbst im Meeting ist.
+     */
+    async obfToken(meetingId) {
+      try {
+        const body = await get(`/users/me/token?${new URLSearchParams({ type: 'onbehalf', meeting_id: String(meetingId) })}`);
+        if (!body.token) throw new Error('Zoom hat kein Token geliefert.');
+        return body.token;
+      } catch (e) {
+        // Nennt Zoom die fehlende Berechtigung nicht, steht dort der Platzhalter für die Meeting-Liste.
+        if (/Berechtigung \(meeting:read:list_meetings\)/.test(e.message)) throw new Error(e.message.replace('meeting:read:list_meetings', 'user:read:token'));
+        throw e;
+      }
     },
 
     /** Geplante und wiederkehrende Meetings des eigenen Kontos, dazu der persönliche Meetingraum. */

@@ -5,7 +5,7 @@
   'use strict';
 
   /** Stand dieses Fensters; muss mit REGIE_STAND in server/server.mjs übereinstimmen. */
-  const REGIE_STAND = 6;
+  const REGIE_STAND = 7;
   const params = new URLSearchParams(window.location.search);
   const ui = {
     box: document.getElementById('mb-regie'),
@@ -56,8 +56,15 @@
       3707: 'Zoom findet diese Meeting-ID nicht. Kopiere den Link des laufenden Meetings neu (in Zoom: Info-Symbol oben links → Link kopieren) und ersetze damit den alten Eintrag. Gehört das Meeting zu einem anderen Zoom-Konto als die Zoom-App im Marketplace, lehnt Zoom den Beitritt ebenfalls so ab.',
       3000: 'Zoom hat den Beitritt abgelehnt.',
       63: 'Die Zoom-App darf nur Meetings deines eigenen Zoom-Kontos betreten. Ist das Meeting von deinem Konto?',
+      4011: 'Zoom erlaubt der Regie noch keine Meetings anderer Zoom-Konten. Das geht erst, wenn die MeetingBackstage-App im Zoom Marketplace freigegeben ist.',
+      4012: 'Für dieses Meeting braucht die Regie die Erlaubnis deines Zoom-Kontos. Verbinde in MeetingBackstage unter „Meeting“ dein Zoom-Konto und öffne die Regie erneut.',
+      4013: 'Die Zoom-Erlaubnis fehlt oder ist abgelaufen. Bist du selbst mit dem verbundenen Zoom-Konto im Meeting? Dann die Regie erneut öffnen.',
     };
+    const notInMeeting = /AUTHORIZED_USER|user.*not.*in.*meeting/i.test(text)
+      ? 'Die Regie darf erst hinein, wenn du selbst mit deinem verbundenen Zoom-Konto im Meeting bist. Tritt zuerst bei, dann die Regie erneut öffnen.'
+      : '';
     const hint =
+      notInMeeting ||
       hints[code] ||
       'Prüfe: Läuft das Meeting schon, gehört es zu deinem eigenen Zoom-Konto, und ist in deiner Zoom-App das Meeting SDK eingeschaltet?';
     return [hint, text && text !== hint ? `Zoom: ${text}${code ? ` (${code})` : ''}` : code ? `Fehlercode ${code}` : ''].filter(Boolean).join(' ');
@@ -297,13 +304,15 @@
           meetingNumber: join.meetingNumber,
           passWord: join.passWord || '',
           userName: join.userName,
+          // Im Namen des verbundenen Zoom-Kontos (nötig für Meetings anderer Konten)
+          ...(join.obfToken ? { obfToken: join.obfToken } : {}),
           success: function () {
             joined = true;
             status('verbunden');
             schedulePeople(1500);
           },
           error: function (err) {
-            const message = explain(err);
+            const message = [explain(err), join.obfProblem ? `Hinweis: ${join.obfProblem}` : ''].filter(Boolean).join(' ');
             show('Beitritt nicht möglich.', message);
             status('fehler', message);
           },

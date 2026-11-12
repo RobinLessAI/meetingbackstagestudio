@@ -106,6 +106,34 @@ Kein zusätzlicher Dienst, keine Kosten.
 Wenn etwas nicht klappt, steht der Grund im Protokoll (`journalctl -u meetingbackstage -n 50`), z. B.
 „E-Mail-Versand fehlgeschlagen (Anmeldung, Passwort)“ → Benutzer oder Passwort in `studio.env` prüfen.
 
+## 7. „Mit Zoom verbinden“ für Kunden (Zoom-App im Marketplace)
+
+Kunden verbinden auf der Seite **Meeting** mit einem Klick ihr Zoom-Konto. Danach sehen sie ihre Meetings, und die Regie darf
+ihren Meetings beitreten, solange der Kunde selbst im Meeting ist (Zoom nennt das OBF-Token).
+
+Einmalig in deiner Zoom-App auf <https://marketplace.zoom.us> → **Manage** → deine App:
+
+1. **Basic Information → OAuth Information**
+   - **OAuth Redirect URL:** `https://studio.meetingbackstage.de/api/zoom/zurueck`
+   - Dieselbe Adresse unter **OAuth Allow List** hinzufügen.
+2. **Scopes → Add Scopes**: `meeting:read:list_meetings`, `user:read:user`, `user:read:token`.
+3. **Features → Access → Event Subscription** einschalten:
+   - Endpoint URL: `https://studio.meetingbackstage.de/api/zoom/ereignis`
+   - Event: **App Deauthorized** (Bereich „App“). Gibt es bei dir stattdessen ein Feld „Deauthorization Notification“,
+     dort dieselbe Adresse eintragen.
+   - Oben auf der Seite steht ein **Secret Token**. Auf dem Server eintragen (nie in einen Chat kopieren):
+     ```
+     nano /etc/meetingbackstage/studio.env      # Zeile ZOOM_WEBHOOK_SECRET_TOKEN=… ergänzen
+     systemctl restart meetingbackstage
+     ```
+   - Erst danach in Zoom **Validate** klicken (der Server muss das Secret Token schon kennen), dann speichern.
+4. In MeetingBackstage: Seite **Meeting** → Reiter **Aus meinem Zoom-Konto** → **Mit Zoom verbinden**.
+   Wer schon vorher verbunden war: einmal **Zoom-Konto trennen** und neu verbinden, damit die neuen Scopes gelten.
+
+**Wichtig:** Solange die App nicht im Zoom Marketplace veröffentlicht ist, erlaubt Zoom das Verbinden und den Regie-Beitritt
+nur für dein eigenes Zoom-Konto. Für Kunden mit eigenem Zoom-Konto muss die App veröffentlicht werden (auf Wunsch nicht öffentlich
+gelistet). Ohne Veröffentlichung meldet die Regie „Zoom erlaubt der Regie noch keine Meetings anderer Zoom-Konten“.
+
 ## Im Alltag
 
 | Was | Befehl auf dem Server |

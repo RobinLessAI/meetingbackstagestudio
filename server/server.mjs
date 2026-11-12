@@ -11,6 +11,7 @@
 // mit eigenem Ordner daten/konten/<id>/, OBS-Adressen und Stream Deck mit geheimem Schlüssel je Konto.
 //
 // Start: npm start (baut die App und startet den Server)
+import crypto from 'node:crypto';
 import http from 'node:http';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
@@ -20,6 +21,7 @@ import { WebSocketServer } from 'ws';
 import { AccountError, createAccounts, createLimiter, MIN_PASSWORD, normalizeEmail, publicUser } from './accounts.mjs';
 import { brevoTransport, createMailer, MAILS, smtpTransport } from './mailer.mjs';
 import { createRoom } from './room.mjs';
+import { zoomSignatureOk } from './zoomAccount.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -39,7 +41,10 @@ loadEnvFile(process.env.MB_ENV_FILE ?? path.join(ROOT, '.env.local'));
 const ZOOM_CLIENT_ID = process.env.ZOOM_CLIENT_ID ?? '';
 const ZOOM_CLIENT_SECRET = process.env.ZOOM_CLIENT_SECRET ?? '';
 // Für „Meetings aus Zoom“: dieselbe Adresse wie „OAuth Redirect URL“ in der Zoom-App.
+// Im Web-Modus ist das automatisch <MB_PUBLIC_URL>/api/zoom/zurueck.
 const ZOOM_REDIRECT_URI = process.env.ZOOM_REDIRECT_URI ?? '';
+// „Secret Token“ aus der Zoom-App (Features → Access): prüft, dass Ereignisse wirklich von Zoom kommen.
+const ZOOM_WEBHOOK_SECRET = process.env.ZOOM_WEBHOOK_SECRET_TOKEN ?? '';
 // Dateien des Zoom Meeting SDK (Web) aus node_modules, lokal ausgeliefert.
 const SDK_DIST = process.env.MB_ZOOM_SDK_DIR
   ? path.resolve(process.env.MB_ZOOM_SDK_DIR)
@@ -58,7 +63,7 @@ const TEAMS_TENANT_ID = process.env.TEAMS_TENANT_ID ?? '';
 const TEAMS_PUBLIC_URL = process.env.TEAMS_PUBLIC_URL ?? '';
 const REGIE_NAME = 'MeetingBackstage (Regie)';
 /** Stand des Regie-Fensters; muss mit REGIE_STAND in public/regie.js übereinstimmen. */
-const REGIE_STAND = 6;
+const REGIE_STAND = 7;
 const SDK_VERSION = SDK_MAIN?.match(/zoom-meeting-([\d.]+)\.min\.js/)?.[1] ?? null;
 /** Programmversion und Git-Stand (z. B. „0.1.0 · 6489819“), damit Updates erkennbar sind. */
 const APP_VERSION = (() => {
@@ -141,7 +146,7 @@ const CFG = {
   port: PORT,
   zoomClientId: ZOOM_CLIENT_ID,
   zoomClientSecret: ZOOM_CLIENT_SECRET,
-  zoomRedirectUri: ZOOM_REDIRECT_URI,
+  zoomRedirectUri: WEB ? ZOOM_REDIRECT_URI || `${PUBLIC_URL}/api/zoom/zurueck` : ZOOM_REDIRECT_URI,
   zoomOauthBase: process.env.MB_ZOOM_OAUTH_BASE,
   zoomApiBase: process.env.MB_ZOOM_API_URL,
   sdkMain: SDK_MAIN,
@@ -384,6 +389,8 @@ async function handleAccountApi(req, res, url) {
           await accounts.setStatus(target.id, 'gesperrt');
           await closeRoom(target.id, 'Konto gesperrt');
         } else if (body.aktion === 'loeschen') {
+          // Verbindung zu Zoom zurückziehen, bevor die Daten verschwinden
+          await roomFor(target).zoomDisconnect().catch(() => {});
           await closeRoom(target.id, 'Konto gelöscht');
           await accounts.remove(target.id);
           await fsp.rm(accountDir(target.id), { recursive: true, force: true });
@@ -441,6 +448,112 @@ function teamsCallbackPage(res, ok, text) {
 ${ok ? '<script>setTimeout(()=>window.close(),1500)</script>' : ''}</body>`);
 }
 
+// ------------------------------------------------------------- Zoom (Web)
+// 1. /api/zoom/verbinden      angemeldet → weiter zu Zoom „Erlauben“ (mit einmaligem state)
+// 2. /api/zoom/zurueck        Zoom leitet mit ?code=…&state=… zurück → Anmeldung im Raum speichern
+// 3. /api/zoom/ereignis       Zoom meldet z. B. „App entfernt“ → Anmeldung dieses Zoom-Kontos löschen
+const zoomStates = new Map(); // state -> { userId, exp }
+
+function redirect(res, location) {
+  res.writeHead(302, { Location: location, 'Cache-Control': 'no-store' }).end();
+}
+
+function readRaw(req, limit = 64 * 1024) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > limit) {
+        reject(new Error('zu groß'));
+        req.destroy();
+      } else chunks.push(c);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    req.on('error', reject);
+  });
+}
+
+/** Konten, deren gespeicherte Zoom-Anmeldung zu diesem Zoom-Benutzer gehört. */
+function accountsWithZoomUser(zoomUserId) {
+  const out = [];
+  for (const u of accounts.list()) {
+    const room = rooms.get(u.id);
+    let id = room ? room.zoomUserId() : null;
+    if (!room) {
+      try {
+        id = JSON.parse(fs.readFileSync(path.join(accountDir(u.id), 'zoom-anmeldung.json'), 'utf8')).zoomUserId ?? null;
+      } catch {
+        id = null;
+      }
+    }
+    if (id && id === zoomUserId) out.push(u);
+  }
+  return out;
+}
+
+async function handleZoomApi(req, res, url) {
+  const route = url.pathname;
+  try {
+    if (route === '/api/zoom/verbinden' && req.method === 'GET') {
+      const user = sessionUser(req);
+      if (!user || user.status !== 'aktiv') return redirect(res, '/');
+      const state = crypto.randomBytes(24).toString('base64url');
+      const now = Date.now();
+      for (const [k, v] of zoomStates) if (v.exp < now) zoomStates.delete(k);
+      if (zoomStates.size > 5000) zoomStates.clear();
+      zoomStates.set(state, { userId: user.id, exp: now + 10 * 60_000 });
+      const target = roomFor(user).zoomAuthorizeUrl(state);
+      return target ? redirect(res, target) : redirect(res, '/?zoom=fehler');
+    }
+
+    if (route === '/api/zoom/zurueck' && req.method === 'GET') {
+      const state = url.searchParams.get('state') ?? '';
+      const entry = zoomStates.get(state);
+      zoomStates.delete(state);
+      const user = sessionUser(req);
+      // Nur zurück in das Konto, das die Verbindung gestartet hat (und nur innerhalb von 10 Minuten).
+      if (!entry || entry.exp < Date.now() || !user || user.id !== entry.userId || user.status !== 'aktiv') {
+        return redirect(res, '/?zoom=abgelaufen');
+      }
+      if (url.searchParams.get('error') || !url.searchParams.get('code')) return redirect(res, '/?zoom=abgebrochen');
+      try {
+        await roomFor(user).zoomConnectCode(url.searchParams.get('code'));
+        return redirect(res, '/?zoom=verbunden');
+      } catch (e) {
+        log(`Zoom-Verbindung für ein Konto fehlgeschlagen: ${e.message}`);
+        return redirect(res, '/?zoom=fehler');
+      }
+    }
+
+    if (route === '/api/zoom/ereignis' && req.method === 'POST') {
+      const raw = await readRaw(req);
+      if (!zoomSignatureOk(ZOOM_WEBHOOK_SECRET, req.headers, raw)) return json(res, 401, { fehler: 'Signatur ungültig.' });
+      const body = JSON.parse(raw);
+      if (body.event === 'endpoint.url_validation') {
+        const plainToken = String(body.payload?.plainToken ?? '');
+        const encryptedToken = crypto.createHmac('sha256', ZOOM_WEBHOOK_SECRET).update(plainToken).digest('hex');
+        return json(res, 200, { plainToken, encryptedToken });
+      }
+      if (body.event === 'app_deauthorized') {
+        const zoomUserId = String(body.payload?.user_id ?? '');
+        const hits = zoomUserId ? accountsWithZoomUser(zoomUserId) : [];
+        for (const u of hits) {
+          const room = rooms.get(u.id);
+          if (room) await room.zoomForget();
+          else await fsp.rm(path.join(accountDir(u.id), 'zoom-anmeldung.json'), { force: true });
+        }
+        log(`Zoom: App wurde von einem Zoom-Konto entfernt, Anmeldung bei ${hits.length} Konto/Konten gelöscht.`);
+      }
+      return json(res, 200, { ok: true });
+    }
+    return json(res, 404, { fehler: 'Nicht gefunden.' });
+  } catch (e) {
+    log(`Zoom-Schnittstelle: ${e.message}`);
+    if (!res.headersSent) json(res, 400, { fehler: 'Ungültige Anfrage.' });
+  }
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://localhost');
   if (!hostAllowed(req.headers.host)) {
@@ -453,6 +566,10 @@ const server = http.createServer((req, res) => {
   }
   if (WEB && (url.pathname.startsWith('/api/konto/') || url.pathname.startsWith('/api/verwaltung/') || url.pathname === '/api/modus')) {
     handleAccountApi(req, res, url);
+    return;
+  }
+  if (WEB && url.pathname.startsWith('/api/zoom/')) {
+    handleZoomApi(req, res, url);
     return;
   }
   if (!WEB && url.pathname === '/api/modus') return json(res, 200, { web: false });
