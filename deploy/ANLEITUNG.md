@@ -58,7 +58,7 @@ Das Skript fragt unterwegs zwei Dinge:
 
 1. **Deploy Key für GitHub:** Es zeigt einen Schlüssel an. Auf GitHub im Repository **Settings → Deploy keys → Add deploy key**,
    Titel „Hetzner-Server“, Schlüssel einfügen, **„Allow write access“ nicht anhaken**, speichern. Dann im Terminal Enter.
-2. **Zoom Client-ID und Client-Geheimnis** (aus deiner Zoom-App im Marketplace) und optional den Brevo-Schlüssel.
+2. **Zoom Client-ID und Client-Geheimnis** (aus deiner Zoom-App im Marketplace) und optional das Passwort des Postfachs für E-Mails (Schritt 6).
    Die Eingabe bleibt auf dem Server und ist nicht sichtbar. **Nie in einen Chat kopieren.**
 
 Am Ende steht „Fertig. MeetingBackstage läuft.“
@@ -66,23 +66,45 @@ Am Ende steht „Fertig. MeetingBackstage läuft.“
 ## 5. Erstes Konto
 
 1. `https://studio.meetingbackstage.de` öffnen → **Konto anlegen** mit der Adresse aus Schritt 4.
-2. Ohne Brevo kommt keine Mail. Den Bestätigungslink auf dem Server ansehen:
+2. Solange Schritt 6 nicht erledigt ist, kommt keine Mail. Den Bestätigungslink auf dem Server ansehen:
    ```
    tail -n 20 /var/lib/meetingbackstage/web/mails.log
    ```
 3. Link öffnen, anmelden. Du bist die Verwaltung.
 
-## 6. E-Mails verschicken (Brevo, kostenloser Einstieg)
+## 6. E-Mails verschicken (über das Postfach im Webhosting)
 
-1. Konto bei <https://www.brevo.com> anlegen.
-2. **Absender und Domains → Domain hinzufügen**: `meetingbackstage.de`. Brevo zeigt DNS-Einträge (SPF, DKIM, ggf. DMARC);
-   diese beim Domain-Anbieter eintragen und in Brevo bestätigen.
-3. **SMTP & API → API-Schlüssel erzeugen**.
-4. Auf dem Server eintragen und neu starten:
+Die Mails (Adresse bestätigen, Passwort vergessen, Freischaltung) gehen über ein normales Postfach deines Hetzner-Webhostings.
+Kein zusätzlicher Dienst, keine Kosten.
+
+1. In der **konsoleH** (Webhosting S) → **E-Mail → Postfächer → Neues Postfach**: `no-reply@meetingbackstage.de`,
+   ein langes Passwort vergeben (Passwort-Manager). **Das Passwort nie in einen Chat kopieren.**
+2. Auf dem Server die Einstellungen öffnen:
    ```
-   nano /etc/meetingbackstage/studio.env      # Zeile MB_MAIL_BREVO_KEY=… ausfüllen
-   systemctl restart meetingbackstage
+   nano /etc/meetingbackstage/studio.env
    ```
+   Diese Zeilen ergänzen (eine Zeile `MB_MAIL_BREVO_KEY=…` kann gelöscht werden):
+   ```
+   MB_MAIL_SMTP_HOST=mail.your-server.de
+   MB_MAIL_SMTP_PORT=465
+   MB_MAIL_SMTP_USER=no-reply@meetingbackstage.de
+   MB_MAIL_SMTP_PASS=das-postfach-passwort
+   MB_MAIL_FROM=MeetingBackstage <no-reply@meetingbackstage.de>
+   ```
+   Speichern mit `Ctrl+O`, Enter, `Ctrl+X`.
+3. Neue Version holen und neu starten:
+   ```
+   mb-aktualisieren
+   journalctl -u meetingbackstage -n 20      # zeigt „E-Mails: Versand über mail.your-server.de …“
+   ```
+4. Testen: abmelden → **Passwort vergessen** mit deiner Adresse. Die Mail sollte nach wenigen Sekunden da sein
+   (beim ersten Mal auch im Spam-Ordner nachsehen).
+5. Damit Mails nicht im Spam landen: In der konsoleH unter **DNS** prüfen, dass es einen TXT-Eintrag für `meetingbackstage.de`
+   mit `v=spf1 … include:spf.your-server.de …` gibt (legt Hetzner normalerweise selbst an). DKIM kann in der konsoleH beim
+   Postfach bzw. der Domain eingeschaltet werden.
+
+Wenn etwas nicht klappt, steht der Grund im Protokoll (`journalctl -u meetingbackstage -n 50`), z. B.
+„E-Mail-Versand fehlgeschlagen (Anmeldung, Passwort)“ → Benutzer oder Passwort in `studio.env` prüfen.
 
 ## Im Alltag
 

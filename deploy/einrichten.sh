@@ -124,7 +124,8 @@ if [[ ! -f "$ENV_FILE" ]]; then
   echo "Die Eingaben werden nicht angezeigt. Leer lassen = später in $ENV_FILE eintragen."
   read -r -p "Zoom Client-ID: " ZID
   read -r -s -p "Zoom Client-Geheimnis: " ZSECRET; echo
-  read -r -s -p "Brevo-API-Schlüssel für E-Mails (optional): " BREVO; echo
+  MAIL_DOMAIN="${MAIN_DOMAIN:-$STUDIO_DOMAIN}"
+  read -r -s -p "Passwort des Postfachs no-reply@$MAIL_DOMAIN für E-Mails (optional): " SMTPPASS; echo
   cat > "$ENV_FILE" <<CONF
 MB_WEB=1
 PORT=4300
@@ -133,8 +134,11 @@ MB_TRUST_PROXY=1
 MB_PUBLIC_URL=https://$STUDIO_DOMAIN
 MB_ADMIN_EMAILS=$ADMIN_EMAIL
 MB_DATA_DIR=$DATA_DIR
-MB_MAIL_FROM=MeetingBackstage <no-reply@${MAIN_DOMAIN:-$STUDIO_DOMAIN}>
-MB_MAIL_BREVO_KEY=$BREVO
+MB_MAIL_FROM=MeetingBackstage <no-reply@$MAIL_DOMAIN>
+MB_MAIL_SMTP_HOST=mail.your-server.de
+MB_MAIL_SMTP_PORT=465
+MB_MAIL_SMTP_USER=no-reply@$MAIL_DOMAIN
+MB_MAIL_SMTP_PASS=$SMTPPASS
 ZOOM_CLIENT_ID=$ZID
 ZOOM_CLIENT_SECRET=$ZSECRET
 CONF
@@ -216,7 +220,7 @@ if curl -fsS http://127.0.0.1:4300/api/status >/dev/null; then
   echo "  Studio:        https://$STUDIO_DOMAIN  (Zertifikat kann beim ersten Aufruf ein paar Sekunden dauern)"
   echo "  Konto anlegen: mit $ADMIN_EMAIL – das ist die Verwaltung"
   echo "  Protokoll:     journalctl -u meetingbackstage -f"
-  echo "  Mails ohne Brevo stehen in: $DATA_DIR/web/mails.log"
+  echo "  Mails ohne Postfach-Passwort stehen in: $DATA_DIR/web/mails.log"
   echo "  Update:        mb-aktualisieren"
 else
   echo "Der Dienst antwortet nicht. Protokoll ansehen: journalctl -u meetingbackstage -n 50"

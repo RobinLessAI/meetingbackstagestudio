@@ -2,7 +2,7 @@
 //
 // Ohne Versanddienst (Entwicklung): Die Mail erscheint im Terminal und in <daten>/web/mails.log,
 // die Links lassen sich von dort öffnen. Für den Betrieb wird später ein Versanddienst angebunden
-// (z. B. Brevo per SMTP); die Schnittstelle bleibt gleich.
+// (Postfach per SMTP oder Brevo); die Schnittstelle bleibt gleich.
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 
@@ -40,6 +40,98 @@ export function brevoTransport({ apiKey, from, fetchImpl = fetch, apiUrl }) {
     if (!res.ok) {
       const body = await res.text().catch(() => '');
       throw new Error(`E-Mail-Versand fehlgeschlagen (${res.status})${body ? `: ${body.slice(0, 200)}` : ''}`);
+    }
+  };
+}
+
+/** Betreff für E-Mails mit Umlauten kodieren (RFC 2047). */
+const encodeHeader = (v) => (/^[\x20-\x7e]*$/.test(v) ? v : `=?UTF-8?B?${Buffer.from(v, 'utf8').toString('base64')}?=`);
+
+/** Absender „Name <adresse>“ zerlegen. */
+function parseFrom(from) {
+  const m = String(from).match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
+  return m ? { name: m[1], email: m[2] } : { name: '', email: String(from).trim() };
+}
+
+/** Fertige Nachricht (Kopf + Text als Base64, damit Umlaute sicher ankommen). */
+export function buildMessage({ from, to, subject, text, now = new Date() }) {
+  const f = parseFrom(from);
+  const domain = f.email.split('@')[1] || 'localhost';
+  const body = Buffer.from(String(text).replace(/\r?\n/g, '\r\n'), 'utf8')
+    .toString('base64')
+    .replace(/.{1,76}/g, '$&\r\n');
+  return [
+    `From: ${f.name ? `${encodeHeader(f.name)} ` : ''}<${f.email}>`,
+    `To: <${to}>`,
+    `Subject: ${encodeHeader(subject)}`,
+    `Date: ${now.toUTCString().replace('GMT', '+0000')}`,
+    `Message-ID: <${Date.now().toString(36)}.${Math.random().toString(36).slice(2)}@${domain}>`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset=utf-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    body,
+  ].join('\r\n');
+}
+
+/**
+ * Versand über einen SMTP-Server mit Anmeldung, z. B. das Postfach des eigenen Webhostings
+ * (Hetzner: mail.your-server.de, Port 465, verschlüsselt). Ohne zusätzliche Pakete.
+ */
+export function smtpTransport({ host, port = 465, user, pass, from, connect, timeoutMs = 20_000 }) {
+  const sender = parseFrom(from).email;
+  return async (mail) => {
+    const socket = connect ? connect() : (await import('node:tls')).connect({ host, port: Number(port), servername: host });
+    socket.setEncoding('utf8');
+    let buffer = '';
+    const waiting = [];
+    let failed = null;
+    const fail = (e) => {
+      failed = e;
+      while (waiting.length) waiting.shift().reject(e);
+    };
+    socket.on('data', (chunk) => {
+      buffer += chunk;
+      // Vollständige Antworten herausziehen (mehrzeilig: „250-…“ bis „250 …“).
+      for (;;) {
+        const lines = buffer.split('\r\n');
+        const end = lines.findIndex((l) => /^\d{3} /.test(l));
+        if (end < 0 || end === lines.length - 1) break;
+        const reply = lines.slice(0, end + 1);
+        buffer = lines.slice(end + 1).join('\r\n');
+        waiting.shift()?.resolve({ code: Number(reply.at(-1).slice(0, 3)), text: reply.join(' ') });
+      }
+    });
+    socket.on('error', fail);
+    socket.on('close', () => fail(new Error('Verbindung zum Mailserver beendet')));
+    const timer = setTimeout(() => {
+      fail(new Error('Mailserver antwortet nicht'));
+      socket.destroy();
+    }, timeoutMs);
+    const reply = () => new Promise((resolve, reject) => (failed ? reject(failed) : waiting.push({ resolve, reject })));
+    // step = verständlicher Name des Schritts für Fehlermeldungen (Zugangsdaten erscheinen nie darin).
+    const cmd = async (line, ok, step) => {
+      const r = reply();
+      if (line !== null) socket.write(`${line}\r\n`);
+      const res = await r;
+      if (!ok.includes(res.code)) throw new Error(`E-Mail-Versand fehlgeschlagen (${step}): ${res.text}`);
+      return res;
+    };
+    try {
+      await cmd(null, [220], 'Begrüßung');
+      await cmd(`EHLO ${sender.split('@')[1] || 'localhost'}`, [250], 'EHLO');
+      await cmd('AUTH LOGIN', [334], 'Anmeldung');
+      await cmd(Buffer.from(user).toString('base64'), [334], 'Anmeldung, Benutzer');
+      await cmd(Buffer.from(pass).toString('base64'), [235], 'Anmeldung, Passwort');
+      await cmd(`MAIL FROM:<${sender}>`, [250], 'Absender');
+      await cmd(`RCPT TO:<${mail.to}>`, [250, 251], 'Empfänger');
+      await cmd('DATA', [354], 'Nachricht');
+      await cmd(`${buildMessage({ from, to: mail.to, subject: mail.subject, text: mail.text })}\r\n.`, [250], 'Nachricht senden');
+      socket.write('QUIT\r\n');
+    } finally {
+      clearTimeout(timer);
+      socket.removeAllListeners('close');
+      socket.end();
     }
   };
 }

@@ -18,7 +18,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { AccountError, createAccounts, createLimiter, MIN_PASSWORD, normalizeEmail, publicUser } from './accounts.mjs';
-import { brevoTransport, createMailer, MAILS } from './mailer.mjs';
+import { brevoTransport, createMailer, MAILS, smtpTransport } from './mailer.mjs';
 import { createRoom } from './room.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -104,6 +104,14 @@ const COOKIE = 'mb_sitzung';
 // E-Mail-Versand (Web-Modus): ohne Schlüssel nur ins Protokoll (Entwicklung).
 const MAIL_FROM = process.env.MB_MAIL_FROM ?? 'MeetingBackstage <no-reply@meetingbackstage.de>';
 const MAIL_BREVO_KEY = process.env.MB_MAIL_BREVO_KEY ?? '';
+// Oder über ein eigenes Postfach (z. B. Hetzner-Webhosting: mail.your-server.de, Port 465).
+const SMTP = {
+  host: process.env.MB_MAIL_SMTP_HOST ?? '',
+  port: Number(process.env.MB_MAIL_SMTP_PORT ?? 465),
+  user: process.env.MB_MAIL_SMTP_USER ?? '',
+  pass: process.env.MB_MAIL_SMTP_PASS ?? '',
+};
+const MAIL_VIA = SMTP.host && SMTP.user && SMTP.pass ? 'smtp' : MAIL_BREVO_KEY ? 'brevo' : 'protokoll';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -155,7 +163,17 @@ const rooms = new Map(); // Konto-ID -> Raum (nur Web)
 const WEB_DIR = path.join(DATA_DIR, 'web');
 const accounts = WEB ? createAccounts({ dir: WEB_DIR, adminEmails: ADMIN_EMAILS, log }) : null;
 const mailer = WEB
-  ? createMailer({ dir: WEB_DIR, log, from: MAIL_FROM, transport: MAIL_BREVO_KEY ? brevoTransport({ apiKey: MAIL_BREVO_KEY, from: MAIL_FROM, apiUrl: process.env.MB_MAIL_BREVO_URL }) : null })
+  ? createMailer({
+      dir: WEB_DIR,
+      log,
+      from: MAIL_FROM,
+      transport:
+        MAIL_VIA === 'smtp'
+          ? smtpTransport({ ...SMTP, from: MAIL_FROM })
+          : MAIL_VIA === 'brevo'
+            ? brevoTransport({ apiKey: MAIL_BREVO_KEY, from: MAIL_FROM, apiUrl: process.env.MB_MAIL_BREVO_URL })
+            : null,
+    })
   : null;
 const accountDir = (id) => path.join(DATA_DIR, 'konten', id.replace(/[^a-f0-9-]/gi, ''));
 
@@ -548,9 +566,13 @@ server.listen(PORT, HOST, () => {
   if (WEB) {
     console.log(`  Konten:            ${accounts.count()} · Verwaltung: ${ADMIN_EMAILS.length ? ADMIN_EMAILS.join(', ') : 'keine (MB_ADMIN_EMAILS setzen)'}`);
     console.log(
-      MAIL_BREVO_KEY ? `  E-Mails:           Versand über Brevo als ${MAIL_FROM}` : `  E-Mails:           ohne Versanddienst, stehen in ${path.join(WEB_DIR, 'mails.log')}`,
+      MAIL_VIA === 'smtp'
+        ? `  E-Mails:           Versand über ${SMTP.host} als ${MAIL_FROM}`
+        : MAIL_VIA === 'brevo'
+          ? `  E-Mails:           Versand über Brevo als ${MAIL_FROM}`
+          : `  E-Mails:           ohne Versanddienst, stehen in ${path.join(WEB_DIR, 'mails.log')}`,
     );
-    if (MAIL_BREVO_KEY && !MAIL_BREVO_KEY.startsWith('xkeysib-')) {
+    if (MAIL_VIA === 'brevo' && !MAIL_BREVO_KEY.startsWith('xkeysib-')) {
       console.log('  WARNUNG:           MB_MAIL_BREVO_KEY sieht nicht wie ein Brevo-API-Schlüssel aus (beginnt nicht mit „xkeysib-“). Mails werden fehlschlagen.');
     }
   } else {
