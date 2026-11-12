@@ -163,7 +163,7 @@ export function useDeckActions(): Record<DeckActionId, DeckAction> {
         return {
           id: `spotlight-${n}` as DeckActionId,
           label: `Spotlight Platz ${n}${name ? `: ${name}` : ''}`,
-          hint: 'Setzt die Person dieses Platzes in Zoom ins Spotlight; nochmal drücken hebt es auf.',
+          hint: 'Nimmt die Person dieses Platzes in Zoom ins Spotlight (bei „Mehrere gleichzeitig“ dazu, sonst statt der vorigen); nochmal drücken nimmt sie heraus.',
           icon: Star,
           active: !!person && zoomPeople.spotlight.includes(person.userId),
           live: true,

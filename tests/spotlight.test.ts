@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import WebSocket from 'ws';
 // @ts-expect-error – JavaScript-Modul ohne Typen
 import { normalizeAttendees, spotlightError } from '../server/meetingSdk.mjs';
-import { findPerson, nextRaisedHand } from '../src/lib/spotlight.ts';
+import { findPerson, nextRaisedHand, spotlightOp } from '../src/lib/spotlight.ts';
 import type { ZoomPerson } from '../src/sync/SyncProvider.tsx';
 
 const PORT = 4421;
@@ -74,6 +74,18 @@ test('Nächste Hand: die am längsten wartende ohne Spotlight', () => {
   assert.equal(nextRaisedHand(list, [])?.userId, 2);
   assert.equal(nextRaisedHand(list, [2])?.userId, 4);
   assert.equal(nextRaisedHand([p(3, false, null)], []), null);
+});
+
+test('Mehrere gleichzeitig: dazunehmen, einzeln herausnehmen, höchstens neun', () => {
+  assert.equal(spotlightOp([], 3, true), 'replace');
+  assert.equal(spotlightOp([2], 3, true), 'add');
+  assert.equal(spotlightOp([2, 3], 3, true), 'remove');
+  assert.equal(spotlightOp([1, 2, 3, 4, 5, 6, 7, 8, 9], 10, true), 'voll');
+  assert.equal(spotlightOp([1, 2, 3, 4, 5, 6, 7, 8, 9], 9, true), 'remove');
+  // Nur eine Person: ersetzen, allein im Spotlight wieder aufheben
+  assert.equal(spotlightOp([2], 3, false), 'replace');
+  assert.equal(spotlightOp([3], 3, false), 'remove');
+  assert.equal(spotlightOp([2, 3], 3, false), 'replace');
 });
 
 function client(rolle: string) {

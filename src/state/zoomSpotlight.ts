@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useStore } from './store.tsx';
 import { useSync, type ZoomPerson } from '../sync/SyncProvider.tsx';
-import { findPerson, nextRaisedHand } from '../lib/spotlight.ts';
+import { findPerson, nextRaisedHand, SPOTLIGHT_MAX, spotlightOp } from '../lib/spotlight.ts';
 
 export { findPerson, nextRaisedHand };
 
@@ -20,15 +20,27 @@ export function useZoomSpotlight() {
       return true;
     };
     const slots = state.settings.spotlightSlots ?? [];
+    const multi = state.settings.spotlightMulti ?? true;
+    /** Je nach Einstellung dazunehmen/herausnehmen (mehrere) oder ersetzen/aufheben (eine Person). */
+    const toggle = (p: ZoomPerson) => {
+      const op = spotlightOp(zoomPeople.spotlight, p.userId, multi);
+      if (op === 'voll') {
+        notify(`Zoom erlaubt höchstens ${SPOTLIGHT_MAX} Personen gleichzeitig im Spotlight. Zuerst jemanden herausnehmen.`, 'warnung');
+        return;
+      }
+      spotlightZoom(p.userId, op);
+    };
 
     return {
       live,
-      /** Person ins Spotlight; ist sie schon allein im Spotlight, wird es aufgehoben (Taste erneut drücken). */
+      multi,
+      /** Person ins Spotlight bzw. wieder heraus (Taste erneut drücken), je nach Modus. */
       toggle: (p: ZoomPerson) => {
         if (!ready()) return;
-        const only = zoomPeople.spotlight.length === 1 && zoomPeople.spotlight[0] === p.userId;
-        spotlightZoom(p.userId, only ? 'remove' : 'replace');
+        toggle(p);
       },
+      /** Nur diese Person im Spotlight, alle anderen heraus. */
+      only: (p: ZoomPerson) => ready() && spotlightZoom(p.userId, 'replace'),
       add: (p: ZoomPerson) => ready() && spotlightZoom(p.userId, 'add'),
       remove: (p: ZoomPerson) => ready() && spotlightZoom(p.userId, 'remove'),
       clear: () => {
@@ -51,8 +63,7 @@ export function useZoomSpotlight() {
           notify(`„${name}“ (Platz ${n}) ist gerade nicht im Meeting.`, 'fehler');
           return;
         }
-        const only = zoomPeople.spotlight.length === 1 && zoomPeople.spotlight[0] === p.userId;
-        spotlightZoom(p.userId, only ? 'remove' : 'replace');
+        toggle(p);
       },
       nextHand: () => {
         if (!ready()) return;
@@ -61,8 +72,8 @@ export function useZoomSpotlight() {
           notify('Keine gehobene Hand ohne Spotlight', 'info', false);
           return;
         }
-        spotlightZoom(p.userId, 'replace');
+        toggle(p);
       },
     };
-  }, [live, zoomPeople, spotlightZoom, notify, state.settings.spotlightSlots]);
+  }, [live, zoomPeople, spotlightZoom, notify, state.settings.spotlightSlots, state.settings.spotlightMulti]);
 }

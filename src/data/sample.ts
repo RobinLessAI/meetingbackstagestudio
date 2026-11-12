@@ -279,6 +279,7 @@ export function createInitialState(now: number = Date.now()): AppState {
     settings: {
       teamNames: [],
       spotlightSlots: Array(9).fill(''),
+      spotlightMulti: true,
       autoDemo: false,
       lowerHandOnSpotlight: false,
       maxSpotlight: 4,

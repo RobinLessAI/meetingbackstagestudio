@@ -413,6 +413,8 @@ export interface Settings {
   teamNames: string[];
   /** Spotlight-Plätze 1–9 (Namen aus Zoom) für Tasten 1–9 und Stream Deck; '' = leer. */
   spotlightSlots: string[];
+  /** Mehrere Personen gleichzeitig im Spotlight (Klick/Taste nimmt dazu) statt nur einer (Klick/Taste ersetzt). */
+  spotlightMulti: boolean;
   autoDemo: boolean;
   lowerHandOnSpotlight: boolean;
   maxSpotlight: number;

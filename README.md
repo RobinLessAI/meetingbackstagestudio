@@ -71,10 +71,10 @@ Stream Deck: Aktion „Website“ mit „GET-Anfrage im Hintergrund“ und einer
 ## Spotlight in Zoom (Tasten 1–9, Stream Deck)
 
 Die Seite **Spotlight** zeigt live, wer im Zoom-Meeting ist (gelesen über das Regie-Fenster), mit Handzeichen, Video und Mikrofon.
-Ein Klick setzt eine Person ins Spotlight, „+“ fügt weitere hinzu. Für schnelle Wechsel gibt es **feste Plätze 1–9**: Name eintragen
+Umschalter **Mehrere gleichzeitig** (Standard): Klick oder Taste nimmt eine Person dazu, nochmal nimmt nur sie heraus, bis zu 9 Personen; das Zielkreuz-Symbol setzt nur diese Person. **Nur eine Person**: Klick oder Taste ersetzt die vorige, „+“ nimmt doch jemanden dazu. Oben stehen alle, die gerade im Spotlight sind, mit × zum Herausnehmen. Für schnelle Wechsel gibt es **feste Plätze 1–9**: Name eintragen
 (oder in der Liste „Platz …“ wählen); „Anna“ findet auch „Anna Schulz (sie/ihr)“. Die Plätze bleiben gespeichert.
 
-- **Tasten** (App-Fenster vorne): `1`–`9` Platz ins Spotlight, nochmal drücken hebt es auf; `0` hebt jedes Spotlight auf; `N` holt die
+- **Tasten** (App-Fenster vorne): `1`–`9` Platz ins Spotlight (je nach Umschalter dazu oder statt der vorigen), nochmal drücken nimmt ihn heraus; `0` hebt jedes Spotlight auf; `N` holt die
   Hand, die am längsten oben ist.
 - **Stream Deck:** `http://localhost:4300/aktion/spotlight-1?schluessel=…` bis `spotlight-9`, dazu `spotlight-leeren` und `naechste-hand`.
 - **Überall auf dem Mac:** In „Kurzbefehle“ die Aktion „Inhalte von URL abrufen“ mit dieser Adresse anlegen und einen Tastaturkurzbefehl vergeben.

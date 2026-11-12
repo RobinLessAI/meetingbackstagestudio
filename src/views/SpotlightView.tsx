@@ -1,12 +1,12 @@
 import { useId, useMemo, useState } from 'react';
-import { ArrowRight, CircleAlert, Copy, Crown, Hand, Mic, MicOff, Plus, RefreshCw, Star, StarOff, Video, VideoOff } from 'lucide-react';
+import { ArrowRight, CircleAlert, Copy, Crosshair, Crown, Hand, Mic, MicOff, Plus, RefreshCw, Star, StarOff, Video, VideoOff, X } from 'lucide-react';
 import { copyText } from '../components/LiveChat.tsx';
-import { Badge, Button, Empty, IconButton, Kbd, Panel } from '../components/ui.tsx';
+import { Badge, Button, Empty, IconButton, Kbd, Panel, Segmented } from '../components/ui.tsx';
 import { duration } from '../lib/time.ts';
 import { useNow, useStore } from '../state/store.tsx';
 import { useUi } from '../state/ui.tsx';
 import { useZoomSpotlight } from '../state/zoomSpotlight.ts';
-import { findPerson } from '../lib/spotlight.ts';
+import { findPerson, SPOTLIGHT_MAX } from '../lib/spotlight.ts';
 import { useSync, type ZoomPerson } from '../sync/SyncProvider.tsx';
 
 const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -86,6 +86,43 @@ export function SpotlightView() {
         </p>
       )}
 
+      <div className="spot-mode">
+        <Segmented<'mehrere' | 'eine'>
+          label="Spotlight"
+          value={zoom.multi ? 'mehrere' : 'eine'}
+          onChange={(v) => dispatch({ type: 'settings/update', patch: { spotlightMulti: v === 'mehrere' } })}
+          options={[
+            { value: 'mehrere', label: 'Mehrere gleichzeitig', title: `Klick oder Taste nimmt die Person dazu, nochmal nimmt nur sie heraus (bis ${SPOTLIGHT_MAX} Personen)` },
+            { value: 'eine', label: 'Nur eine Person', title: 'Klick oder Taste ersetzt die Person im Spotlight' },
+          ]}
+        />
+        <div className="spot-now" aria-live="polite">
+          <span className="field-label">Jetzt im Spotlight</span>
+          {zoomPeople.spotlight.length === 0 ? (
+            <span className="subtle">niemand</span>
+          ) : (
+            <span className="spot-now__list">
+              {zoomPeople.spotlight.map((id) => {
+                const p = zoomPeople.list.find((x) => x.userId === id);
+                return (
+                  <span key={id} className="spot-now__chip">
+                    <Star size={13} aria-hidden /> {p?.name ?? 'Unbekannt'}
+                    {p && (
+                      <button type="button" className="spot-now__x" aria-label={`${p.name} aus dem Spotlight nehmen`} onClick={() => zoom.remove(p)} disabled={!live}>
+                        <X size={13} aria-hidden />
+                      </button>
+                    )}
+                  </span>
+                );
+              })}
+              <span className="subtle tabular">
+                {zoomPeople.spotlight.length} von {SPOTLIGHT_MAX}
+              </span>
+            </span>
+          )}
+        </div>
+      </div>
+
       <div className="spot-layout">
         <Panel
           eyebrow="Tasten 1–9 · Stream Deck"
@@ -121,7 +158,7 @@ export function SpotlightView() {
                     {!name.trim() ? '' : on ? 'im Spotlight' : person ? 'im Meeting' : 'nicht da'}
                   </span>
                   <Button size="sm" variant={on ? 'primary' : 'secondary'} icon={Star} disabled={!live || !person} onClick={() => zoom.slot(n)}>
-                    {on ? 'Aufheben' : 'Spotlight'}
+                    {on ? 'Heraus' : zoom.multi && zoomPeople.spotlight.length ? 'Dazu' : 'Spotlight'}
                   </Button>
                   <IconButton label={`Stream-Deck-Adresse für Platz ${n} kopieren`} icon={Copy} disabled={!actionKey} onClick={() => copy(`spotlight-${n}`)} />
                 </li>
@@ -184,11 +221,17 @@ export function SpotlightView() {
                     </div>
                     <div className="spot-person__actions">
                       <Button size="sm" variant={on ? 'primary' : 'secondary'} icon={Star} disabled={!live} onClick={() => zoom.toggle(p)}>
-                        {on ? 'Im Spotlight' : 'Spotlight'}
+                        {on ? 'Im Spotlight' : zoom.multi && zoomPeople.spotlight.length ? 'Dazu' : 'Spotlight'}
                       </Button>
-                      {!on && zoomPeople.spotlight.length > 0 && (
-                        <IconButton label={`${p.name} zusätzlich ins Spotlight`} icon={Plus} disabled={!live} onClick={() => zoom.add(p)} />
-                      )}
+                      {zoom.multi
+                        ? zoomPeople.spotlight.length > 0 &&
+                          !(on && zoomPeople.spotlight.length === 1) && (
+                            <IconButton label={`Nur ${p.name} im Spotlight, alle anderen heraus`} icon={Crosshair} disabled={!live} onClick={() => zoom.only(p)} />
+                          )
+                        : !on &&
+                          zoomPeople.spotlight.length > 0 && (
+                            <IconButton label={`${p.name} zusätzlich ins Spotlight`} icon={Plus} disabled={!live} onClick={() => zoom.add(p)} />
+                          )}
                       <select
                         className="input input--sm spot-person__slot"
                         value={slot ?? ''}
@@ -219,7 +262,9 @@ export function SpotlightView() {
       <Panel eyebrow="Auch wenn MeetingBackstage nicht vorne ist" title="Tasten und Stream Deck">
         <ul className="spot-help">
           <li>
-            <strong>In der App:</strong> <Kbd>1</Kbd>–<Kbd>9</Kbd> setzt die Person des Platzes ins Spotlight (nochmal drücken hebt es auf),{' '}
+            <strong>In der App:</strong> <Kbd>1</Kbd>–<Kbd>9</Kbd> nimmt die Person des Platzes ins Spotlight, nochmal drücken nimmt sie
+            wieder heraus. Bei „Mehrere gleichzeitig“ kommen so bis zu {SPOTLIGHT_MAX} Personen zusammen ins Spotlight, bei „Nur eine Person“
+            ersetzt jede Taste die vorige.{' '}
             <Kbd>0</Kbd> hebt jedes Spotlight auf, <Kbd>N</Kbd> holt die Hand, die am längsten oben ist. Gilt, solange das Fenster von
             MeetingBackstage vorne ist und du nicht in einem Eingabefeld tippst.
           </li>

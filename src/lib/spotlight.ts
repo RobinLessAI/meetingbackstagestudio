@@ -26,3 +26,21 @@ export function nextRaisedHand(list: ZoomPerson[], spotlight: number[]): ZoomPer
       .sort((a, b) => (a.handSince ?? Infinity) - (b.handSince ?? Infinity) || a.name.localeCompare(b.name, 'de'))[0] ?? null
   );
 }
+
+/** Zoom erlaubt höchstens so viele Personen gleichzeitig im Spotlight. */
+export const SPOTLIGHT_MAX = 9;
+
+/**
+ * Was ein Klick bzw. eine Taste für diese Person tun soll.
+ * Mehrere gleichzeitig: dazunehmen oder nur diese Person herausnehmen.
+ * Nur eine Person: ersetzen; steht sie schon allein im Spotlight, aufheben.
+ */
+export function spotlightOp(spotlight: number[], userId: number, multi: boolean): 'add' | 'replace' | 'remove' | 'voll' {
+  const inSpot = spotlight.includes(userId);
+  if (multi) {
+    if (inSpot) return 'remove';
+    if (spotlight.length === 0) return 'replace';
+    return spotlight.length >= SPOTLIGHT_MAX ? 'voll' : 'add';
+  }
+  return inSpot && spotlight.length === 1 ? 'remove' : 'replace';
+}
