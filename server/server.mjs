@@ -1,30 +1,29 @@
-// MeetingBackstage Studio – lokaler Server
+// MeetingBackstage Studio – Server
 //
-// - liefert die App und die OBS-Ausgabeseiten aus (nur auf diesem Rechner erreichbar)
+// - liefert die App und die OBS-Ausgabeseiten aus
 // - gleicht die Grafiken per WebSocket zwischen Steuerung und OBS-Browserquellen ab
-// - speichert den Stand der Veranstaltung in daten/veranstaltung.json
-// - beobachtet auf Wunsch den Zoom-Ordner und meldet neu gespeicherte Chat-Dateien
 // - stellt das Regie-Fenster bereit, das dem Meeting über das Zoom Meeting SDK
 //   als zusätzlicher Teilnehmer beitritt und den Chat live weitergibt
+// - Zustand und Logik je Konto stecken in server/room.mjs („Raum“)
+//
+// Lokal (Standard): nur auf diesem Rechner erreichbar, ein Raum, Daten in daten/.
+// Web-Modus (MB_WEB=1): Kundenkonten mit Anmeldung (server/accounts.mjs), ein Raum je Konto
+// mit eigenem Ordner daten/konten/<id>/, OBS-Adressen und Stream Deck mit geheimem Schlüssel je Konto.
 //
 // Start: npm start (baut die App und startet den Server)
-import crypto from 'node:crypto';
 import http from 'node:http';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
-import { meetingSignature, normalizeAttendees, normalizeSdkChat, parseMeetingLink, spotlightError } from './meetingSdk.mjs';
-import { resetAnswers } from './resetAnswers.mjs';
-import { createZoomAccount } from './zoomAccount.mjs';
-import { createTeamsAccount, createTeamsLive } from './teams.mjs';
+import { AccountError, createAccounts, createLimiter, MIN_PASSWORD, normalizeEmail, publicUser } from './accounts.mjs';
+import { createMailer, MAILS } from './mailer.mjs';
+import { createRoom } from './room.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
 const DATA_DIR = process.env.MB_DATA_DIR ? path.resolve(process.env.MB_DATA_DIR) : path.join(ROOT, 'daten');
-const SAVE_FILE = path.join(DATA_DIR, 'veranstaltung.json');
 // Zugangsdaten aus .env.local (wird nicht eingecheckt)
 function loadEnvFile(file) {
   try {
@@ -91,9 +90,17 @@ const APP_VERSION = (() => {
 const PORT = Number(process.env.PORT ?? 4300);
 // Empfänger für Teams-Benachrichtigungen (nur über den Tunnel erreichbar, getrennt von der App).
 const TEAMS_RECEIVER_PORT = Number(process.env.TEAMS_WEBHOOK_PORT ?? PORT + 2);
-const HOST = '127.0.0.1';
 const MAX_MESSAGE = 8 * 1024 * 1024;
-const MAX_CHAT_FILE = 5 * 1024 * 1024;
+
+// Web-Modus (Kundenkonten, öffentlich erreichbar hinter einem Proxy mit https). Lokal bleibt alles wie gehabt.
+const WEB = process.env.MB_WEB === '1';
+const HOST = process.env.MB_HOST ?? '127.0.0.1';
+const PUBLIC_URL = (process.env.MB_PUBLIC_URL ?? `http://localhost:${PORT}`).replace(/\/+$/, '');
+const PUBLIC = new URL(PUBLIC_URL);
+const SECURE_COOKIE = PUBLIC.protocol === 'https:';
+const TRUST_PROXY = process.env.MB_TRUST_PROXY === '1';
+const ADMIN_EMAILS = (process.env.MB_ADMIN_EMAILS ?? '').split(',').map((e) => e.trim()).filter(Boolean);
+const COOKIE = 'mb_sitzung';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -118,278 +125,242 @@ const MIME = {
 
 const log = (...args) => console.log(`[${new Date().toLocaleTimeString('de-DE')}]`, ...args);
 
-// ------------------------------------------------------------------ Zustand
-let lastSnapshot = null;
-let saved = null;
-try {
-  saved = JSON.parse(fs.readFileSync(SAVE_FILE, 'utf8'));
-  // Jeder Neustart beginnt ohne Antworten; Einstellungen und Fragen bleiben.
-  if (saved?.state) {
-    saved = { savedAt: Date.now(), state: resetAnswers(saved.state) };
-    fs.writeFileSync(SAVE_FILE, JSON.stringify(saved));
-    log(`Veranstaltung „${saved.state.session?.title ?? ''}“ geladen, Antworten der letzten Sitzung zurückgesetzt.`);
+// ------------------------------------------------------------------ Räume
+const CFG = {
+  port: PORT,
+  zoomClientId: ZOOM_CLIENT_ID,
+  zoomClientSecret: ZOOM_CLIENT_SECRET,
+  zoomRedirectUri: ZOOM_REDIRECT_URI,
+  zoomOauthBase: process.env.MB_ZOOM_OAUTH_BASE,
+  zoomApiBase: process.env.MB_ZOOM_API_URL,
+  sdkMain: SDK_MAIN,
+  sdkVersion: SDK_VERSION,
+  appVersion: APP_VERSION,
+  regieName: REGIE_NAME,
+  regieStand: REGIE_STAND,
+  teamsClientId: TEAMS_CLIENT_ID,
+  teamsTenantId: TEAMS_TENANT_ID,
+  teamsPublicUrl: TEAMS_PUBLIC_URL,
+  teamsReceiverPort: TEAMS_RECEIVER_PORT,
+  teamsLoginBase: process.env.MB_TEAMS_LOGIN_URL,
+  teamsGraphBase: process.env.MB_TEAMS_GRAPH_URL,
+};
+
+// Lokal: ein Raum mit dem bisherigen Datenordner. Web: ein Raum je Konto, erst bei Bedarf angelegt.
+const localRoom = WEB ? null : createRoom({ id: 'lokal', dataDir: DATA_DIR, web: false, cfg: CFG, log });
+const rooms = new Map(); // Konto-ID -> Raum (nur Web)
+const WEB_DIR = path.join(DATA_DIR, 'web');
+const accounts = WEB ? createAccounts({ dir: WEB_DIR, adminEmails: ADMIN_EMAILS, log }) : null;
+const mailer = WEB ? createMailer({ dir: WEB_DIR, log }) : null;
+const accountDir = (id) => path.join(DATA_DIR, 'konten', id.replace(/[^a-f0-9-]/gi, ''));
+
+function roomFor(user) {
+  let room = rooms.get(user.id);
+  if (!room) {
+    room = createRoom({
+      id: user.id,
+      dataDir: accountDir(user.id),
+      web: true,
+      cfg: CFG,
+      log,
+      keys: { actionKey: user.actionKey, outputKey: user.outputKey },
+      renewKeys: () => accounts.renewKeys(user.id),
+    });
+    rooms.set(user.id, room);
   }
-} catch {
-  saved = null;
+  return room;
 }
 
-// Eigene Vorlagen für das Aussehen (unabhängig von der Veranstaltung)
-const TEMPLATE_FILE = path.join(DATA_DIR, 'vorlagen.json');
-let templates = [];
-try {
-  const raw = JSON.parse(fs.readFileSync(TEMPLATE_FILE, 'utf8'));
-  if (Array.isArray(raw)) templates = raw;
-} catch {
-  templates = [];
+/** Konto gesperrt, zurückgesetzt oder gelöscht: alle Fenster sofort trennen. */
+async function closeRoom(id, reason) {
+  const room = rooms.get(id);
+  if (!room) return;
+  room.kick(4001, reason);
+  await room.close();
+  rooms.delete(id);
 }
 
-async function writeTemplates(list) {
-  // Nur gültige Einträge, höchstens 200, damit die Datei überschaubar bleibt.
-  const clean = (Array.isArray(list) ? list : [])
-    .filter((t) => t && typeof t.id === 'string' && typeof t.name === 'string' && typeof t.kind === 'string' && t.data && typeof t.data === 'object')
-    .slice(0, 200)
-    .map((t) => ({ id: t.id.slice(0, 64), name: t.name.slice(0, 60), kind: t.kind.slice(0, 20), data: t.data, at: Number(t.at) || Date.now() }));
-  await fsp.mkdir(DATA_DIR, { recursive: true });
-  const tmp = `${TEMPLATE_FILE}.tmp`;
-  await fsp.writeFile(tmp, JSON.stringify(clean, null, 1));
-  await fsp.rename(tmp, TEMPLATE_FILE);
-  templates = clean;
-}
-
-async function writeSave(state) {
-  await fsp.mkdir(DATA_DIR, { recursive: true });
-  const payload = { savedAt: Date.now(), state };
-  const tmp = `${SAVE_FILE}.tmp`;
-  await fsp.writeFile(tmp, JSON.stringify(payload));
-  await fsp.rename(tmp, SAVE_FILE);
-  saved = payload;
-  return payload.savedAt;
-}
-
-// ------------------------------------------- Aktionen für Stream Deck & Co.
-// Ein Stream Deck (oder jedes andere Gerät auf diesem Rechner) ruft z. B.
-// http://localhost:4300/aktion/karte-anzeigen?schluessel=… auf. Der Schlüssel
-// verhindert, dass beliebige Webseiten im Browser Aktionen auslösen.
-const ACTION_KEY_FILE = path.join(DATA_DIR, 'aktion-schluessel.txt');
-const ACTION_KEY = (() => {
-  try {
-    const k = fs.readFileSync(ACTION_KEY_FILE, 'utf8').trim();
-    if (/^[a-f0-9]{8,}$/.test(k)) return k;
-  } catch {
-    /* neu erzeugen */
-  }
-  const k = crypto.randomBytes(5).toString('hex');
-  try {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(ACTION_KEY_FILE, k, { mode: 0o600 });
-  } catch {
-    /* dann nur für diesen Start gültig */
-  }
-  return k;
-})();
-
-function handleAction(req, res, id) {
-  const url = new URL(req.url ?? '/', 'http://localhost');
-  const json = (status, body) => {
-    res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(JSON.stringify(body));
-  };
-  if (url.searchParams.get('schluessel') !== ACTION_KEY) return json(403, { ok: false, fehler: 'Schlüssel fehlt oder ist falsch.' });
-  if (!/^[a-z0-9-]{2,40}$/.test(id)) return json(400, { ok: false, fehler: 'Unbekannte Aktion.' });
-  // Nur an eine Steuerung schicken (die zuletzt geöffnete), sonst würde doppelt umgeschaltet.
-  const target = [...roles.entries()].filter(([, r]) => r === 'steuerung').map(([ws]) => ws).pop();
-  if (!target) return json(409, { ok: false, fehler: 'Die Steuerung ist nicht geöffnet. Bitte http://localhost:' + PORT + ' im Browser öffnen.' });
-  send(target, { type: 'aktion', id });
-  json(200, { ok: true, aktion: id });
-}
-
-// --------------------------------------------- Zoom-Konto (eigene Meetings)
-const zoomAccount = createZoomAccount({
-  clientId: ZOOM_CLIENT_ID,
-  clientSecret: ZOOM_CLIENT_SECRET,
-  redirectUri: ZOOM_REDIRECT_URI,
-  dataDir: DATA_DIR,
-  log,
-  oauthBase: process.env.MB_ZOOM_OAUTH_BASE,
-  apiBase: process.env.MB_ZOOM_API_URL,
-});
-
-// ----------------------------------------------- Live-Chat über das Regie-Fenster
-const liveChat = []; // zuletzt empfangene Nachrichten, damit eine neu geladene Steuerung nichts verpasst
-const liveKeys = new Set();
-let regie = { state: 'bereit', meeting: null, since: null, messages: 0, error: null };
-let rawLogged = 0;
-
-/** Status für die App, inklusive der Frage, ob alles eingerichtet ist. */
-function regieStatus() {
-  return {
-    ...regie,
-    name: REGIE_NAME,
-    account: zoomAccount.status(),
-    appVersion: APP_VERSION,
-    sdkVersion: SDK_VERSION,
-    configured: Boolean(ZOOM_CLIENT_ID && ZOOM_CLIENT_SECRET && SDK_MAIN),
-    sdkInstalled: Boolean(SDK_MAIN),
-    missing: [!ZOOM_CLIENT_ID && 'ZOOM_CLIENT_ID', !ZOOM_CLIENT_SECRET && 'ZOOM_CLIENT_SECRET'].filter(Boolean),
-  };
-}
-
-function setRegie(patch) {
-  regie = { ...regie, ...patch };
-  broadcast('steuerung', { type: 'regie-status', status: regieStatus() });
-}
-
-function handleRegieChat(data) {
-  // Die ersten Nachrichten im Rohformat protokollieren, falls Zoom das Format ändert.
-  if (rawLogged < 3) {
-    rawLogged += 1;
-    log(`Regie: Chat-Rohdaten von Zoom: ${JSON.stringify(data).slice(0, 400)}`);
-  }
-  const chat = normalizeSdkChat(data);
-  if (!chat) {
-    // Nicht erkannte Nachrichten immer zeigen, damit sich das Format nachvollziehen lässt.
-    log(`Regie: Chat-Nachricht nicht erkannt: ${JSON.stringify(data).slice(0, 400)}`);
-    return;
-  }
-  if (chat.private) {
-    log(`Regie: private Nachricht von ${chat.senderName} nicht übernommen.`);
-    return;
-  }
-  if (!pushLive(chat)) return;
-  regie.messages += 1;
-  broadcast('steuerung', { type: 'regie-status', status: regieStatus() });
-}
-
-// ------------------------------------------------ Teilnehmende und Spotlight in Zoom
-let zoomPeople = { list: [], spotlight: [], spotlightKnown: false, role: 'unbekannt', at: null };
-const handSince = new Map(); // userId -> Zeitpunkt, seit dem die Hand oben ist
-const micSince = new Map(); // userId -> Zeitpunkt, seit dem das Mikrofon an ist
-const spokeAt = new Map(); // userId -> zuletzt als Sprecher gemeldet
-let speakers = []; // aktuell von Zoom gemeldete Sprecher
-let attendeesLogged = false;
-let requestSeq = 0;
-const pendingRequests = new Map(); // requestId -> { ws, label }
-
-function peopleStatus() {
-  return {
-    ...zoomPeople,
-    speakers: speakers.filter((id) => zoomPeople.list.some((u) => u.userId === id)),
-    list: zoomPeople.list.map((u) => ({
-      ...u,
-      handSince: handSince.get(u.userId) ?? null,
-      micSince: micSince.get(u.userId) ?? null,
-      spokeAt: spokeAt.get(u.userId) ?? null,
-    })),
-  };
-}
-const broadcastPeople = () => broadcast('steuerung', { type: 'zoom-teilnehmende', status: peopleStatus() });
-
-function handleAttendees(msg) {
-  if (!attendeesLogged && Array.isArray(msg.list) && msg.list.length) {
-    attendeesLogged = true;
-    log(`Regie: Teilnehmende im Rohformat: ${JSON.stringify(msg.list[0]).slice(0, 300)} · Regie: ${JSON.stringify(msg.self ?? null).slice(0, 200)}`);
-  }
-  const next = normalizeAttendees(msg.list, msg.self, msg.spotlight);
-  // Kennt diese SDK-Version keine Spotlight-Liste, die zuletzt bekannte behalten.
-  if (!next.spotlightKnown) next.spotlight = zoomPeople.spotlight.filter((id) => next.list.some((u) => u.userId === id));
-  const now = Date.now();
-  for (const u of next.list) {
-    if (u.hand && !handSince.has(u.userId)) handSince.set(u.userId, now);
-    if (!u.hand) handSince.delete(u.userId);
-    if (u.muted === false && !micSince.has(u.userId)) micSince.set(u.userId, now);
-    if (u.muted !== false) micSince.delete(u.userId);
-  }
-  for (const map of [handSince, micSince, spokeAt]) for (const id of [...map.keys()]) if (!next.list.some((u) => u.userId === id)) map.delete(id);
-  zoomPeople = { ...next, at: now };
-  broadcastPeople();
-}
-
-/** Spotlight in Zoom setzen: ops = [{ operate: 'add' | 'replace' | 'remove', userId }]. */
-function sendSpotlight(ws, ops, label) {
-  const regieWs = [...roles.entries()].find(([, r]) => r === 'regie')?.[0];
-  if (!regieWs || regie.state !== 'verbunden') {
-    send(ws, { type: 'zoom-aktion', ok: false, message: 'Die Regie ist nicht im Meeting. Zuerst auf der Seite „Meeting“ beitreten.' });
-    return;
-  }
-  if (zoomPeople.role === 'teilnehmer') {
-    send(ws, { type: 'zoom-aktion', ok: false, message: spotlightError('', null, 'teilnehmer') });
-    return;
-  }
-  if (!ops.length) {
-    send(ws, { type: 'zoom-aktion', ok: true, message: label });
-    return;
-  }
-  const requestId = `s${++requestSeq}`;
-  pendingRequests.set(requestId, { ws, label });
-  setTimeout(() => pendingRequests.delete(requestId), 15_000).unref?.();
-  send(regieWs, { type: 'regie-spotlight', requestId, ops });
-}
-
-/** Neue Live-Nachricht (Zoom oder Teams) an alle Steuerungen; false, wenn schon bekannt. */
-function pushLive(chat) {
-  if (liveKeys.has(chat.key)) return false;
-  liveKeys.add(chat.key);
-  const message = { key: chat.key, senderName: chat.senderName, text: chat.text, at: chat.at };
-  liveChat.push(message);
-  if (liveChat.length > 2000) liveKeys.delete(liveChat.shift().key);
-  broadcast('steuerung', { type: 'live-chat', messages: [message] });
-  return true;
-}
-
-// ------------------------------------------------------------- Microsoft Teams
-const teamsAccount = createTeamsAccount({
-  clientId: TEAMS_CLIENT_ID,
-  tenant: TEAMS_TENANT_ID,
-  redirectUri: `http://localhost:${PORT}/teams/anmeldung`,
-  dataDir: DATA_DIR,
-  log,
-  loginBase: process.env.MB_TEAMS_LOGIN_URL,
-  graphBase: process.env.MB_TEAMS_GRAPH_URL,
-});
-const teamsLive = createTeamsLive({
-  account: teamsAccount,
-  log,
-  receiverPort: TEAMS_RECEIVER_PORT,
-  publicUrl: TEAMS_PUBLIC_URL,
-  onMessage: (m) => pushLive(m),
-  onStatus: () => broadcast('steuerung', { type: 'teams-status', status: teamsStatus() }),
-});
-function teamsStatus() {
-  return { ...teamsAccount.status(), live: teamsLive.status() };
-}
-const broadcastTeams = () => broadcast('steuerung', { type: 'teams-status', status: teamsStatus() });
-
-/** Kleine Seite nach der Microsoft-Anmeldung (im Browser-Tab). */
-function teamsCallbackPage(res, ok, text) {
-  res.writeHead(ok ? 200 : 400, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-  const safe = String(text).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  res.end(`<!doctype html><meta charset="utf-8"><title>MeetingBackstage · Teams</title>
-<body style="font:16px system-ui,sans-serif;background:#16181d;color:#eee;display:grid;place-items:center;height:100vh;margin:0">
-<div style="max-width:480px;text-align:center"><h1 style="font-size:22px">${ok ? 'Mit Microsoft Teams verbunden' : 'Anmeldung nicht möglich'}</h1>
-<p>${safe}</p><p style="opacity:.7">Du kannst diesen Tab schließen und zu MeetingBackstage zurückkehren.</p></div>
-${ok ? '<script>setTimeout(()=>window.close(),1500)</script>' : ''}</body>`);
-}
-
-/** Beitrittsdaten für das Regie-Fenster (Signatur wird hier erzeugt, das Geheimnis bleibt lokal). */
-function regieJoin(meetingInput, passcodeInput) {
-  const st = regieStatus();
-  if (!st.sdkInstalled) throw new Error('Das Zoom Meeting SDK fehlt. Bitte im Terminal „npm install“ ausführen und neu starten.');
-  if (st.missing.length) throw new Error(`In .env.local fehlt: ${st.missing.join(', ')}.`);
-  const { meetingId, passcode } = parseMeetingLink(meetingInput);
-  if (!meetingId) throw new Error('Keine gültige Meeting-ID erkannt. Bitte den Zoom-Link oder die 9- bis 11-stellige Nummer einfügen.');
-  return {
-    sdkKey: ZOOM_CLIENT_ID,
-    signature: meetingSignature({ clientId: ZOOM_CLIENT_ID, clientSecret: ZOOM_CLIENT_SECRET, meetingNumber: meetingId }),
-    meetingNumber: meetingId,
-    passWord: String(passcodeInput ?? '').trim() || passcode,
-    userName: REGIE_NAME,
-  };
-}
-
-/** Nur Anfragen an localhost beantworten (Schutz gegen DNS-Rebinding). */
+// ------------------------------------------------------------------ Hilfen
+/** Nur Anfragen an die eigene Adresse beantworten (Schutz gegen DNS-Rebinding). */
 function isLocalHost(hostHeader) {
   const host = String(hostHeader ?? '').replace(/:\d+$/, '');
   return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+}
+function hostAllowed(hostHeader) {
+  if (isLocalHost(hostHeader)) return true;
+  return WEB && String(hostHeader ?? '').toLowerCase() === PUBLIC.host.toLowerCase();
+}
+/** Verbindungen nur von dieser Seite (oder ohne Origin, z. B. OBS, Stream Deck). */
+function originAllowed(origin) {
+  if (!origin || origin === 'null') return true;
+  try {
+    const o = new URL(origin);
+    if (WEB && o.origin === PUBLIC.origin) return true;
+    return ['localhost', '127.0.0.1', '[::1]'].includes(o.hostname) && (!WEB || isLocalHost(PUBLIC.host));
+  } catch {
+    return false;
+  }
+}
+
+function cookies(req) {
+  const out = {};
+  for (const part of String(req.headers.cookie ?? '').split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0) out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
+  }
+  return out;
+}
+const sessionCookie = (value, maxAge) =>
+  `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${SECURE_COOKIE ? '; Secure' : ''}`;
+const clientIp = (req) =>
+  (TRUST_PROXY ? String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() : '') || req.socket.remoteAddress || '?';
+const sessionUser = (req) => (WEB ? accounts.session(cookies(req)[COOKIE]) : null);
+
+function json(res, status, body, headers = {}) {
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers });
+  res.end(JSON.stringify(body));
+}
+
+function readJson(req, limit = 16 * 1024) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > limit) {
+        reject(new AccountError('gross', 'Anfrage zu groß.', 413));
+        req.destroy();
+      } else chunks.push(c);
+    });
+    req.on('end', () => {
+      try {
+        resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {});
+      } catch {
+        reject(new AccountError('json', 'Ungültige Anfrage.'));
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+// ------------------------------------------------- Stream Deck & Co.
+// Ein Stream Deck ruft z. B. /aktion/karte-anzeigen?schluessel=… auf. Der Schlüssel verhindert, dass beliebige
+// Webseiten Aktionen auslösen, und bestimmt im Web-Modus das Konto.
+function handleAction(req, res, id) {
+  const url = new URL(req.url ?? '/', 'http://localhost');
+  const key = url.searchParams.get('schluessel') ?? '';
+  let room = null;
+  if (WEB) {
+    const user = accounts.byActionKey(key);
+    if (user?.status === 'aktiv') room = roomFor(user);
+  } else if (key === localRoom.actionKey) room = localRoom;
+  if (!room) return json(res, 403, { ok: false, fehler: 'Schlüssel fehlt oder ist falsch.' });
+  const r = room.action(id);
+  json(res, r.status, r.body);
+}
+
+// ------------------------------------------------------------- Konten (Web)
+const loginLimiter = createLimiter({ max: 8, windowMs: 15 * 60_000 });
+const ipLimiter = createLimiter({ max: 20, windowMs: 60 * 60_000 });
+
+async function notifyAdmins(mail) {
+  for (const u of accounts.list()) if (u.admin && u.status === 'aktiv') await mailer.send({ to: u.email, ...mail }).catch(() => {});
+}
+
+async function handleAccountApi(req, res, url) {
+  const route = url.pathname;
+  try {
+    if (route === '/api/modus') return json(res, 200, { web: WEB, minPasswort: MIN_PASSWORD });
+    if (route === '/api/konto/bestaetigen' && req.method === 'GET') {
+      try {
+        const user = await accounts.verifyEmail(url.searchParams.get('token') ?? '');
+        if (user.status === 'wartet') await notifyAdmins(MAILS.neuesKonto(user.email, `${PUBLIC_URL}/#verwaltung`));
+        res.writeHead(302, { Location: `/?hinweis=${user.status === 'aktiv' ? 'bestaetigt' : 'wartet'}`, 'Cache-Control': 'no-store' }).end();
+      } catch {
+        res.writeHead(302, { Location: '/?hinweis=link-ungueltig', 'Cache-Control': 'no-store' }).end();
+      }
+      return;
+    }
+    if (route === '/api/konto/ich' && req.method === 'GET') {
+      const user = sessionUser(req);
+      return user ? json(res, 200, { user: publicUser(user) }) : json(res, 401, { user: null });
+    }
+    if (req.method !== 'POST') return json(res, 405, { fehler: 'Methode nicht erlaubt.' });
+    // Schutz gegen fremde Seiten: nur JSON und nur von dieser Adresse.
+    if (!originAllowed(req.headers.origin) || !String(req.headers['content-type'] ?? '').includes('application/json')) {
+      return json(res, 403, { fehler: 'Anfrage abgelehnt.' });
+    }
+    const body = await readJson(req);
+    const ip = clientIp(req);
+
+    switch (route) {
+      case '/api/konto/registrieren': {
+        if (!ipLimiter.take(`reg:${ip}`)) return json(res, 429, { fehler: 'Zu viele Versuche. Bitte später erneut versuchen.' });
+        const r = await accounts.register({ email: body.email, password: body.passwort, name: body.name });
+        if (r.verifyToken) await mailer.send({ to: normalizeEmail(body.email), ...MAILS.bestaetigen(`${PUBLIC_URL}/api/konto/bestaetigen?token=${r.verifyToken}`) });
+        return json(res, 200, { ok: true });
+      }
+      case '/api/konto/anmelden': {
+        const key = `login:${ip}:${normalizeEmail(body.email)}`;
+        if (!loginLimiter.take(key)) return json(res, 429, { fehler: 'Zu viele Anmeldeversuche. Bitte in 15 Minuten erneut versuchen.' });
+        const { token, user } = await accounts.login({ email: body.email, password: body.passwort });
+        loginLimiter.reset(key);
+        return json(res, 200, { user }, { 'Set-Cookie': sessionCookie(token, 30 * 86400) });
+      }
+      case '/api/konto/abmelden':
+        await accounts.logout(cookies(req)[COOKIE]);
+        return json(res, 200, { ok: true }, { 'Set-Cookie': sessionCookie('', 0) });
+      case '/api/konto/passwort-vergessen': {
+        if (!ipLimiter.take(`reset:${ip}`)) return json(res, 429, { fehler: 'Zu viele Versuche. Bitte später erneut versuchen.' });
+        const r = await accounts.requestReset(body.email);
+        if (r) await mailer.send({ to: r.user.email, ...MAILS.passwort(`${PUBLIC_URL}/?passwort=${r.token}`) });
+        return json(res, 200, { ok: true }); // gleiche Antwort, ob es die Adresse gibt oder nicht
+      }
+      case '/api/konto/passwort-neu': {
+        const user = await accounts.resetPassword(body.token, body.passwort);
+        await closeRoom(user.id, 'Passwort geändert');
+        return json(res, 200, { ok: true });
+      }
+      case '/api/konto/passwort-aendern': {
+        const user = sessionUser(req);
+        if (!user) return json(res, 401, { fehler: 'Bitte anmelden.' });
+        await accounts.changePassword(user.id, body.alt, body.neu);
+        return json(res, 200, { ok: true });
+      }
+      case '/api/verwaltung/konten': {
+        const user = sessionUser(req);
+        if (!user?.admin) return json(res, 403, { fehler: 'Nur für die Verwaltung.' });
+        const list = accounts.list().map((u) => ({ ...u, online: rooms.get(u.id)?.counts() ?? null }));
+        return json(res, 200, { konten: list });
+      }
+      case '/api/verwaltung/konto': {
+        const user = sessionUser(req);
+        if (!user?.admin) return json(res, 403, { fehler: 'Nur für die Verwaltung.' });
+        const target = accounts.get(String(body.id ?? ''));
+        if (!target) return json(res, 404, { fehler: 'Konto nicht gefunden.' });
+        if (target.id === user.id) return json(res, 400, { fehler: 'Das eigene Konto lässt sich hier nicht ändern.' });
+        if (body.aktion === 'freischalten' || body.aktion === 'entsperren') {
+          const wasWaiting = target.status === 'wartet';
+          await accounts.setStatus(target.id, 'aktiv');
+          if (wasWaiting) await mailer.send({ to: target.email, ...MAILS.freigeschaltet(PUBLIC_URL) }).catch(() => {});
+        } else if (body.aktion === 'sperren') {
+          await accounts.setStatus(target.id, 'gesperrt');
+          await closeRoom(target.id, 'Konto gesperrt');
+        } else if (body.aktion === 'loeschen') {
+          await closeRoom(target.id, 'Konto gelöscht');
+          await accounts.remove(target.id);
+          await fsp.rm(accountDir(target.id), { recursive: true, force: true });
+        } else return json(res, 400, { fehler: 'Unbekannte Aktion.' });
+        return json(res, 200, { ok: true });
+      }
+      default:
+        return json(res, 404, { fehler: 'Nicht gefunden.' });
+    }
+  } catch (e) {
+    if (e instanceof AccountError) return json(res, e.status, { fehler: e.message, code: e.code });
+    log(`Fehler bei ${route}: ${e.message}`);
+    return json(res, 500, { fehler: 'Interner Fehler. Bitte später erneut versuchen.' });
+  }
 }
 
 // -------------------------------------------------------------- Auslieferung
@@ -410,6 +381,9 @@ function sendFile(res, file, req) {
     'Cache-Control': ext === '.html' ? 'no-store' : immutable ? 'public, max-age=31536000, immutable' : 'no-cache',
     'Last-Modified': lastModified,
     'X-Content-Type-Options': 'nosniff',
+    // Adressen mit Schlüsseln nicht an fremde Seiten weitergeben; Einbetten nur durch die eigene Seite.
+    'Referrer-Policy': 'same-origin',
+    ...(ext === '.html' ? { 'X-Frame-Options': 'SAMEORIGIN' } : {}),
   };
   if (!immutable && ext !== '.html' && req?.headers['if-modified-since'] === lastModified) {
     res.writeHead(304, headers).end();
@@ -419,9 +393,20 @@ function sendFile(res, file, req) {
   fs.createReadStream(file).pipe(res);
 }
 
+/** Kleine Seite nach der Microsoft-Anmeldung (im Browser-Tab). */
+function teamsCallbackPage(res, ok, text) {
+  res.writeHead(ok ? 200 : 400, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+  const safe = String(text).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  res.end(`<!doctype html><meta charset="utf-8"><title>MeetingBackstage · Teams</title>
+<body style="font:16px system-ui,sans-serif;background:#16181d;color:#eee;display:grid;place-items:center;height:100vh;margin:0">
+<div style="max-width:480px;text-align:center"><h1 style="font-size:22px">${ok ? 'Mit Microsoft Teams verbunden' : 'Anmeldung nicht möglich'}</h1>
+<p>${safe}</p><p style="opacity:.7">Du kannst diesen Tab schließen und zu MeetingBackstage zurückkehren.</p></div>
+${ok ? '<script>setTimeout(()=>window.close(),1500)</script>' : ''}</body>`);
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://localhost');
-  if (!isLocalHost(req.headers.host)) {
+  if (!hostAllowed(req.headers.host)) {
     res.writeHead(404).end();
     return;
   }
@@ -429,24 +414,29 @@ const server = http.createServer((req, res) => {
     handleAction(req, res, decodeURIComponent(url.pathname.slice('/aktion/'.length)));
     return;
   }
-  if (url.pathname === '/teams/anmelden' && req.method === 'GET') {
-    const target = teamsAccount.authorizeUrl();
+  if (WEB && (url.pathname.startsWith('/api/konto/') || url.pathname.startsWith('/api/verwaltung/') || url.pathname === '/api/modus')) {
+    handleAccountApi(req, res, url);
+    return;
+  }
+  if (!WEB && url.pathname === '/api/modus') return json(res, 200, { web: false });
+  if (!WEB && url.pathname === '/teams/anmelden' && req.method === 'GET') {
+    const target = localRoom.teamsAccount.authorizeUrl();
     if (!target) return teamsCallbackPage(res, false, 'TEAMS_CLIENT_ID fehlt in .env.local. Danach die App neu starten.');
     res.writeHead(302, { Location: target, 'Cache-Control': 'no-store' }).end();
     return;
   }
-  if (url.pathname === '/teams/anmeldung' && req.method === 'GET') {
-    teamsAccount
+  if (!WEB && url.pathname === '/teams/anmeldung' && req.method === 'GET') {
+    localRoom.teamsAccount
       .handleCallback(url.searchParams)
       .then(() => teamsCallbackPage(res, true, 'Deine Teams-Besprechungen erscheinen jetzt in MeetingBackstage.'))
       .catch((e) => teamsCallbackPage(res, false, e.message))
-      .finally(broadcastTeams);
+      .finally(localRoom.broadcastTeams);
     return;
   }
   if (url.pathname === '/api/status') {
-    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(JSON.stringify({ ok: true, ...counts(), savedAt: saved?.savedAt ?? null, regie: regieStatus() }));
-    return;
+    // Im Web-Modus nur ein Lebenszeichen (für die Ausfall-Überwachung), keine Daten.
+    if (WEB) return json(res, 200, { ok: true, version: APP_VERSION });
+    return json(res, 200, { ok: true, ...localRoom.counts(), savedAt: localRoom.savedAt(), regie: localRoom.regieStatus() });
   }
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     res.writeHead(405).end();
@@ -494,328 +484,31 @@ const server = http.createServer((req, res) => {
 
 // ------------------------------------------------------------- WebSocket
 const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE });
-const roles = new Map(); // ws -> 'steuerung' | 'ausgabe' | 'regie'
 
-function counts() {
-  let steuerungen = 0;
-  let ausgaben = 0;
-  for (const role of roles.values()) {
-    if (role === 'ausgabe') ausgaben++;
-    else if (role === 'steuerung') steuerungen++;
-  }
-  return { steuerungen, ausgaben };
-}
-const hasRole = (role) => [...roles.values()].includes(role);
-
-const send = (ws, msg) => ws.readyState === ws.OPEN && ws.send(JSON.stringify(msg));
-const broadcast = (role, msg) => {
-  // Vorschau-Fenster in der App erhalten dasselbe wie OBS-Ausgaben, zählen aber nicht mit.
-  for (const [ws, r] of roles) if (r === role || (role === 'ausgabe' && r === 'vorschau')) send(ws, msg);
-};
-const broadcastCounts = () => broadcast('steuerung', { type: 'clients', ...counts() });
-
-/** Nur Verbindungen von diesem Rechner (oder ohne Origin, z. B. OBS) zulassen. */
-function originAllowed(origin) {
-  if (!origin || origin === 'null') return true;
-  try {
-    const { hostname } = new URL(origin);
-    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
-  } catch {
-    return false;
-  }
+function refuse(socket, status, text) {
+  socket.write(`HTTP/1.1 ${status} ${text}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
+  socket.destroy();
 }
 
 server.on('upgrade', (req, socket, head) => {
   const url = new URL(req.url ?? '/', 'http://localhost');
-  if (url.pathname !== '/sync' || !isLocalHost(req.headers.host) || !originAllowed(req.headers.origin)) {
+  if (url.pathname !== '/sync' || !hostAllowed(req.headers.host) || !originAllowed(req.headers.origin)) {
     socket.destroy();
     return;
   }
-  wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, url.searchParams.get('rolle')));
+  const rolle = url.searchParams.get('rolle');
+  let room = localRoom;
+  let extra = {};
+  if (WEB) {
+    // Steuerung, Regie und Vorschau brauchen die Anmeldung; OBS-Quellen den geheimen Schlüssel ihrer Adresse.
+    const fromKey = rolle === 'ausgabe' || rolle === 'vorschau' ? accounts.byOutputKey(url.searchParams.get('k') ?? '') : null;
+    const user = (fromKey?.status === 'aktiv' ? fromKey : null) ?? sessionUser(req);
+    if (!user) return refuse(socket, 401, 'Unauthorized');
+    room = roomFor(user);
+    extra = { konto: publicUser(user) };
+  }
+  wss.handleUpgrade(req, socket, head, (ws) => room.attach(ws, rolle, extra));
 });
-
-wss.on('connection', (ws, rolle) => {
-  const role = rolle === 'ausgabe' || rolle === 'regie' || rolle === 'vorschau' ? rolle : 'steuerung';
-  roles.set(ws, role);
-  if (role === 'ausgabe' || role === 'vorschau') {
-    if (lastSnapshot) send(ws, { type: 'snapshot', snapshot: lastSnapshot });
-  } else if (role === 'steuerung') {
-    send(ws, { type: 'hello', saved, ...counts(), watch: watchStatus(), regie: regieStatus(), teams: teamsStatus(), zoomTeilnehmende: peopleStatus(), aktionSchluessel: ACTION_KEY, vorlagen: templates });
-    if (liveChat.length) send(ws, { type: 'live-chat', messages: liveChat });
-  }
-  broadcastCounts();
-
-  ws.on('message', async (data) => {
-    let msg;
-    try {
-      msg = JSON.parse(String(data));
-    } catch {
-      return;
-    }
-    if (role === 'regie') {
-      handleRegieMessage(ws, msg);
-      return;
-    }
-    if (role !== 'steuerung') return;
-    switch (msg.type) {
-      case 'snapshot':
-        lastSnapshot = msg.snapshot;
-        broadcast('ausgabe', { type: 'snapshot', snapshot: lastSnapshot });
-        break;
-      case 'vorlagen':
-        try {
-          await writeTemplates(msg.vorlagen);
-          broadcast('steuerung', { type: 'vorlagen', vorlagen: templates });
-        } catch (e) {
-          send(ws, { type: 'error', message: `Vorlagen konnten nicht gespeichert werden: ${e.message}` });
-        }
-        break;
-      case 'save':
-        try {
-          const savedAt = await writeSave(msg.state);
-          send(ws, { type: 'saved', savedAt });
-        } catch (e) {
-          send(ws, { type: 'error', message: `Speichern fehlgeschlagen: ${e.message}` });
-        }
-        break;
-      case 'zoom-auth-url':
-        send(ws, { type: 'zoom-auth-url', url: zoomAccount.authorizeUrl() });
-        break;
-      case 'zoom-connect':
-        try {
-          await zoomAccount.connect(msg.input);
-          send(ws, { type: 'zoom-result', ok: true, message: 'Mit dem Zoom-Konto verbunden.' });
-        } catch (e) {
-          send(ws, { type: 'zoom-result', ok: false, message: e.message });
-        }
-        broadcast('steuerung', { type: 'regie-status', status: regieStatus() });
-        break;
-      case 'zoom-disconnect':
-        await zoomAccount.disconnect();
-        broadcast('steuerung', { type: 'regie-status', status: regieStatus() });
-        break;
-      case 'zoom-meetings':
-        try {
-          send(ws, { type: 'zoom-meetings', ok: true, meetings: await zoomAccount.listMeetings(), at: Date.now() });
-        } catch (e) {
-          send(ws, { type: 'zoom-meetings', ok: false, error: e.message, meetings: [] });
-        }
-        break;
-      case 'regie-leave':
-        broadcast('regie', { type: 'regie-leave' });
-        break;
-      case 'zoom-spotlight': {
-        // Eine Person ins Spotlight (ersetzt) oder dazu (add) oder heraus (remove); userId null = alle heraus.
-        const operate = msg.operate === 'add' || msg.operate === 'remove' ? msg.operate : 'replace';
-        if (msg.userId === null || msg.userId === undefined) {
-          sendSpotlight(ws, zoomPeople.spotlight.map((id) => ({ operate: 'remove', userId: id })), 'Spotlight aufgehoben');
-          break;
-        }
-        const person = zoomPeople.list.find((u) => u.userId === Number(msg.userId));
-        if (!person) {
-          send(ws, { type: 'zoom-aktion', ok: false, message: 'Diese Person ist nicht mehr im Meeting.' });
-          break;
-        }
-        const label =
-          operate === 'remove' ? `${person.name} aus dem Spotlight genommen` : operate === 'add' ? `${person.name} zusätzlich im Spotlight` : `${person.name} im Spotlight`;
-        sendSpotlight(ws, [{ operate, userId: person.userId }], label);
-        break;
-      }
-      case 'zoom-teilnehmende-lesen':
-        broadcast('regie', { type: 'regie-teilnehmende-lesen' });
-        break;
-      case 'teams-meetings':
-        try {
-          send(ws, { type: 'teams-meetings', ok: true, meetings: await teamsAccount.listMeetings(), at: Date.now() });
-        } catch (e) {
-          send(ws, { type: 'teams-meetings', ok: false, error: e.message, meetings: [] });
-        }
-        break;
-      case 'teams-disconnect':
-        await teamsLive.stop();
-        await teamsAccount.disconnect();
-        broadcastTeams();
-        break;
-      case 'teams-live-start':
-        if (!teamsAccount.status().connected) {
-          send(ws, { type: 'error', message: 'Bitte zuerst unter „Aus Microsoft Teams“ mit Microsoft anmelden.' });
-          break;
-        }
-        teamsLive.start(String(msg.link ?? ''), String(msg.topic ?? ''));
-        break;
-      case 'teams-live-stop':
-        await teamsLive.stop();
-        break;
-      case 'chat-watch':
-        startWatch(msg.folder);
-        break;
-      case 'chat-watch-stop':
-        stopWatch();
-        break;
-    }
-  });
-  ws.on('close', () => {
-    roles.delete(ws);
-    if (role === 'regie' && !hasRole('regie')) {
-      log('Regie-Fenster geschlossen.');
-      setRegie({ state: 'bereit', since: null, error: null });
-      zoomPeople = { list: [], spotlight: [], spotlightKnown: false, role: 'unbekannt', at: null };
-      handSince.clear();
-      micSince.clear();
-      spokeAt.clear();
-      speakers = [];
-      broadcastPeople();
-    }
-    broadcastCounts();
-  });
-});
-
-const REGIE_STATES = new Set(['verbindet', 'wartet', 'verbunden', 'fehler', 'bereit']);
-
-function handleRegieMessage(ws, msg) {
-  switch (msg.type) {
-    case 'regie-hello':
-      try {
-        const join = regieJoin(msg.meeting, msg.passcode);
-        send(ws, { type: 'regie-join', join, version: { app: APP_VERSION, sdk: SDK_VERSION, regieStand: REGIE_STAND } });
-        log(`Regie: tritt Meeting ${join.meetingNumber} als „${REGIE_NAME}“ bei …`);
-        setRegie({ state: 'verbindet', meeting: join.meetingNumber, since: null, error: null });
-      } catch (e) {
-        send(ws, { type: 'regie-error', message: e.message, version: { app: APP_VERSION, sdk: SDK_VERSION, regieStand: REGIE_STAND } });
-        setRegie({ state: 'fehler', error: e.message });
-      }
-      break;
-    case 'regie-status': {
-      if (!REGIE_STATES.has(msg.state)) return;
-      const error = msg.state === 'fehler' ? String(msg.error ?? 'Unbekannter Fehler').slice(0, 300) : null;
-      if (msg.state !== regie.state || error !== regie.error) {
-        log(`Regie: ${msg.state}${error ? ` – ${error}` : ''}`);
-        setRegie({ state: msg.state, error, since: msg.state === 'verbunden' ? Date.now() : regie.since });
-        if (msg.state === 'bereit' || msg.state === 'fehler') {
-          zoomPeople = { list: [], spotlight: [], spotlightKnown: false, role: 'unbekannt', at: null };
-          handSince.clear();
-          micSince.clear();
-          spokeAt.clear();
-          speakers = [];
-          broadcastPeople();
-        }
-      }
-      break;
-    }
-    case 'regie-teilnehmende':
-      handleAttendees(msg);
-      break;
-    case 'regie-sprecher': {
-      speakers = (Array.isArray(msg.userIds) ? msg.userIds : []).map(Number).filter(Number.isFinite).slice(0, 20);
-      const now = Date.now();
-      for (const id of speakers) spokeAt.set(id, now);
-      broadcastPeople();
-      break;
-    }
-    case 'regie-ergebnis': {
-      const req = pendingRequests.get(String(msg.requestId ?? ''));
-      pendingRequests.delete(String(msg.requestId ?? ''));
-      if (!msg.ok) log(`Regie: Spotlight abgelehnt: ${JSON.stringify(msg.raw ?? msg.error).slice(0, 300)}`);
-      const result = msg.ok
-        ? { type: 'zoom-aktion', ok: true, message: req?.label ?? 'Erledigt' }
-        : { type: 'zoom-aktion', ok: false, message: spotlightError(msg.error, msg.code, zoomPeople.role) };
-      if (req) send(req.ws, result);
-      else broadcast('steuerung', result);
-      break;
-    }
-    case 'regie-chat':
-      handleRegieChat(msg.data);
-      break;
-    case 'regie-log':
-      log(`Regie: ${String(msg.text ?? '').slice(0, 400)}`);
-      break;
-  }
-}
-
-// ------------------------------------------------- Zoom-Ordner beobachten
-const DEFAULT_FOLDERS = [
-  path.join(os.homedir(), 'Documents', 'Zoom'),
-  path.join(os.homedir(), 'Dokumente', 'Zoom'),
-  path.join(os.homedir(), 'OneDrive', 'Documents', 'Zoom'),
-  path.join(os.homedir(), 'OneDrive', 'Dokumente', 'Zoom'),
-];
-const CHAT_FILE = /chat.*\.txt$/i;
-let watch = null; // { folder, timer, file, mtime, size, error, startedAt }
-
-function watchStatus() {
-  return watch
-    ? { active: true, folder: watch.folder, file: watch.file, error: watch.error ?? null }
-    : { active: false, folder: null, file: null, error: null, suggested: DEFAULT_FOLDERS.find((f) => fs.existsSync(f)) ?? DEFAULT_FOLDERS[0] };
-}
-
-async function newestChatFile(folder, depth = 3) {
-  let best = null;
-  async function walk(dir, level) {
-    let entries;
-    try {
-      entries = await fsp.readdir(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const e of entries) {
-      const full = path.join(dir, e.name);
-      if (e.isDirectory() && level < depth) await walk(full, level + 1);
-      else if (e.isFile() && CHAT_FILE.test(e.name)) {
-        const stat = await fsp.stat(full).catch(() => null);
-        if (stat && (!best || stat.mtimeMs > best.mtime)) best = { file: full, mtime: stat.mtimeMs, size: stat.size };
-      }
-    }
-  }
-  await walk(folder, 0);
-  return best;
-}
-
-function startWatch(folderInput) {
-  stopWatch(false);
-  const folder = folderInput?.trim()
-    ? path.resolve(folderInput.trim().replace(/^~(?=$|[\\/])/, os.homedir()))
-    : (DEFAULT_FOLDERS.find((f) => fs.existsSync(f)) ?? DEFAULT_FOLDERS[0]);
-  if (!fs.existsSync(folder)) {
-    const error = `Ordner nicht gefunden: ${folder}`;
-    broadcast('steuerung', { type: 'watch-status', active: false, folder, file: null, error });
-    log(error);
-    return;
-  }
-  watch = { folder, timer: null, file: null, mtime: 0, size: -1, error: null, startedAt: Date.now() };
-  log(`Beobachte Zoom-Chats in ${folder}`);
-  const tick = async () => {
-    if (!watch) return;
-    const found = await newestChatFile(watch.folder);
-    // Nur Dateien berücksichtigen, die in den letzten 12 Stunden gespeichert wurden.
-    if (!found || Date.now() - found.mtime > 12 * 3600_000) return;
-    if (found.file === watch.file && found.mtime === watch.mtime && found.size === watch.size) return;
-    if (found.size > MAX_CHAT_FILE) {
-      watch.error = `Chat-Datei ist zu groß (${Math.round(found.size / 1024)} KB).`;
-      broadcast('steuerung', { type: 'watch-status', ...watchStatus() });
-      return;
-    }
-    const content = await fsp.readFile(found.file, 'utf8').catch(() => null);
-    if (content === null || !watch) return;
-    Object.assign(watch, { file: found.file, mtime: found.mtime, size: found.size, error: null });
-    broadcast('steuerung', {
-      type: 'chat-file',
-      file: path.relative(watch.folder, found.file),
-      mtime: found.mtime,
-      content,
-    });
-    broadcast('steuerung', { type: 'watch-status', ...watchStatus() });
-    log(`Chat-Datei übertragen: ${path.relative(watch.folder, found.file)}`);
-  };
-  watch.timer = setInterval(tick, 2000);
-  tick();
-  broadcast('steuerung', { type: 'watch-status', ...watchStatus() });
-}
-
-function stopWatch(announce = true) {
-  if (watch?.timer) clearInterval(watch.timer);
-  watch = null;
-  if (announce) broadcast('steuerung', { type: 'watch-status', ...watchStatus() });
-}
 
 // ------------------------------------------------------------------ Start
 server.on('error', (err) => {
@@ -828,29 +521,36 @@ server.on('error', (err) => {
 });
 
 server.listen(PORT, HOST, () => {
-  const base = `http://localhost:${PORT}`;
+  const base = WEB ? PUBLIC_URL : `http://localhost:${PORT}`;
   console.log('');
-  console.log('  MeetingBackstage Studio läuft');
+  console.log(`  MeetingBackstage Studio läuft${WEB ? ' im Web-Modus (Kundenkonten)' : ''}`);
   console.log(`  Version:           ${APP_VERSION}${SDK_VERSION ? ` · Zoom SDK ${SDK_VERSION}` : ''}`);
   console.log(`  Steuerung:         ${base}/`);
-  console.log(`  OBS-Browserquelle: ${base}/ausgabe.html?grafik=programm`);
-  console.log('  Weitere Ausgabe-Adressen stehen in der App unter „OBS-Ausgabe“.');
-  const st = regieStatus();
-  console.log(
-    !st.sdkInstalled
-      ? '  Zoom-Live-Chat:    Zoom Meeting SDK fehlt, bitte „npm install“ ausführen'
-      : st.missing.length
-        ? `  Zoom-Live-Chat:    noch nicht eingerichtet (fehlt in .env.local: ${st.missing.join(', ')})`
-        : `  Zoom-Live-Chat:    bereit, Regie-Fenster tritt als „${REGIE_NAME}“ bei`,
-  );
-  if (TEAMS_CLIENT_ID) console.log('  Teams-Live-Chat:   eingerichtet (Anmeldung in der App unter „Meeting“)');
+  if (WEB) {
+    console.log(`  Konten:            ${accounts.count()} · Verwaltung: ${ADMIN_EMAILS.length ? ADMIN_EMAILS.join(', ') : 'keine (MB_ADMIN_EMAILS setzen)'}`);
+    console.log('  E-Mails:           ohne Versanddienst, stehen im Terminal und in daten/web/mails.log');
+  } else {
+    console.log(`  OBS-Browserquelle: ${base}/ausgabe.html?grafik=programm`);
+    console.log('  Weitere Ausgabe-Adressen stehen in der App unter „OBS-Ausgabe“.');
+  }
+  const st = localRoom?.regieStatus() ?? null;
+  if (st) {
+    console.log(
+      !st.sdkInstalled
+        ? '  Zoom-Live-Chat:    Zoom Meeting SDK fehlt, bitte „npm install“ ausführen'
+        : st.missing.length
+          ? `  Zoom-Live-Chat:    noch nicht eingerichtet (fehlt in .env.local: ${st.missing.join(', ')})`
+          : `  Zoom-Live-Chat:    bereit, Regie-Fenster tritt als „${REGIE_NAME}“ bei`,
+    );
+    if (TEAMS_CLIENT_ID) console.log('  Teams-Live-Chat:   eingerichtet (Anmeldung in der App unter „Meeting“)');
+  }
   console.log(`  Beenden mit ${process.platform === 'darwin' ? 'ctrl + C' : 'Strg + C'}`);
   console.log('');
 });
 
 const shutdown = () => {
-  stopWatch(false);
-  teamsLive.close().catch(() => {});
+  localRoom?.close();
+  for (const room of rooms.values()) room.close();
   wss.clients.forEach((ws) => ws.close());
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 500).unref();
