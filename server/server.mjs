@@ -319,7 +319,7 @@ async function notifyAdmins(mail) {
 async function handleAccountApi(req, res, url) {
   const route = url.pathname;
   try {
-    if (route === '/api/modus') return json(res, 200, { web: WEB, minPasswort: MIN_PASSWORD });
+    if (route === '/api/modus') return json(res, 200, { web: WEB, minPasswort: MIN_PASSWORD, hauptseite: MAIN_HOST ? MAIN_URL : null });
     if (route === '/api/konto/bestaetigen' && req.method === 'GET') {
       try {
         const user = await accounts.verifyEmail(url.searchParams.get('token') ?? '');

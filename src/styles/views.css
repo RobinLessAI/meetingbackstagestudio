@@ -1396,6 +1396,10 @@ a.icon-btn { text-decoration: none; }
 .auth__form .btn { align-self: stretch; justify-content: center; }
 .auth__links { display: flex; justify-content: space-between; gap: 12px; }
 .auth__foot { font-size: var(--fs-sm); text-align: center; }
+.auth__back { align-self: center; width: min(440px, 100%); display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); font-size: var(--fs-sm); font-weight: 500; text-decoration: none; }
+.auth__back:hover { color: var(--accent); }
+.auth__brand { display: block; color: inherit; text-decoration: none; border-radius: var(--r-sm); }
+a.account__item { color: inherit; text-decoration: none; }
 
 /* Kontomenü */
 .account { position: relative; }

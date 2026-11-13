@@ -1,8 +1,8 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
-import { CircleAlert, CircleCheck, KeyRound, LogIn, Mail, UserPlus } from 'lucide-react';
+import { ArrowLeft, CircleAlert, CircleCheck, KeyRound, LogIn, Mail, UserPlus } from 'lucide-react';
 import { Brand } from '../components/layout.tsx';
 import { Button } from '../components/ui.tsx';
-import { api } from './mode.ts';
+import { api, mainSiteUrl } from './mode.ts';
 
 type Mode = 'anmelden' | 'registrieren' | 'vergessen' | 'neu';
 
@@ -90,8 +90,19 @@ export function AuthScreen({ minPassword }: { minPassword: number }) {
 
   return (
     <div className="auth">
+      {mainSiteUrl() && (
+        <a className="auth__back" href={mainSiteUrl()!}>
+          <ArrowLeft size={15} aria-hidden /> Zurück zu {mainSiteUrl()!.replace(/^https?:\/\//, '')}
+        </a>
+      )}
       <div className="auth__card">
-        <Brand />
+        {mainSiteUrl() ? (
+          <a href={mainSiteUrl()!} className="auth__brand" aria-label="Zur Startseite">
+            <Brand />
+          </a>
+        ) : (
+          <Brand />
+        )}
         <h1 className="auth__title">{title}</h1>
         {(mode === 'anmelden' || mode === 'registrieren') && (
           <div className="tabs auth__tabs" role="tablist">

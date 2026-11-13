@@ -12,9 +12,15 @@ export interface WebUser {
 
 let web = false;
 let user: WebUser | null = null;
+let mainSite: string | null = null;
 
 export const isWeb = () => web;
 export const currentUser = () => user;
+/** Adresse der Hauptseite (z. B. https://meetingbackstage.de) oder null. */
+export const mainSiteUrl = () => mainSite;
+export const setMainSite = (url: string | null) => {
+  mainSite = url && /^https?:\/\//.test(url) ? url : null;
+};
 export function setMode(isWebMode: boolean, u: WebUser | null = null) {
   web = isWebMode;
   user = u;

@@ -1,9 +1,9 @@
 import { useId, useState } from 'react';
-import { KeyRound, LogOut, ShieldCheck, UserRound } from 'lucide-react';
+import { Globe, KeyRound, LogOut, ShieldCheck, UserRound } from 'lucide-react';
 import { Button, Dialog } from '../components/ui.tsx';
 import { useStore } from '../state/store.tsx';
 import { useUi } from '../state/ui.tsx';
-import { api, currentUser, isWeb } from './mode.ts';
+import { api, currentUser, isWeb, mainSiteUrl } from './mode.ts';
 
 /** Kontomenü in der Kopfzeile (nur Web-Modus): Konto, Passwort ändern, Verwaltung, Abmelden. */
 export function AccountMenu() {
@@ -56,6 +56,11 @@ export function AccountMenu() {
           >
             <KeyRound size={15} aria-hidden /> Passwort ändern
           </button>
+          {mainSiteUrl() && (
+            <a role="menuitem" className="account__item" href={mainSiteUrl()!} target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
+              <Globe size={15} aria-hidden /> Zur Website {mainSiteUrl()!.replace(/^https?:\/\//, '')}
+            </a>
+          )}
           <button type="button" role="menuitem" className="account__item" onClick={logout}>
             <LogOut size={15} aria-hidden /> Abmelden
           </button>

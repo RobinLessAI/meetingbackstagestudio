@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { App } from '../App.tsx';
 import { AuthScreen } from './AuthScreen.tsx';
-import { api, setMode, type WebUser } from './mode.ts';
+import { api, setMainSite, setMode, type WebUser } from './mode.ts';
 
 /**
  * Startet die App: lokal sofort, im Web-Modus erst nach der Anmeldung.
@@ -15,8 +15,9 @@ export function Root() {
     (async () => {
       let web = false;
       try {
-        const m = await api<{ web: boolean; minPasswort?: number }>('/api/modus');
+        const m = await api<{ web: boolean; minPasswort?: number; hauptseite?: string | null }>('/api/modus');
         web = m.web;
+        setMainSite(m.hauptseite ?? null);
         if (m.minPasswort) setMinPassword(m.minPasswort);
       } catch {
         web = false;
