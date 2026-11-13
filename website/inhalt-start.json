@@ -1,0 +1,350 @@
+{
+ "version": 1,
+ "site": {
+  "name": "MeetingBackstage",
+  "slogan": "Moderieren und inspirieren",
+  "startTitel": "",
+  "titelVorlage": "%s · MeetingBackstage",
+  "beschreibung": "Live-Grafiken und Regie für Zoom-Workshops – gehostet in Deutschland.",
+  "kontaktMail": "info@meetingbackstage.de",
+  "indexieren": true,
+  "favicon": null,
+  "vorschaubild": "/_web/bilder/vorschau.png",
+  "logo": "",
+  "logoFuss": "",
+  "navigation": [
+   {
+    "label": "Funktionen",
+    "link": "/#funktionen"
+   },
+   {
+    "label": "So funktioniert’s",
+    "link": "/#ablauf"
+   },
+   {
+    "label": "Fragen",
+    "link": "/#fragen"
+   },
+   {
+    "label": "Hilfe",
+    "link": "/hilfe/"
+   }
+  ],
+  "kopfKnoepfe": [
+   {
+    "label": "Anmelden",
+    "link": "{{studio}}",
+    "stil": "leise"
+   },
+   {
+    "label": "Konto anlegen",
+    "link": "{{studio}}/?konto=neu",
+    "stil": "primaer"
+   }
+  ],
+  "fussText": "Live-Grafiken und Regie für Online-Workshops. Gehostet in Deutschland.",
+  "fussLinks": [
+   {
+    "label": "Hilfe & Support",
+    "link": "/hilfe/"
+   },
+   {
+    "label": "Impressum",
+    "link": "/impressum/"
+   },
+   {
+    "label": "Datenschutz",
+    "link": "/datenschutz/"
+   },
+   {
+    "label": "Nutzungsbedingungen",
+    "link": "/nutzungsbedingungen/"
+   }
+  ],
+  "fussKlein": "© {jahr} MeetingBackstage. Zoom ist eine Marke der Zoom Communications, Inc. MeetingBackstage ist ein unabhängiges Angebot und nicht mit Zoom verbunden."
+ },
+ "seiten": [
+  {
+   "pfad": "/",
+   "name": "Startseite",
+   "titel": "Start",
+   "seoTitel": "MeetingBackstage – Live-Grafiken für Zoom-Workshops",
+   "beschreibung": "Live-Grafiken und Regie für Zoom-Workshops: Chat-Highlights, Umfragen, Weltkarte, Wortwolke und Glücksrad direkt aus dem Zoom-Chat. Gehostet in Deutschland.",
+   "bloecke": [
+    {
+     "typ": "buehne",
+     "kicker": "Moderieren und inspirieren",
+     "titel": "Dein Zoom-Chat wird zur *Live-Grafik*.",
+     "text": "MeetingBackstage macht aus den Beiträgen deiner Teilnehmenden Weltkarte, Umfrage, Wortwolke und Chat-Highlights – live, während du moderierst. Für OBS oder direkt per Bildschirmfreigabe in Zoom.",
+     "knopf1": {
+      "label": "Konto anlegen",
+      "link": "{{studio}}/?konto=neu"
+     },
+     "knopf2": {
+      "label": "So funktioniert’s",
+      "link": "#ablauf"
+     },
+     "hinweis": "Läuft im Browser. Keine Installation. Server in Deutschland.",
+     "bild": "",
+     "bildAlt": ""
+    },
+    {
+     "typ": "karten",
+     "anker": "funktionen",
+     "augenbraue": "Funktionen",
+     "titel": "Alles, was deine Teilnehmenden sichtbar macht.",
+     "text": "Die Regie von MeetingBackstage sitzt als stiller Teilnehmer in deinem Meeting, liest den Chat mit und liefert dir die Grafiken – du entscheidest mit einem Klick, was zu sehen ist.",
+     "hintergrund": "hell",
+     "karten": [
+      {
+       "icon": "message-square-quote",
+       "titel": "Chat-Highlight",
+       "text": "Einen Beitrag aus dem Chat groß einblenden – mit Namen, im eigenen Design."
+      },
+      {
+       "icon": "chart-column",
+       "titel": "Umfrage",
+       "text": "Teilnehmende antworten mit A, B, C im Chat. Die Balken wachsen live mit."
+      },
+      {
+       "icon": "map-pin",
+       "titel": "Weltkarte",
+       "text": "„Von wo seid ihr dabei?“ – jede Stadt im Chat wird zum Punkt auf der Karte."
+      },
+      {
+       "icon": "cloud",
+       "titel": "Wortwolke",
+       "text": "Begriffe aus dem Chat wachsen zur Wolke. Häufige Antworten werden größer."
+      },
+      {
+       "icon": "ferris-wheel",
+       "titel": "Glücksrad",
+       "text": "Dreht über die Namen der Teilnehmenden oder eigene Begriffe und wählt zufällig aus."
+      },
+      {
+       "icon": "star",
+       "titel": "Spotlight per Taste",
+       "text": "Personen mit den Tasten 1–9 ins Spotlight holen – auch mehrere gleichzeitig."
+      },
+      {
+       "icon": "hand",
+       "titel": "Wer meldet sich?",
+       "text": "Sieh auf einen Blick, wer die Hand hebt, das Mikro öffnet oder gerade spricht."
+      },
+      {
+       "icon": "list-checks",
+       "titel": "„Wer war dran?“",
+       "text": "Deine persönliche Liste aller Teilnehmenden zum Abhaken – nur für dich sichtbar."
+      }
+     ]
+    },
+    {
+     "typ": "schritte",
+     "anker": "ablauf",
+     "augenbraue": "So funktioniert’s",
+     "titel": "In drei Schritten live.",
+     "text": "Kein Plug-in, keine Installation in Zoom. Du brauchst nur deinen Browser.",
+     "hintergrund": "navy",
+     "schritte": [
+      {
+       "titel": "Konto anlegen und Zoom verbinden",
+       "text": "Registriere dich im Studio und verbinde einmalig dein Zoom-Konto. Deine geplanten Meetings erscheinen dann direkt in der Liste."
+      },
+      {
+       "titel": "Meeting starten, Regie dazuholen",
+       "text": "Starte dein Meeting wie gewohnt. Mit einem Klick tritt „MeetingBackstage (Regie)“ bei – sichtbar, ohne Kamera und Mikrofon."
+      },
+      {
+       "titel": "Grafiken zeigen",
+       "text": "Binde die Grafiken als Browserquelle in OBS ein oder teile das Präsentationsfenster direkt in Zoom. Umschalten per Klick, Taste oder Stream Deck."
+      }
+     ]
+    },
+    {
+     "typ": "liste",
+     "anker": "",
+     "augenbraue": "Für wen",
+     "titel": "Für alle, die online mehr als Folien zeigen wollen.",
+     "text": "",
+     "hintergrund": "weiss",
+     "punkte": [
+      {
+       "titel": "Trainerinnen, Coaches und Moderatoren",
+       "text": "Mehr Beteiligung in Workshops, ohne zusätzliches Tool für die Teilnehmenden."
+      },
+      {
+       "titel": "Event- und Streaming-Teams",
+       "text": "Saubere Overlays für OBS, steuerbar per Stream Deck, mit eigenem Design pro Kunde."
+      },
+      {
+       "titel": "Unternehmen und Bildungsträger",
+       "text": "Interaktive Online-Formate, gehostet in Deutschland."
+      }
+     ],
+     "kasten": {
+      "icon": "shield-check",
+      "titel": "Datenschutz von Anfang an",
+      "punkte": [
+       "Server bei Hetzner in Deutschland.",
+       "Chatnachrichten werden nur während des Meetings verarbeitet und nicht auf dem Server gespeichert.",
+       "Die Regie liest nur Nachrichten an alle – private Nachrichten bleiben privat.",
+       "Die Regie ist für alle im Meeting als Teilnehmer sichtbar.",
+       "Keine Werbung, kein Tracking, keine Cookies auf dieser Seite."
+      ]
+     }
+    },
+    {
+     "typ": "fragen",
+     "anker": "fragen",
+     "augenbraue": "Fragen",
+     "titel": "Häufige Fragen",
+     "text": "",
+     "hintergrund": "hell",
+     "fragen": [
+      {
+       "frage": "Brauche ich OBS?",
+       "antwort": "<p>Nein. Ohne OBS öffnest du im Studio das Präsentationsfenster und teilst es in Zoom per Bildschirmfreigabe. Mit OBS bindest du jede Grafik als Browserquelle ein.</p>"
+      },
+      {
+       "frage": "Was sehen meine Teilnehmenden?",
+       "antwort": "<p>Im Meeting erscheint ein zusätzlicher Teilnehmer „MeetingBackstage (Regie)“ ohne Kamera und Mikrofon. Die Grafiken selbst sehen alle über deine Bildschirmfreigabe oder deinen Stream.</p>"
+      },
+      {
+       "frage": "Müssen die Teilnehmenden etwas installieren?",
+       "antwort": "<p>Nein. Sie schreiben einfach wie gewohnt in den Zoom-Chat.</p>"
+      },
+      {
+       "frage": "Was brauche ich für Spotlight und „Wer meldet sich?“",
+       "antwort": "<p>Damit die Regie Personen ins Spotlight setzen darf, machst du sie im Meeting zum Co-Host. Handzeichen, Mikrofon und Sprecher sieht sie auch ohne.</p>"
+      },
+      {
+       "frage": "Welchen Browser brauche ich?",
+       "antwort": "<p>Am besten einen aktuellen Desktop-Browser wie Chrome oder Edge. Das Studio und die Regie öffnen eigene Fenster, Pop-ups müssen für das Studio erlaubt sein.</p>"
+      },
+      {
+       "frage": "Was kostet MeetingBackstage?",
+       "antwort": "<p>Neue Konten schalten wir nach einer kurzen Prüfung frei. Schreib uns an <a href=\"mailto:{{mail}}\">{{mail}}</a>, wenn du Fragen zu Umfang und Preisen hast.</p>"
+      }
+     ]
+    },
+    {
+     "typ": "aufruf",
+     "titel": "Bereit für deinen nächsten Workshop?",
+     "text": "Konto anlegen, Zoom verbinden, loslegen. Bei Fragen helfen wir dir gern weiter.",
+     "hintergrund": "weiss",
+     "knopf1": {
+      "label": "Konto anlegen",
+      "link": "{{studio}}/?konto=neu"
+     },
+     "knopf2": {
+      "label": "Zur Hilfe",
+      "link": "/hilfe/"
+     }
+    }
+   ]
+  },
+  {
+   "pfad": "/hilfe/",
+   "name": "Hilfe & Support",
+   "titel": "Hilfe & Support",
+   "seoTitel": "",
+   "beschreibung": "Anleitung für MeetingBackstage: Konto anlegen, Zoom verbinden, Regie ins Meeting holen, Grafiken in OBS oder per Bildschirmfreigabe zeigen.",
+   "bloecke": [
+    {
+     "typ": "seitenkopf",
+     "augenbraue": "Hilfe & Support",
+     "titel": "So nutzt du MeetingBackstage",
+     "text": "Die wichtigsten Schritte vom ersten Login bis zur Live-Grafik. Wenn etwas nicht klappt, schreib uns an {{mail}}."
+    },
+    {
+     "typ": "text",
+     "html": "<h2>Erste Schritte</h2>\n<ol>\n<li>Öffne <a href=\"{{studio}}\">studio.meetingbackstage.de</a> und wähle <strong>Konto anlegen</strong>.</li>\n<li>Bestätige deine E-Mail-Adresse über den Link in unserer Mail.</li>\n<li>Wir prüfen neue Konten und schalten sie frei. Du bekommst eine Mail, sobald du loslegen kannst.</li>\n</ol>\n<p><strong>Voraussetzungen:</strong> ein Zoom-Konto, mit dem du Meetings veranstaltest oder an ihnen teilnimmst, und ein aktueller Desktop-Browser (am besten Chrome oder Edge). Erlaube Pop-ups für das Studio, denn Regie und Präsentation öffnen eigene Fenster.</p>\n<h2>Zoom-Konto verbinden</h2>\n<ol>\n<li>Im Studio auf der Seite <strong>Meeting</strong> den Reiter <strong>Aus meinem Zoom-Konto</strong> öffnen.</li>\n<li><strong>Mit Zoom verbinden</strong> klicken. Zoom zeigt, worauf MeetingBackstage zugreifen möchte; bestätige mit <strong>Erlauben</strong>.</li>\n<li>Du landest automatisch wieder im Studio. Deine geplanten und wiederkehrenden Meetings stehen jetzt in der Liste.</li>\n</ol>\n<p>MeetingBackstage nutzt die Verbindung, um deine Meetings aufzulisten und der Regie den Beitritt zu deinen Meetings zu erlauben. Die Regie darf nur hinein, solange du selbst mit diesem Zoom-Konto im Meeting bist.</p>\n<h2>Regie ins Meeting holen</h2>\n<ol>\n<li>Starte dein Meeting in Zoom oder tritt ihm bei.</li>\n<li>Im Studio beim Meeting auf <strong>Beitreten</strong> klicken (oder den Zoom-Link unter <strong>Per Link verbinden</strong> einfügen).</li>\n<li>Es öffnet sich das Regie-Fenster. „MeetingBackstage (Regie)“ tritt deinem Meeting ohne Kamera und Mikrofon bei. Lass dieses Fenster offen, solange die Grafiken laufen sollen.</li>\n<li>Ist der Warteraum aktiv, lass die Regie in Zoom herein.</li>\n</ol>\n<p>Die Regie liest nur Nachrichten an alle. Private Nachrichten werden nicht übernommen.</p>\n<h2>Grafiken zeigen</h2>\n<h3>Mit OBS</h3>\n<p>Auf der Seite <strong>OBS-Ausgabe</strong> stehen die Adressen für jede Grafik. Füge sie in OBS als <strong>Browserquelle</strong> ein (1920 × 1080). Die Adressen enthalten einen geheimen Schlüssel – gib sie nicht weiter. Über <strong>Neue Schlüssel erzeugen</strong> machst du alte Adressen ungültig.</p>\n<h3>Ohne OBS, direkt in Zoom</h3>\n<p>Öffne im Studio auf der Seite <strong>OBS-Ausgabe</strong> das <strong>Präsentationsfenster</strong> und teile es in Zoom über <strong>Bildschirm freigeben</strong>. Alles, was du im Studio ins Programm nimmst, erscheint dort.</p>\n<h3>Mit Stream Deck</h3>\n<p>Ebenfalls auf der Seite <strong>OBS-Ausgabe</strong> findest du Adressen für Aktionen wie „Karte anzeigen“. Diese kannst du in Stream Deck als Website-Aktion hinterlegen. Für das Spotlight stehen die Adressen auf der Seite <strong>Spotlight</strong>.</p>\n<h2>Spotlight und Wortmeldungen</h2>\n<p>Damit die Regie Personen ins Spotlight setzen darf, mache „MeetingBackstage (Regie)“ in Zoom zum <strong>Co-Host</strong>. Danach holst du Personen auf der Seite <strong>Spotlight</strong> mit den Tasten 1–9 nach vorne. Handzeichen, Mikrofon und aktuelle Sprecher siehst du auch ohne Co-Host-Rechte.</p>\n<h2>MeetingBackstage von Zoom trennen</h2>\n<p>Du kannst die Verbindung jederzeit beenden:</p>\n<ul>\n<li><strong>Im Studio:</strong> Seite <strong>Meeting</strong> → Reiter <strong>Aus meinem Zoom-Konto</strong> → <strong>Zoom-Konto trennen</strong>.</li>\n<li><strong>In Zoom:</strong> im Zoom App Marketplace anmelden → <strong>Manage</strong> → <strong>Added Apps</strong> → bei MeetingBackstage <strong>Remove</strong>.</li>\n</ul>\n<p>In beiden Fällen löschen wir die gespeicherten Zoom-Zugangsdaten deines Kontos sofort. Dein MeetingBackstage-Konto und deine Veranstaltungen bleiben erhalten. Möchtest du dein ganzes Konto löschen, schreib uns von deiner registrierten Adresse an <a href=\"mailto:{{mail}}\">{{mail}}</a>.</p>\n<h2>Support</h2>\n<p>Schreib uns an <a href=\"mailto:{{mail}}\">{{mail}}</a>. Hilfreich sind: deine Konto-Adresse, was du gemacht hast, und die Meldung, die angezeigt wurde (gern als Screenshot). Wir antworten in der Regel innerhalb von zwei Werktagen.</p>\n<p>Fragen zum Datenschutz beantworten wir unter derselben Adresse; Details stehen in der <a href=\"/datenschutz/\">Datenschutzerklärung</a>.</p>",
+     "inhaltsverzeichnis": true
+    }
+   ]
+  },
+  {
+   "pfad": "/impressum/",
+   "name": "Impressum",
+   "titel": "Impressum",
+   "seoTitel": "",
+   "beschreibung": "Impressum von MeetingBackstage: Anbieter, Kontakt und Verantwortliche.",
+   "bloecke": [
+    {
+     "typ": "seitenkopf",
+     "augenbraue": "",
+     "titel": "Impressum",
+     "text": ""
+    },
+    {
+     "typ": "text",
+     "html": "<h2>Angaben gemäß § 5 DDG</h2>\n<p>Robin Weniger<br>Klosterstr. 6<br>59457 Werl<br>Deutschland</p>\n<p>Vertreten durch: Robin Weniger</p>\n<h2>Kontakt</h2>\n<p>\nE-Mail: <a href=\"mailto:{{mail}}\">{{mail}}</a><br>\nTelefon: <a href=\"tel:+4915129884057\">+49 151 29884057</a>\n</p>\n<h2>Umsatzsteuer</h2>\n<p>Umsatzsteuer-Identifikationsnummer gemäß § 27a Umsatzsteuergesetz: DE449133614</p>\n<h2>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV</h2>\n<p>Robin Weniger<br>Klosterstr. 6, 59457 Werl</p>\n<h2>Verbraucherstreitbeilegung</h2>\n<p>Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.</p>\n<h2>Haftung für Inhalte und Links</h2>\n<p>Wir erstellen die Inhalte dieser Seiten mit Sorgfalt, übernehmen aber keine Gewähr für Vollständigkeit und Aktualität. Für Inhalte verlinkter fremder Seiten sind ausschließlich deren Betreiber verantwortlich. Bei Bekanntwerden von Rechtsverletzungen entfernen wir entsprechende Inhalte oder Links umgehend.</p>\n<h2>Marken</h2>\n<p>Zoom ist eine Marke der Zoom Communications, Inc. MeetingBackstage ist ein unabhängiges Angebot und weder von Zoom unterstützt noch mit Zoom verbunden.</p>",
+     "inhaltsverzeichnis": false
+    }
+   ]
+  },
+  {
+   "pfad": "/datenschutz/",
+   "name": "Datenschutz",
+   "titel": "Datenschutzerklärung",
+   "seoTitel": "",
+   "beschreibung": "Datenschutzerklärung von MeetingBackstage: welche Daten Website und Studio verarbeiten, wie die Zoom-Verbindung funktioniert und welche Rechte du hast.",
+   "bloecke": [
+    {
+     "typ": "seitenkopf",
+     "augenbraue": "",
+     "titel": "Datenschutzerklärung",
+     "text": "Kurz gesagt: Wir verarbeiten nur, was für den Betrieb nötig ist, hosten in Deutschland, setzen kein Tracking ein und speichern Chatnachrichten aus deinen Meetings nicht."
+    },
+    {
+     "typ": "text",
+     "html": "<h2>1. Verantwortlicher</h2>\n<p>Robin Weniger<br>Klosterstr. 6, 59457 Werl<br>Telefon: +49 151 29884057<br>E-Mail: <a href=\"mailto:{{mail}}\">{{mail}}</a></p>\n<p>Ein Datenschutzbeauftragter ist nicht bestellt, da keine gesetzliche Pflicht besteht. Fragen zum Datenschutz richtest du bitte an die oben genannte Adresse.</p>\n<h2>2. Hosting und E-Mail</h2>\n<p>Website und Studio laufen auf einem Server der Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, in einem Rechenzentrum in Deutschland. Auch unsere E-Mails (z. B. Bestätigungs- und Passwort-Mails) versenden wir über ein Postfach bei Hetzner. Mit Hetzner besteht ein Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO.</p>\n<p>Zur Abwehr von Missbrauch (z. B. massenhaftes Ausprobieren von Passwörtern) merkt sich der Server die IP-Adresse bei Anmelde- und Registrierungsversuchen für höchstens eine Stunde im Arbeitsspeicher. Zugriffsprotokolle mit IP-Adressen speichern wir nicht dauerhaft. Rechtsgrundlage ist unser berechtigtes Interesse an einem sicheren Betrieb (Art. 6 Abs. 1 lit. f DSGVO).</p>\n<h2>3. Diese Website (meetingbackstage.de)</h2>\n<p>Die Website setzt keine Cookies, verwendet keine Analyse- oder Tracking-Werkzeuge und bindet keine Inhalte fremder Server ein. Schriften und Bilder liegen auf unserem eigenen Server. Wenn du uns per E-Mail schreibst, verwenden wir deine Angaben nur, um deine Anfrage zu beantworten (Art. 6 Abs. 1 lit. b bzw. f DSGVO).</p>\n<h2>4. Dein Konto im Studio (studio.meetingbackstage.de)</h2>\n<p>Für ein Konto verarbeiten wir:</p>\n<ul>\n<li>E-Mail-Adresse und den freiwillig angegebenen Namen oder Firmennamen,</li>\n<li>dein Passwort ausschließlich als sicheren Hash (wir kennen es nicht im Klartext),</li>\n<li>Kontostatus und Zeitpunkte (z. B. Registrierung, Bestätigung, Freischaltung),</li>\n<li>die Inhalte deiner Veranstaltungen: Titel, Umfragen, Grafik-Einstellungen, Vorlagen und Ergebnisse, damit du nach dem Neuladen weitermachen kannst.</li>\n</ul>\n<p>Nach der Anmeldung setzen wir ein Sitzungs-Cookie („mb_sitzung“), das dich angemeldet hält. Es ist technisch notwendig (§ 25 Abs. 2 TDDDG) und läuft nach 30 Tagen oder beim Abmelden ab. Rechtsgrundlage für die Kontodaten ist die Erfüllung des Nutzungsvertrags (Art. 6 Abs. 1 lit. b DSGVO). Wir speichern die Daten, solange dein Konto besteht; beim Löschen des Kontos entfernen wir sie.</p>\n<h2>5. Verbindung mit Zoom</h2>\n<p>Wenn du dein Zoom-Konto verbindest, erhalten wir von der Zoom Communications, Inc. (USA) Zugangsschlüssel (OAuth-Token) sowie die Kennung, das Zoom-Konto und die E-Mail-Adresse deines Zoom-Benutzers. Wir nutzen sie, um</p>\n<ul>\n<li>deine geplanten Meetings aufzulisten (die Liste wird nur angezeigt, nicht gespeichert),</li>\n<li>für ein Meeting, das du auswählst, ein Beitrittstoken abzurufen, damit die Regie im Namen deines Kontos beitreten darf (das Token wird nicht gespeichert),</li>\n<li>die Verbindung zu löschen, wenn du MeetingBackstage in Zoom entfernst.</li>\n</ul>\n<p>Die Zugangsschlüssel liegen nur auf unserem Server in Deutschland. Trennst du die Verbindung im Studio oder entfernst du die App in Zoom, löschen wir sie sofort. Für die Verarbeitung durch Zoom selbst gilt die Datenschutzerklärung von Zoom. Bei der Nutzung von Zoom können Daten in die USA übermittelt werden; Zoom ist nach dem EU-US Data Privacy Framework zertifiziert.</p>\n<h2>6. Daten aus deinen Meetings</h2>\n<p>Wenn du die Regie in ein Meeting holst, tritt „MeetingBackstage (Regie)“ als für alle sichtbarer Teilnehmer ohne Kamera und Mikrofon bei. Solange sie im Meeting ist, verarbeitet sie:</p>\n<ul>\n<li>Chatnachrichten an alle mit dem Namen der absendenden Person (private Nachrichten werden nicht übernommen),</li>\n<li>die Namen der Teilnehmenden sowie Handzeichen, Mikrofon-Status und wer gerade spricht,</li>\n<li>die Spotlight-Liste, wenn du Personen über MeetingBackstage ins Spotlight setzt.</li>\n</ul>\n<p>Diese Daten werden nur während der Sitzung im Arbeitsspeicher verarbeitet und an deine geöffneten Studio-Fenster übertragen. Chatnachrichten speichern wir nicht auf dem Server. Was daraus in deine Veranstaltung einfließt – z. B. Umfrage-Ergebnisse, Wortwolke, Orte auf der Weltkarte und deine Liste „Wer war dran“ mit Namen und Markierungen –, wird wie in Abschnitt 4 gespeichert, bis du es zurücksetzt oder dein Konto löschst.</p>\n<p><strong>Wichtig für Veranstaltende:</strong> Für die Daten deiner Teilnehmenden bist du verantwortlich, wir verarbeiten sie in deinem Auftrag. Informiere deine Teilnehmenden, dass Chatbeiträge live eingeblendet werden können. Einen Vertrag zur Auftragsverarbeitung stellen wir dir auf Anfrage bereit.</p>\n<h2>7. Empfänger</h2>\n<p>Wir geben personenbezogene Daten nur an die genannten Dienstleister (Hetzner für Hosting und E-Mail) weiter und an Zoom, soweit du die Zoom-Verbindung nutzt. Wir verkaufen keine Daten und nutzen sie nicht für Werbung.</p>\n<h2>8. Deine Rechte</h2>\n<p>Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch gegen Verarbeitungen auf Grundlage berechtigter Interessen (Art. 21). Schreib uns dazu an <a href=\"mailto:{{mail}}\">{{mail}}</a>.</p>\n<p>Du kannst dich außerdem bei einer Datenschutz-Aufsichtsbehörde beschweren, etwa bei der Behörde deines Wohnorts oder der für uns zuständigen Behörde: Landesbeauftragte für Datenschutz und Informationsfreiheit Nordrhein-Westfalen, Kavalleriestraße 2–4, 40213 Düsseldorf, <a href=\"https://www.ldi.nrw.de\">www.ldi.nrw.de</a>.</p>\n<p>Eine automatisierte Entscheidungsfindung einschließlich Profiling findet nicht statt.</p>\n<p>Stand: November 2026</p>",
+     "inhaltsverzeichnis": true
+    }
+   ]
+  },
+  {
+   "pfad": "/nutzungsbedingungen/",
+   "name": "Nutzungsbedingungen",
+   "titel": "Nutzungsbedingungen",
+   "seoTitel": "",
+   "beschreibung": "Nutzungsbedingungen für MeetingBackstage Studio.",
+   "bloecke": [
+    {
+     "typ": "seitenkopf",
+     "augenbraue": "",
+     "titel": "Nutzungsbedingungen",
+     "text": ""
+    },
+    {
+     "typ": "text",
+     "html": "<h2>1. Anbieter und Geltungsbereich</h2>\n<p>Diese Bedingungen gelten für die Nutzung von MeetingBackstage Studio unter studio.meetingbackstage.de (im Folgenden „Studio“), angeboten von Robin Weniger, Klosterstr. 6, 59457 Werl (im Folgenden „wir“). Das Studio richtet sich an Unternehmen, Selbstständige und Organisationen, die Online-Veranstaltungen durchführen.</p>\n<h2>2. Leistung</h2>\n<p>Das Studio erstellt aus dem Chat von Zoom-Meetings Live-Grafiken (z. B. Chat-Highlight, Umfrage, Weltkarte, Wortwolke, Glücksrad) und bietet Regiefunktionen wie Spotlight und Übersichten über Wortmeldungen. Dafür tritt ein Teilnehmer „MeetingBackstage (Regie)“ deinem Meeting bei. Das Studio ist auf Zoom und dessen Schnittstellen angewiesen; Änderungen durch Zoom können Funktionen einschränken.</p>\n<h2>3. Konto</h2>\n<p>Für die Nutzung brauchst du ein Konto. Wir können Registrierungen ohne Angabe von Gründen ablehnen. Halte deine Zugangsdaten geheim und informiere uns, wenn du einen Missbrauch vermutest. Die Adressen für OBS und Stream Deck enthalten geheime Schlüssel; du kannst sie im Studio jederzeit erneuern.</p>\n<h2>4. Deine Pflichten</h2>\n<ul>\n<li>Du nutzt das Studio nur in Meetings, für die du verantwortlich bist oder in denen die Veranstaltenden zugestimmt haben.</li>\n<li>Du informierst die Teilnehmenden deiner Veranstaltungen darüber, dass die Regie im Meeting ist und Chatbeiträge live eingeblendet werden können, und erfüllst die datenschutzrechtlichen Pflichten als Verantwortlicher.</li>\n<li>Du hältst die Nutzungsbedingungen von Zoom ein und nutzt das Studio nicht für rechtswidrige Inhalte.</li>\n<li>Du versuchst nicht, Schutzmechanismen zu umgehen oder das Studio übermäßig zu belasten.</li>\n</ul>\n<h2>5. Vergütung</h2>\n<p>Umfang und Preise vereinbaren wir gesondert und teilen sie dir vor Beginn einer kostenpflichtigen Nutzung mit.</p>\n<h2>6. Verfügbarkeit</h2>\n<p>Wir bemühen uns um einen möglichst störungsfreien Betrieb, schulden aber keine bestimmte Verfügbarkeit. Wartungen führen wir möglichst außerhalb üblicher Veranstaltungszeiten durch.</p>\n<h2>7. Sperrung und Kündigung</h2>\n<p>Du kannst dein Konto jederzeit per E-Mail an <a href=\"mailto:{{mail}}\">{{mail}}</a> löschen lassen. Wir können Konten bei Verstößen gegen diese Bedingungen sperren und den Vertrag mit einer Frist von 30 Tagen kündigen; das Recht zur außerordentlichen Kündigung bleibt unberührt.</p>\n<h2>8. Haftung</h2>\n<p>Wir haften unbeschränkt bei Vorsatz und grober Fahrlässigkeit, bei Verletzung von Leben, Körper oder Gesundheit sowie nach dem Produkthaftungsgesetz. Bei leichter Fahrlässigkeit haften wir nur bei Verletzung wesentlicher Vertragspflichten und begrenzt auf den vorhersehbaren, typischen Schaden. Im Übrigen ist die Haftung ausgeschlossen.</p>\n<h2>9. Datenschutz</h2>\n<p>Wie wir Daten verarbeiten, steht in der <a href=\"/datenschutz/\">Datenschutzerklärung</a>. Soweit wir Daten deiner Teilnehmenden in deinem Auftrag verarbeiten, schließen wir auf Anfrage einen Vertrag zur Auftragsverarbeitung.</p>\n<h2>10. Änderungen und Schlussbestimmungen</h2>\n<p>Wir können diese Bedingungen mit Wirkung für die Zukunft ändern und informieren dich vorab per E-Mail; widersprichst du nicht innerhalb von vier Wochen, gelten die Änderungen als angenommen. Es gilt deutsches Recht. Gerichtsstand für Kaufleute, juristische Personen des öffentlichen Rechts und öffentlich-rechtliche Sondervermögen ist der Sitz des Anbieters.</p>\n<p>Stand: November 2026</p>",
+     "inhaltsverzeichnis": false
+    }
+   ]
+  },
+  {
+   "pfad": "/404/",
+   "name": "Seite nicht gefunden (404)",
+   "titel": "Seite nicht gefunden",
+   "seoTitel": "",
+   "beschreibung": "Diese Seite gibt es nicht.",
+   "bloecke": [
+    {
+     "typ": "seitenkopf",
+     "augenbraue": "",
+     "titel": "Diese Seite gibt es nicht.",
+     "text": "Vielleicht hat sich die Adresse geändert. Hier geht es weiter:",
+     "knopf1": {
+      "label": "Zur Startseite",
+      "link": "/"
+     },
+     "knopf2": {
+      "label": "Hilfe",
+      "link": "/hilfe/"
+     }
+    }
+   ]
+  }
+ ]
+}

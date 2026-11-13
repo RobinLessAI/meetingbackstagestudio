@@ -134,26 +134,33 @@ Einmalig in deiner Zoom-App auf <https://marketplace.zoom.us> → **Manage** →
 nur für dein eigenes Zoom-Konto. Für Kunden mit eigenem Zoom-Konto muss die App veröffentlicht werden (auf Wunsch nicht öffentlich
 gelistet). Ohne Veröffentlichung meldet die Regie „Zoom erlaubt der Regie noch keine Meetings anderer Zoom-Konten“.
 
-## 8. Hauptseite meetingbackstage.de
+## 8. Hauptseite meetingbackstage.de bearbeiten
 
-Die Hauptseite liegt im Repository unter `website/` (Texte in `website/seiten/`, Aussehen in `website/assets/site.css`).
-`mb-aktualisieren` baut sie bei jedem Update und veröffentlicht sie nach `/var/www/meetingbackstage`. Dabei hält es auch die
-Webserver-Konfiguration aktuell (www → ohne www, eigene 404-Seite, Sicherheits-Header). Die Konfiguration wird vor dem Übernehmen
-geprüft; ist sie fehlerhaft, bleibt die bisherige aktiv. Die vorherige Fassung liegt in `/etc/caddy/Caddyfile.vorher`.
+Die Hauptseite bearbeitest du im Studio: als Verwaltung anmelden → links **Website**.
 
-**Vor dem Veröffentlichen ausfüllen:** Impressum, Datenschutz und Nutzungsbedingungen enthalten gelb markierte Lücken (Name,
-Anschrift usw.). `npm run website` zeigt an, wie viele noch offen sind. Die Rechtstexte sind Entwürfe und sollten geprüft werden.
+- **Seiten:** bestehende Seiten ändern, neue anlegen (z. B. /preise/), duplizieren, löschen. Jede Seite besteht aus Abschnitten
+  (Bühne, Seitenkopf, Karten mit Symbolen, Schritte, Liste mit Kasten, Häufige Fragen, Aufruf, Text, Bild, Bild und Text),
+  die du hinzufügst, verschiebst und füllst. Texte mit Formatierung schreibst du im eingebauten Editor.
+- **SEO:** pro Seite Titel und Beschreibung für Google (mit Vorschau und Zeichenzähler), Vorschaubild beim Teilen, „In
+  Suchmaschinen anzeigen“. Unter **Allgemein & SEO**: Name, Titel-Vorlage, allgemeine Beschreibung, **Favicon**, Logos.
+- **Menü & Fußzeile:** Menüpunkte, Knöpfe oben rechts, Links und Texte unten.
+- **Bilder:** hochladen (Fotos werden automatisch verkleinert), Adresse kopieren, löschen.
+- **Entwurf → Vorschau → Veröffentlichen:** Änderungen werden laufend als Entwurf gespeichert und sind erst nach
+  **Veröffentlichen** öffentlich. Unter **Frühere Fassungen** lassen sich die letzten 40 Stände zurückholen.
 
-**Kontaktadresse:** Die Seite nennt `info@meetingbackstage.de`. In der konsoleH eine Mailbox oder Weiterleitung mit dieser Adresse anlegen.
+Technik: Der MeetingBackstage-Dienst liefert die Hauptseite selbst aus; Caddy leitet `meetingbackstage.de` an ihn weiter
+(`deploy/webserver.sh`, wird von `mb-aktualisieren` aufgerufen). Inhalte und Bilder liegen in `/var/lib/meetingbackstage/website/`.
+Beim allerersten Start wird der Inhalt aus `website/inhalt-start.json` übernommen; danach gilt nur noch, was du in der Verwaltung
+speicherst. Design (Farben, Schrift, Aufbau der Abschnitte) liegt im Code: `website/assets/site.css`, `server/website/render.mjs`.
 
 ## Im Alltag
 
 | Was | Befehl auf dem Server |
 | --- | --- |
 | Neue Version einspielen (nicht während eines Workshops) | `mb-aktualisieren` |
-| Nur Hauptseite/Webserver neu veröffentlichen | `bash /opt/meetingbackstage/deploy/webserver.sh` |
+| Webserver-Konfiguration neu schreiben | `bash /opt/meetingbackstage/deploy/webserver.sh` |
 | Läuft es? | `systemctl status meetingbackstage` |
 | Protokoll live ansehen | `journalctl -u meetingbackstage -f` |
 | Einstellungen ändern | `nano /etc/meetingbackstage/studio.env`, danach `systemctl restart meetingbackstage` |
 
-Daten liegen in `/var/lib/meetingbackstage` (Konten, Vorlagen, Veranstaltungen); Hetzner sichert den Server täglich.
+Daten liegen in `/var/lib/meetingbackstage` (Konten, Vorlagen, Veranstaltungen, Website); Hetzner sichert den Server täglich.

@@ -2,11 +2,11 @@
  * Markenfarben: Navy #11243c / #17364c, Petrol #026c75 / #0a747d, Graublau #a2bdc3, Hellgrau #f2f2f2.
  * Schrift: Urbanist (frei, SIL Open Font License), selbst gehostet – keine Anfragen an fremde Server.
  */
-@font-face { font-family: 'Urbanist'; font-weight: 400; font-display: swap; src: url('/assets/schrift/urbanist-latin-400-normal.woff2') format('woff2'); }
-@font-face { font-family: 'Urbanist'; font-weight: 500; font-display: swap; src: url('/assets/schrift/urbanist-latin-500-normal.woff2') format('woff2'); }
-@font-face { font-family: 'Urbanist'; font-weight: 600; font-display: swap; src: url('/assets/schrift/urbanist-latin-600-normal.woff2') format('woff2'); }
-@font-face { font-family: 'Urbanist'; font-weight: 700; font-display: swap; src: url('/assets/schrift/urbanist-latin-700-normal.woff2') format('woff2'); }
-@font-face { font-family: 'Urbanist'; font-weight: 800; font-display: swap; src: url('/assets/schrift/urbanist-latin-800-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Urbanist'; font-weight: 400; font-display: swap; src: url('/_web/schrift/urbanist-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Urbanist'; font-weight: 500; font-display: swap; src: url('/_web/schrift/urbanist-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Urbanist'; font-weight: 600; font-display: swap; src: url('/_web/schrift/urbanist-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Urbanist'; font-weight: 700; font-display: swap; src: url('/_web/schrift/urbanist-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Urbanist'; font-weight: 800; font-display: swap; src: url('/_web/schrift/urbanist-latin-800-normal.woff2') format('woff2'); }
 
 :root {
   --navy: #11243c;
@@ -171,7 +171,9 @@ p { margin: 0; }
 .fragen summary::-webkit-details-marker { display: none; }
 .fragen summary::after { content: '+'; flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: rgb(2 108 117 / 0.1); color: var(--petrol); font-size: 1.2rem; }
 .fragen details[open] summary::after { content: '–'; }
-.fragen details p { padding: 0 24px 22px; color: var(--text-2); }
+.fragen__antwort { padding: 0 24px 22px; color: var(--text-2); }
+.fragen__antwort p + p, .fragen__antwort ul, .fragen__antwort ol { margin-top: 0.7em; }
+.fragen__antwort ul, .fragen__antwort ol { padding-left: 1.2em; }
 
 .aufruf { padding: clamp(40px, 6vw, 64px); border-radius: 24px; background: linear-gradient(120deg, var(--petrol) 0%, var(--petrol-2) 55%, #0d8a94 100%); color: var(--weiss); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px; }
 .aufruf p { margin-top: 10px; color: rgb(255 255 255 / 0.88); max-width: 36em; }
@@ -203,3 +205,21 @@ p { margin: 0; }
 .fuss__nav a:hover { color: var(--weiss); text-decoration: underline; }
 .fuss__klein { margin-top: 40px; padding-top: 20px; border-top: 1px solid rgb(255 255 255 / 0.1); font-size: 0.85rem; color: rgb(162 189 195 / 0.9); }
 @media (max-width: 560px) { .fuss__nav { grid-template-columns: 1fr; } }
+
+/* ------------------------------------------------------- Bausteine aus der Verwaltung */
+.augenbraue--hell { color: var(--petrol-hell); }
+.liste__einleitung { margin-top: 16px; font-size: 1.12rem; color: var(--text-2); }
+.buehne__bild img { width: 100%; height: auto; border-radius: 18px; box-shadow: 0 30px 80px rgb(0 0 0 / 0.35); }
+.bildblock { padding: clamp(32px, 5vw, 64px) 0; }
+.bildblock__figur { margin: 0; }
+.bildblock__figur--schmal { max-width: 46rem; }
+.bildblock__figur img { width: 100%; height: auto; border-radius: var(--radius); }
+.bildblock__figur figcaption { margin-top: 10px; font-size: 0.95rem; color: var(--text-2); }
+.bildtext__bild img { width: 100%; height: auto; border-radius: var(--radius); box-shadow: var(--schatten); }
+.zweispaltig--bild-rechts .bildtext__bild { order: 2; }
+@media (max-width: 860px) { .zweispaltig--bild-rechts .bildtext__bild { order: 0; } }
+.text--eingebettet { max-width: none; padding: 0; margin-top: 16px; }
+.text blockquote { margin: 0 0 1em; padding: 4px 0 4px 18px; border-left: 4px solid var(--petrol); color: var(--text-2); }
+.text hr { border: 0; border-top: 1px solid var(--linie); margin: 2em 0; }
+.abschnitt--weiss > .wrap > .text { background: none; }
+.vorschau-hinweis { position: sticky; top: 0; z-index: 60; padding: 8px 16px; background: #ffe9b8; color: #5a3300; font-weight: 700; font-size: 0.92rem; text-align: center; }

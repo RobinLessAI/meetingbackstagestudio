@@ -60,6 +60,7 @@ before(async () => {
       ZOOM_WEBHOOK_SECRET_TOKEN: WEBHOOK_SECRET,
       MB_ZOOM_OAUTH_BASE: `${zoomBase}/oauth`,
       MB_ZOOM_API_URL: `${zoomBase}/v2`,
+      MB_MAIN_DOMAIN: 'mb.test',
     },
     stdio: 'pipe',
   });
@@ -316,6 +317,112 @@ test('Mit Zoom verbinden: Weiterleitung, Rückkehr, OBF-Token für die Regie, Ap
   const state4 = new URL((await fetch(`${BASE}/api/zoom/verbinden`, { headers: { cookie: anna }, redirect: 'manual' })).headers.get('location')!).searchParams.get('state')!;
   assert.equal((await back(`error=access_denied&state=${state4}`)).headers.get('location'), '/?zoom=abgebrochen');
   for (const s of [a, r]) s.ws.close();
+});
+
+test('Website: nur die Verwaltung bearbeitet, Veröffentlichen, Bilder, Vorschau, Auslieferung', async () => {
+  // fetch überschreibt den Host-Header, daher http.request
+  const site = (path: string, host = 'mb.test') =>
+    new Promise<{ status: number; headers: { get: (k: string) => string | null }; text: () => Promise<string> }>((resolve, reject) => {
+      http
+        .get({ host: '127.0.0.1', port: PORT, path, headers: { host } }, (res) => {
+          let body = '';
+          res.setEncoding('utf8');
+          res.on('data', (c) => (body += c));
+          res.on('end', () =>
+            resolve({
+              status: res.statusCode ?? 0,
+              headers: { get: (k: string) => (res.headers[k.toLowerCase()] as string | undefined) ?? null },
+              text: async () => body,
+            }),
+          );
+        })
+        .on('error', reject);
+    });
+  const call = (path: string, method: string, cookie: string, body?: unknown, extra: Record<string, string> = {}) =>
+    fetch(`${BASE}${path}`, {
+      method,
+      headers: { cookie, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...extra },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+
+  // Hauptseite ist ohne Anmeldung erreichbar, www leitet um, 404 hat eine eigene Seite
+  const home = await site('/');
+  assert.equal(home.status, 200);
+  assert.match(await home.text(), /Dein Zoom-Chat wird zur <em>Live-Grafik<\/em>/);
+  assert.equal((await site('/hilfe/', 'www.mb.test')).headers.get('location'), 'https://mb.test/hilfe/');
+  assert.equal((await site('/hilfe')).headers.get('location'), '/hilfe/');
+  assert.equal((await site('/gibt-es-nicht/')).status, 404);
+  assert.equal((await site('/_web/site.css')).status, 200);
+
+  // Nur die Verwaltung darf an die Verwaltung der Website
+  assert.equal((await call('/api/website', 'GET', '')).status, 403);
+  assert.equal((await call('/api/website', 'GET', anna)).status, 403);
+  const state = await (await call('/api/website', 'GET', admin)).json();
+  assert.equal(state.entwurf.seiten[0].pfad, '/');
+
+  // Entwurf: eingeschleuster Code wird entfernt, neue Seite angelegt
+  const draft = structuredClone(state.entwurf);
+  draft.seiten.push({
+    id: 'p1',
+    pfad: '/preise/',
+    name: 'Preise',
+    titel: 'Preise',
+    seoTitel: '',
+    beschreibung: 'Unsere Preise',
+    vorschaubild: '',
+    indexieren: true,
+    bloecke: [{ id: 'b1', typ: 'text', html: '<h2>Pakete</h2><script>alert(1)</script><p><a href="javascript:alert(1)">x</a></p>', inhaltsverzeichnis: false }],
+  });
+  assert.equal((await call('/api/website/entwurf', 'PUT', admin, { ...draft, seiten: [...draft.seiten, { ...draft.seiten[1], id: 'z' }] })).status, 400, 'doppelte Adresse');
+  assert.equal((await call('/api/website/entwurf', 'PUT', admin, draft, { origin: 'https://boese.example' })).status, 403);
+  const saved = await (await call('/api/website/entwurf', 'PUT', admin, draft)).json();
+  assert.equal(saved.geaendert, true);
+  // Vor dem Veröffentlichen ist die Seite nicht öffentlich, aber in der Vorschau sichtbar
+  assert.equal((await site('/preise/')).status, 404);
+  const preview = await (await call('/api/website/vorschau?pfad=%2Fpreise%2F', 'GET', admin)).text();
+  assert.match(preview, /Pakete/);
+  assert.match(preview, /noindex/);
+  assert.equal((await call('/api/website/vorschau?pfad=%2F', 'GET', anna)).status, 403);
+
+  // Veröffentlichen
+  const pub = await (await call('/api/website/veroeffentlichen', 'POST', admin, {})).json();
+  assert.equal(pub.geaendert, false);
+  assert.equal(pub.versionen.length, 1);
+  const live = await (await site('/preise/')).text();
+  assert.match(live, /<h2 id="pakete">Pakete<\/h2>/);
+  assert.doesNotMatch(live, /<script>alert|javascript:/);
+  assert.match(live, /<title>Preise · MeetingBackstage<\/title>/);
+  assert.match(await (await site('/sitemap.xml')).text(), /https:\/\/mb\.test\/preise\//);
+
+  // Bilder: PNG wird angenommen und harmlos ausgeliefert, SVG mit Skript abgelehnt
+  const png = Buffer.from('89504e470d0a1a0a0000000d4948445200000001000000010806000000', 'hex');
+  const up = await call('/api/website/medien', 'POST', admin, undefined, { 'Content-Type': 'image/png', 'X-Dateiname': encodeURIComponent('Mein Foto.png') });
+  assert.equal(up.status, 400, 'leere Datei');
+  const up2 = await fetch(`${BASE}/api/website/medien`, { method: 'POST', headers: { cookie: admin, 'Content-Type': 'image/png', 'X-Dateiname': 'Mein%20Foto.png' }, body: png });
+  const media = await up2.json();
+  assert.match(media.url, /^\/_web\/medien\/mein-foto-[a-f0-9]{8}\.png$/);
+  const served = await site(media.url);
+  assert.equal(served.status, 200);
+  assert.match(served.headers.get('content-security-policy') ?? '', /sandbox/);
+  const svg = await fetch(`${BASE}/api/website/medien`, { method: 'POST', headers: { cookie: admin, 'Content-Type': 'image/svg+xml' }, body: '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>' });
+  assert.equal(svg.status, 400);
+  assert.equal((await fetch(`${BASE}/api/website/medien`, { method: 'POST', headers: { cookie: admin, 'Content-Type': 'text/html' }, body: '<p>' })).status, 415);
+  assert.equal((await fetch(`${BASE}/api/website/medien`, { method: 'POST', headers: { cookie: anna, 'Content-Type': 'image/png' }, body: png })).status, 403);
+
+  // Verwendetes Bild lässt sich nicht löschen; nach dem Entfernen schon
+  draft.seiten[0].vorschaubild = media.url;
+  await call('/api/website/entwurf', 'PUT', admin, draft);
+  const name = media.url.split('/').pop();
+  assert.equal((await call(`/api/website/medien/${name}`, 'DELETE', admin)).status, 409);
+  draft.seiten[0].vorschaubild = '';
+  await call('/api/website/entwurf', 'PUT', admin, draft);
+  assert.equal((await call(`/api/website/medien/${name}`, 'DELETE', admin)).status, 200);
+  assert.equal((await site(media.url)).status, 404);
+
+  // Frühere Fassung zurückholen und verwerfen
+  const restored = await (await call('/api/website/wiederherstellen', 'POST', admin, { id: pub.versionen[0].id })).json();
+  assert.ok(restored.entwurf.seiten.some((p: { pfad: string }) => p.pfad === '/preise/'));
+  assert.equal((await call('/api/website/wiederherstellen', 'POST', admin, { id: '../x' })).status, 404);
 });
 
 test('Passwort vergessen: neuer Link, altes Passwort und alte Sitzungen ungültig', async () => {

@@ -22,6 +22,8 @@ import { AccountError, createAccounts, createLimiter, MIN_PASSWORD, normalizeEma
 import { brevoTransport, createMailer, MAILS, smtpTransport } from './mailer.mjs';
 import { createRoom } from './room.mjs';
 import { zoomSignatureOk } from './zoomAccount.mjs';
+import { ICONS, BLOCK_TYPES } from './website/render.mjs';
+import { createWebsite, MEDIA_MAX, MEDIA_TYPES, WebsiteError } from './website/store.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -102,6 +104,10 @@ const WEB = process.env.MB_WEB === '1';
 const HOST = process.env.MB_HOST ?? '127.0.0.1';
 const PUBLIC_URL = (process.env.MB_PUBLIC_URL ?? `http://localhost:${PORT}`).replace(/\/+$/, '');
 const PUBLIC = new URL(PUBLIC_URL);
+// Hauptseite (z. B. meetingbackstage.de): MB_MAIN_DOMAIN oder die Studio-Adresse ohne „studio.“
+const MAIN_HOST = (process.env.MB_MAIN_DOMAIN || (PUBLIC.hostname.startsWith('studio.') ? PUBLIC.hostname.slice('studio.'.length) : '')).toLowerCase();
+const MAIN_URL = MAIN_HOST ? `https://${MAIN_HOST}` : PUBLIC_URL;
+const WEBSITE_ASSETS = path.join(ROOT, 'website', 'assets');
 const SECURE_COOKIE = PUBLIC.protocol === 'https:';
 const TRUST_PROXY = process.env.MB_TRUST_PROXY === '1';
 const ADMIN_EMAILS = (process.env.MB_ADMIN_EMAILS ?? '').split(',').map((e) => e.trim()).filter(Boolean);
@@ -180,6 +186,15 @@ const mailer = WEB
             : null,
     })
   : null;
+const website = WEB
+  ? createWebsite({
+      dir: path.join(DATA_DIR, 'website'),
+      seedFile: path.join(ROOT, 'website', 'inhalt-start.json'),
+      siteUrl: MAIN_URL,
+      studioUrl: PUBLIC_URL,
+      log,
+    })
+  : null;
 const accountDir = (id) => path.join(DATA_DIR, 'konten', id.replace(/[^a-f0-9-]/gi, ''));
 
 function roomFor(user) {
@@ -216,7 +231,13 @@ function isLocalHost(hostHeader) {
 }
 function hostAllowed(hostHeader) {
   if (isLocalHost(hostHeader)) return true;
-  return WEB && String(hostHeader ?? '').toLowerCase() === PUBLIC.host.toLowerCase();
+  const host = String(hostHeader ?? '').toLowerCase();
+  return WEB && (host === PUBLIC.host.toLowerCase() || isMainHost(host));
+}
+/** Anfrage an die Hauptseite (meetingbackstage.de, www.meetingbackstage.de)? */
+function isMainHost(hostHeader) {
+  const host = String(hostHeader ?? '').toLowerCase().replace(/:\d+$/, '');
+  return Boolean(MAIN_HOST) && (host === MAIN_HOST || host === `www.${MAIN_HOST}`);
 }
 /** Verbindungen nur von dieser Seite (oder ohne Origin, z. B. OBS, Stream Deck). */
 function originAllowed(origin) {
@@ -554,10 +575,144 @@ async function handleZoomApi(req, res, url) {
   }
 }
 
+// ------------------------------------------------------------- Hauptseite (Web)
+/** Dateien der Hauptseite: /_web/medien/… (hochgeladen) und /_web/… (Schrift, Logos, Stil aus website/assets). */
+function serveWebFile(req, res, url) {
+  const rel = decodeURIComponent(url.pathname.slice('/_web/'.length));
+  if (rel.startsWith('medien/')) {
+    const file = website?.mediaFile(rel.slice('medien/'.length));
+    if (!file) return res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Nicht gefunden');
+    const ext = path.extname(file).toLowerCase();
+    res.writeHead(200, {
+      'Content-Type': ext === '.webp' ? 'image/webp' : (MIME[ext] ?? 'application/octet-stream'),
+      'Cache-Control': 'public, max-age=86400',
+      'X-Content-Type-Options': 'nosniff',
+      // Hochgeladene Dateien nie als aktive Inhalte ausführen (wichtig für SVG)
+      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+    });
+    fs.createReadStream(file).pipe(res);
+    return;
+  }
+  const file = path.normalize(path.join(WEBSITE_ASSETS, rel));
+  if (!file.startsWith(WEBSITE_ASSETS + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
+    return res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Nicht gefunden');
+  }
+  sendFile(res, file, req);
+}
+
+/** Öffentliche Hauptseite ausliefern. */
+async function serveWebsite(req, res, url) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return res.writeHead(405).end();
+  const host = String(req.headers.host ?? '').toLowerCase().replace(/:\d+$/, '');
+  if (host === `www.${MAIN_HOST}`) return res.writeHead(301, { Location: `${MAIN_URL}${url.pathname}${url.search}` }).end();
+  await website.ready;
+  const r = website.serve(decodeURIComponent(url.pathname));
+  if (r.location) return res.writeHead(r.status, { Location: r.location }).end();
+  res.writeHead(r.status, {
+    'Content-Type': r.type,
+    'Cache-Control': 'no-cache',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+  });
+  res.end(req.method === 'HEAD' ? undefined : r.body);
+}
+
+/** Verwaltung der Hauptseite (nur Konten mit Verwaltungsrechten). */
+async function handleWebsiteApi(req, res, url) {
+  const route = url.pathname;
+  try {
+    const user = sessionUser(req);
+    if (!user?.admin || user.status !== 'aktiv') return json(res, 403, { fehler: 'Nur für die Verwaltung.' });
+    if (req.method !== 'GET' && !originAllowed(req.headers.origin)) return json(res, 403, { fehler: 'Anfrage abgelehnt.' });
+    const needJson = () => {
+      if (!String(req.headers['content-type'] ?? '').includes('application/json')) throw new WebsiteError('Anfrage abgelehnt.', 403);
+    };
+    await website.ready;
+
+    if (route === '/api/website' && req.method === 'GET') {
+      return json(res, 200, { ...website.state(), symbole: ICONS, blocktypen: BLOCK_TYPES, siteUrl: MAIN_URL, studioUrl: PUBLIC_URL, medienMax: MEDIA_MAX });
+    }
+    if (route === '/api/website/vorschau' && req.method === 'GET') {
+      const html = await website.preview(url.searchParams.get('pfad') ?? '/');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+      return res.end(html);
+    }
+    if (route === '/api/website/entwurf' && req.method === 'PUT') {
+      needJson();
+      return json(res, 200, await website.saveDraft(await readJson(req, 4 * 1024 * 1024)));
+    }
+    if (route === '/api/website/veroeffentlichen' && req.method === 'POST') {
+      needJson();
+      const r = await website.publish();
+      return json(res, 200, { ...r, ...website.state() });
+    }
+    if (route === '/api/website/verwerfen' && req.method === 'POST') {
+      needJson();
+      await website.discard();
+      return json(res, 200, website.state());
+    }
+    if (route === '/api/website/wiederherstellen' && req.method === 'POST') {
+      needJson();
+      const body = await readJson(req);
+      await website.restore(body.id);
+      return json(res, 200, website.state());
+    }
+    if (route === '/api/website/medien' && req.method === 'POST') {
+      const mime = String(req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase();
+      if (!MEDIA_TYPES[mime]) throw new WebsiteError('Dieses Dateiformat wird nicht unterstützt. Erlaubt: PNG, JPG, WebP, GIF, SVG, ICO.', 415);
+      const chunks = [];
+      let size = 0;
+      await new Promise((resolve, reject) => {
+        req.on('data', (c) => {
+          size += c.length;
+          if (size > MEDIA_MAX) {
+            reject(new WebsiteError('Die Datei ist zu groß (höchstens 8 MB).', 413));
+            req.destroy();
+          } else chunks.push(c);
+        });
+        req.on('end', resolve);
+        req.on('error', reject);
+      });
+      let original = '';
+      try {
+        original = decodeURIComponent(String(req.headers['x-dateiname'] ?? ''));
+      } catch {
+        original = '';
+      }
+      const r = await website.addMedia(Buffer.concat(chunks), mime, original);
+      return json(res, 200, { ...r, medien: website.media() });
+    }
+    if (route.startsWith('/api/website/medien/') && req.method === 'DELETE') {
+      await website.removeMedia(decodeURIComponent(route.slice('/api/website/medien/'.length)));
+      return json(res, 200, { medien: website.media() });
+    }
+    return json(res, 404, { fehler: 'Nicht gefunden.' });
+  } catch (e) {
+    if (e instanceof WebsiteError || e instanceof AccountError) return json(res, e.status ?? 400, { fehler: e.message });
+    log(`Website-Verwaltung: ${e.message}`);
+    if (!res.headersSent) json(res, 500, { fehler: 'Speichern nicht möglich. Bitte erneut versuchen.' });
+  }
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://localhost');
   if (!hostAllowed(req.headers.host)) {
     res.writeHead(404).end();
+    return;
+  }
+  if (url.pathname.startsWith('/_web/') && (req.method === 'GET' || req.method === 'HEAD')) {
+    serveWebFile(req, res, url);
+    return;
+  }
+  if (WEB && isMainHost(req.headers.host)) {
+    serveWebsite(req, res, url).catch((e) => {
+      log(`Hauptseite: ${e.message}`);
+      if (!res.headersSent) res.writeHead(500).end();
+    });
+    return;
+  }
+  if (WEB && (url.pathname === '/api/website' || url.pathname.startsWith('/api/website/'))) {
+    handleWebsiteApi(req, res, url);
     return;
   }
   if (url.pathname.startsWith('/aktion/') && (req.method === 'GET' || req.method === 'POST')) {

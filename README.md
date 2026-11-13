@@ -236,4 +236,12 @@ meetingbackstagestudio/
 
 ## Hauptseite (meetingbackstage.de)
 
-Statische Seite in `website/`: Inhalte in `website/seiten/*.html` (Kopf mit `pfad`, `titel`, `beschreibung`), Stil in `website/assets/site.css`, Logos und Schrift (Urbanist, frei lizenziert) in `website/assets/`. `npm run website` baut nach `website/dist` (inklusive `sitemap.xml`, `robots.txt`), auf dem Server erledigt das `mb-aktualisieren` über `deploy/webserver.sh`.
+Im Web-Modus liefert der Server auch die Hauptseite aus (Anfragen an `MB_MAIN_DOMAIN`, sonst die Studio-Adresse ohne `studio.`).
+Bearbeitet wird sie in der Verwaltung unter **Website**: Seiten aus Abschnitten (Blöcken), Texteditor, Bilder (im Browser verkleinert),
+Favicon, SEO je Seite, Menü und Fußzeile, Entwurf mit Vorschau, Veröffentlichen und frühere Fassungen.
+
+- `server/website/render.mjs` – Blöcke → HTML, strenger HTML-Filter (sanitize-html), Symbole, Sitemap, robots.txt
+- `server/website/store.mjs` – Entwurf, veröffentlichter Stand, Versionen, Mediathek (`DATA_DIR/website/`)
+- `src/web/website/` – Bearbeitungsoberfläche (Tiptap als Texteditor)
+- `website/inhalt-start.json` – Inhalt beim ersten Start, `website/assets/` – Stil, Schrift (Urbanist), Logos, unter `/_web/`
+- `npm run website` – Startinhalt als statische Vorschau nach `website/dist`

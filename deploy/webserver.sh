@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# MeetingBackstage – Hauptseite bauen und Webserver (Caddy) einrichten.
+# MeetingBackstage – Webserver (Caddy) für Studio und Hauptseite einrichten.
 # Wird von einrichten.sh und mb-aktualisieren aufgerufen; lässt sich gefahrlos wiederholen.
 #
 # Liest aus /etc/meetingbackstage/studio.env:
@@ -7,10 +7,7 @@
 #   MB_ADMIN_EMAILS  erste Adresse = Kontakt für die https-Zertifikate
 #   MB_MAIN_DOMAIN   (optional) Hauptdomain; sonst die Studio-Adresse ohne „studio.“
 set -euo pipefail
-APP_USER="mbstudio"
-APP_DIR="/opt/meetingbackstage"
 ENV_FILE="/etc/meetingbackstage/studio.env"
-WEB_ROOT="/var/www/meetingbackstage"
 CADDYFILE="/etc/caddy/Caddyfile"
 
 env_value() { grep -E "^$1=" "$ENV_FILE" | tail -n1 | cut -d= -f2- || true; }
@@ -23,20 +20,10 @@ if [[ -z "$STUDIO_DOMAIN" ]]; then
   exit 0
 fi
 
-# 1. Hauptseite bauen und veröffentlichen
-if [[ -n "$MAIN_DOMAIN" ]]; then
-  sudo -u "$APP_USER" bash -c "cd '$APP_DIR' && node website/bauen.mjs"
-  mkdir -p "$WEB_ROOT"
-  if command -v rsync >/dev/null; then
-    rsync -a --delete "$APP_DIR/website/dist/" "$WEB_ROOT/"
-  else
-    find "$WEB_ROOT" -mindepth 1 -delete
-    cp -a "$APP_DIR/website/dist/." "$WEB_ROOT/"
-  fi
-  chmod -R a+rX "$WEB_ROOT"
-fi
+# Die Hauptseite wird vom MeetingBackstage-Dienst ausgeliefert (Inhalte bearbeitest du im Studio unter „Website“).
+# Caddy leitet beide Adressen an den Dienst weiter; /var/www/meetingbackstage wird nicht mehr gebraucht.
 
-# 2. Caddy-Konfiguration erzeugen; nur bei Änderung übernehmen
+# Caddy-Konfiguration erzeugen; nur bei Änderung übernehmen
 new="$(mktemp)"
 {
   if [[ -n "$ADMIN_EMAIL" ]]; then
@@ -63,9 +50,8 @@ www.$MAIN_DOMAIN {
 }
 
 $MAIN_DOMAIN {
-	root * $WEB_ROOT
 	encode zstd gzip
-	file_server
+	reverse_proxy 127.0.0.1:4300
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
@@ -73,12 +59,6 @@ $MAIN_DOMAIN {
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 		-Server
-	}
-	@assets path /assets/*
-	header @assets Cache-Control "public, max-age=604800"
-	handle_errors {
-		rewrite * /404.html
-		file_server
 	}
 }
 CADDY

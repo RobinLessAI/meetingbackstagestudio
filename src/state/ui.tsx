@@ -11,6 +11,7 @@ export const VIEWS: Array<{ id: ViewId; label: string; short: string; demo?: boo
   { id: 'ausgabe', label: 'OBS-Ausgabe', short: 'OBS' },
   { id: 'integrationen', label: 'Zoom & Einstellungen', short: 'Zoom' },
   { id: 'verwaltung', label: 'Verwaltung', short: 'Verwaltung', admin: true },
+  { id: 'website', label: 'Website', short: 'Website', admin: true },
   { id: 'veranstaltung', label: 'Veranstaltung', short: 'Start', demo: true },
   { id: 'teilnehmende', label: 'Teilnehmende', short: 'Personen', demo: true },
   { id: 'galerie', label: 'Galerie Studio', short: 'Galerie', demo: true },

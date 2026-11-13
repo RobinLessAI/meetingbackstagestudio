@@ -441,7 +441,8 @@ export type ViewId =
   | 'integrationen'
   | 'spotlight'
   | 'dran'
-  | 'verwaltung';
+  | 'verwaltung'
+  | 'website';
 
 export type ParticipantFilter =
   | 'alle'
