@@ -135,7 +135,7 @@ let anna = '';
 let ben = '';
 
 test('Registrierung, Bestätigung, Freischaltung durch die Verwaltung', async () => {
-  assert.deepEqual(await (await fetch(`${BASE}/api/modus`)).json(), { web: true, minPasswort: 10 });
+  assert.deepEqual(await (await fetch(`${BASE}/api/modus`)).json(), { web: true, minPasswort: 10, hauptseite: 'https://mb.test' });
   // Zu kurzes Passwort, ungültige Adresse
   assert.equal((await post('/api/konto/registrieren', { email: 'x@example.org', passwort: 'kurz' })).status, 400);
   assert.equal((await post('/api/konto/registrieren', { email: 'keine-adresse', passwort: 'sehr-geheim-123' })).status, 400);
