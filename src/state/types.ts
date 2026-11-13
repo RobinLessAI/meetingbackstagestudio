@@ -442,7 +442,8 @@ export type ViewId =
   | 'spotlight'
   | 'dran'
   | 'verwaltung'
-  | 'website';
+  | 'website'
+  | 'produkte';
 
 export type ParticipantFilter =
   | 'alle'

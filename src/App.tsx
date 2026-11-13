@@ -14,6 +14,7 @@ import { SpotlightView } from './views/SpotlightView.tsx';
 import { RosterView } from './views/RosterView.tsx';
 import { AdminView } from './web/AdminView.tsx';
 import { WebsiteView } from './web/website/WebsiteView.tsx';
+import { ProductsView } from './views/ProductsView.tsx';
 import { RosterPopupWindow, useRosterSync } from './components/RosterList.tsx';
 import { MeetingView } from './views/MeetingView.tsx';
 import { AudioView } from './views/AudioView.tsx';
@@ -173,6 +174,7 @@ function Shell() {
         {view === 'dran' && <RosterView />}
         {view === 'verwaltung' && <AdminView />}
         {view === 'website' && <WebsiteView />}
+        {view === 'produkte' && <ProductsView />}
       </main>
       <MuteAllDialog />
       <Presentation />

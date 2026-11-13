@@ -69,3 +69,23 @@ test('Startinhalt rendert alle Seiten mit Titel, Beschreibung, Navigation und Si
   assert.match(h.robots, /Disallow: \//);
   assert.match(h.pages.get('/'), /noindex/);
 });
+
+test('Produkt-Platzhalter: einmalige Ergänzung lässt Vorhandenes in Ruhe', async () => {
+  // @ts-expect-error – JavaScript-Modul ohne Typen
+  const { MIGRATIONEN } = await import('../server/website/migrationen.mjs');
+  const mig = MIGRATIONEN.find((m: { id: string }) => m.id === 'produkte-2026-11');
+  const before = normalizeContent(seed);
+  before.seiten[0].bloecke[0].titel = 'Eigener Titel';
+  const after = normalizeContent(mig.apply(before));
+  for (const p of ['/spotlight/', '/snap/', '/scope/']) assert.ok(after.seiten.some((s: { pfad: string }) => s.pfad === p), p);
+  assert.equal(after.seiten[0].bloecke[0].titel, 'Eigener Titel');
+  assert.equal(after.seiten.at(-1).pfad, '/404/');
+  assert.ok(after.site.navigation.some((n: { link: string }) => n.link === '/#produkte'));
+  const home = await renderSite(after, ctx);
+  assert.match(home.pages.get('/'), /Die MeetingBackstage-Familie/);
+  assert.match(home.pages.get('/'), /<a class="karte karte--link" href="\/spotlight\/">/);
+  // Zweimal anwenden verdoppelt nichts
+  const twice = normalizeContent(mig.apply(after));
+  assert.equal(twice.seiten.length, after.seiten.length);
+  assert.equal(twice.seiten[0].bloecke.filter((b: { anker: string }) => b.anker === 'produkte').length, 1);
+});

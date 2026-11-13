@@ -20,6 +20,7 @@ export const ICONS = [
   'mic', 'heart', 'lightbulb', 'rocket', 'clock', 'calendar', 'globe', 'lock', 'server', 'mail', 'phone',
   'life-buoy', 'book-open', 'graduation-cap', 'briefcase', 'building-2', 'handshake', 'trophy', 'zap',
   'palette', 'settings', 'thumbs-up', 'message-circle', 'smile', 'target', 'layers', 'arrow-right',
+  'mouse-pointer-click', 'camera', 'scan-search', 'telescope', 'package', 'focus',
 ];
 
 export const BLOCK_TYPES = ['buehne', 'seitenkopf', 'karten', 'schritte', 'liste', 'fragen', 'aufruf', 'text', 'bild', 'bildtext'];
@@ -186,7 +187,14 @@ const RENDER = {
   <div class="wrap">
     ${kopfzeile(b)}
     <div class="karten">${(b.karten ?? [])
-      .map((k) => `<article class="karte">${k.icon ? `<div class="karte__icon">${icon(k.icon)}</div>` : ''}<h3>${esc(k.titel)}</h3>${k.text ? `<p>${esc(k.text)}</p>` : ''}</article>`)
+      .map((k) => {
+        const inner = `${k.icon ? `<div class="karte__icon">${icon(k.icon)}</div>` : ''}${k.hinweis ? `<span class="karte__hinweis">${esc(k.hinweis)}</span>` : ''}<h3>${esc(k.titel)}</h3>${
+          k.text ? `<p>${esc(k.text)}</p>` : ''
+        }`;
+        return k.link
+          ? `<a class="karte karte--link" href="${esc(safeLink(k.link))}">${inner}<span class="karte__mehr">Mehr erfahren ${icon('arrow-right')}</span></a>`
+          : `<article class="karte">${inner}</article>`;
+      })
       .join('')}</div>
   </div>
 </section>`,

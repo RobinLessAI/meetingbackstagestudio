@@ -10,6 +10,7 @@ export const VIEWS: Array<{ id: ViewId; label: string; short: string; demo?: boo
   { id: 'dran', label: 'Wer war dran', short: 'Dran' },
   { id: 'ausgabe', label: 'OBS-Ausgabe', short: 'OBS' },
   { id: 'integrationen', label: 'Zoom & Einstellungen', short: 'Zoom' },
+  { id: 'produkte', label: 'Weitere Produkte', short: 'Produkte' },
   { id: 'verwaltung', label: 'Verwaltung', short: 'Verwaltung', admin: true },
   { id: 'website', label: 'Website', short: 'Website', admin: true },
   { id: 'veranstaltung', label: 'Veranstaltung', short: 'Start', demo: true },

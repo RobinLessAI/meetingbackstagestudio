@@ -168,6 +168,11 @@ p { margin: 0; }
 .karte__icon { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 18px; border-radius: 12px; background: rgb(2 108 117 / 0.1); color: var(--petrol); }
 .karte__icon .icon { width: 24px; height: 24px; }
 .karte p { margin-top: 8px; color: var(--text-2); }
+.karte { position: relative; }
+.karte--link { display: flex; flex-direction: column; color: inherit; text-decoration: none; transition: transform 150ms, box-shadow 150ms, border-color 150ms; }
+.karte--link:hover { color: inherit; transform: translateY(-2px); border-color: var(--petrol); box-shadow: 0 2px 4px rgb(17 36 60 / 0.06), 0 14px 32px rgb(17 36 60 / 0.12); }
+.karte__mehr { display: inline-flex; align-items: center; gap: 6px; margin-top: auto; padding-top: 16px; color: var(--petrol); font-weight: 700; }
+.karte__hinweis { position: absolute; top: 22px; right: 22px; padding: 3px 10px; border-radius: 999px; background: rgb(2 108 117 / 0.1); color: var(--petrol); font-size: 0.8rem; font-weight: 700; }
 
 .schritte { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; counter-reset: schritt; list-style: none; margin: 0; padding: 0; }
 .schritte li { position: relative; padding: 28px 26px; border-radius: var(--radius); background: var(--navy-2); }

@@ -1508,3 +1508,13 @@ button.ws-media:hover, .ws-media.is-active { border-color: var(--accent); }
 .rt__area blockquote { margin: 0; padding-left: 12px; border-left: 3px solid var(--accent); color: var(--text-2); }
 .rt__area hr { border: 0; border-top: 1px solid var(--line-strong); }
 .rt .tiptap { min-height: inherit; }
+
+/* ------------------------------------------------------------------ Weitere Produkte */
+.products { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.product { display: flex; flex-direction: column; gap: 10px; padding: 20px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--panel); }
+.product__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.product__icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); }
+.product__name { font-size: var(--fs-lg); font-weight: 700; }
+.product__list { margin: 0; padding-left: 1.2em; color: var(--text-2); display: grid; gap: 4px; }
+.product__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 6px; }
+a.btn { text-decoration: none; }

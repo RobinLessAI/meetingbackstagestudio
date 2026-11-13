@@ -50,6 +50,12 @@ import {
   X,
   Zap,
   ArrowRight,
+  MousePointerClick,
+  Camera,
+  ScanSearch,
+  Telescope,
+  Package,
+  Focus,
   type LucideIcon,
 } from 'lucide-react';
 import { Button, Dialog, IconButton } from '../../components/ui.tsx';
@@ -100,6 +106,12 @@ export const ICON_COMPONENTS: Record<string, LucideIcon> = {
   target: Target,
   layers: Layers,
   'arrow-right': ArrowRight,
+  'mouse-pointer-click': MousePointerClick,
+  camera: Camera,
+  'scan-search': ScanSearch,
+  telescope: Telescope,
+  package: Package,
+  focus: Focus,
 };
 
 // ----------------------------------------------------------------- Medien (über Kontext aus der Website-Seite)

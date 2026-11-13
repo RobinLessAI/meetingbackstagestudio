@@ -74,7 +74,7 @@ export const BLOCKS: { [T in BlockTyp]: BlockDef<T> } = {
     label: 'Karten mit Symbolen',
     beschreibung: 'Raster aus Karten mit Symbol, Titel und kurzem Text – z. B. Funktionen oder Vorteile.',
     icon: LayoutGrid,
-    create: () => ({ id: newId(), typ: 'karten', augenbraue: '', titel: 'Überschrift', text: '', hintergrund: 'hell', karten: [{ icon: 'star', titel: 'Titel', text: 'Kurzer Text' }] }),
+    create: () => ({ id: newId(), typ: 'karten', augenbraue: '', titel: 'Überschrift', text: '', hintergrund: 'hell', karten: [{ icon: 'star', titel: 'Titel', text: 'Kurzer Text', link: '', hinweis: '' }] }),
     summary: (b) => `${b.titel} · ${b.karten.length} Karten`,
     Editor: ({ b, up }) => (
       <>
@@ -83,15 +83,21 @@ export const BLOCKS: { [T in BlockTyp]: BlockDef<T> } = {
           label="Karten"
           items={b.karten}
           onChange={(karten) => up({ karten })}
-          create={() => ({ icon: 'star', titel: '', text: '' })}
+          create={() => ({ icon: 'star', titel: '', text: '', link: '', hinweis: '' })}
           itemLabel={(k) => k.titel}
           addLabel="Karte hinzufügen"
           render={(k, u) => (
-            <div className="ws-row ws-row--icon">
-              <IconSelect value={k.icon} onChange={(icon) => u({ icon })} />
-              <TextField label="Titel" value={k.titel} onChange={(titel) => u({ titel })} />
-              <TextField label="Text" value={k.text} onChange={(text) => u({ text })} multiline rows={2} />
-            </div>
+            <>
+              <div className="ws-row ws-row--icon">
+                <IconSelect value={k.icon} onChange={(icon) => u({ icon })} />
+                <TextField label="Titel" value={k.titel} onChange={(titel) => u({ titel })} />
+                <TextField label="Text" value={k.text} onChange={(text) => u({ text })} multiline rows={2} />
+              </div>
+              <div className="ws-row">
+                <TextField label="Link (optional)" value={k.link ?? ''} onChange={(link) => u({ link })} placeholder="/spotlight/ · https://…" hint="Mit Link wird die ganze Karte klickbar („Mehr erfahren“)." />
+                <TextField label="Hinweis-Etikett (optional)" value={k.hinweis ?? ''} onChange={(hinweis) => u({ hinweis })} placeholder="z. B. Bald verfügbar" />
+              </div>
+            </>
           )}
         />
         <div className="ws-row">

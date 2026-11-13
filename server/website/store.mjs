@@ -9,6 +9,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
+import { MIGRATIONEN } from './migrationen.mjs';
 import { BLOCK_TYPES, ICONS, cleanHtml, renderPreview, renderSite, safeLink } from './render.mjs';
 
 export const MEDIA_TYPES = {
@@ -70,7 +71,7 @@ function normalizeBlock(b) {
     case 'seitenkopf':
       return { ...base, augenbraue: str(b.augenbraue, 60), titel: str(b.titel, 160), text: str(b.text, 600), knopf1: btn(b.knopf1), knopf2: btn(b.knopf2) };
     case 'karten':
-      return { ...base, augenbraue: str(b.augenbraue, 60), titel: str(b.titel, 160), text: str(b.text, 600), hintergrund: bg(b.hintergrund, 'hell'), karten: list(b.karten, (k) => ({ icon: iconName(k?.icon), titel: str(k?.titel, 100), text: str(k?.text, 400) })) };
+      return { ...base, augenbraue: str(b.augenbraue, 60), titel: str(b.titel, 160), text: str(b.text, 600), hintergrund: bg(b.hintergrund, 'hell'), karten: list(b.karten, (k) => ({ icon: iconName(k?.icon), titel: str(k?.titel, 100), text: str(k?.text, 400), link: link(k?.link), hinweis: str(k?.hinweis, 40) })) };
     case 'schritte':
       return { ...base, augenbraue: str(b.augenbraue, 60), titel: str(b.titel, 160), text: str(b.text, 600), hintergrund: bg(b.hintergrund, 'navy'), schritte: list(b.schritte, (s) => ({ titel: str(s?.titel, 120), text: str(s?.text, 600) }), 12) };
     case 'liste':
@@ -172,6 +173,27 @@ export function createWebsite({ dir, seedFile, siteUrl, studioUrl, log = () => {
     fs.writeFileSync(LIVE, JSON.stringify(live));
   }
   let draft = read(DRAFT) ?? { content: live.content, at: null };
+
+  // Einmalige Ergänzungen aus dem Code (z. B. neue Produktseiten) in Entwurf und veröffentlichten Stand übernehmen
+  const MIG_FILE = path.join(dir, 'migrationen.json');
+  const done = new Set(read(MIG_FILE) ?? []);
+  const pendingMig = MIGRATIONEN.filter((m) => !done.has(m.id));
+  if (pendingMig.length) {
+    for (const m of pendingMig) {
+      try {
+        const same = JSON.stringify(draft.content) === JSON.stringify(live.content);
+        live = { ...live, content: normalizeContent(m.apply(live.content)) };
+        draft = { ...draft, content: same ? live.content : normalizeContent(m.apply(draft.content)) };
+        log(`Website: Ergänzung „${m.id}“ übernommen.`);
+      } catch (e) {
+        log(`Website: Ergänzung „${m.id}“ übersprungen (${e.message}).`);
+      }
+      done.add(m.id);
+    }
+    fs.writeFileSync(LIVE, JSON.stringify(live));
+    fs.writeFileSync(DRAFT, JSON.stringify(draft));
+    fs.writeFileSync(MIG_FILE, JSON.stringify([...done]));
+  }
   let rendered = null;
   const ctx = { siteUrl, studioUrl };
 

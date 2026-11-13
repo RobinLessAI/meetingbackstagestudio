@@ -17,7 +17,7 @@ interface BlockBase {
 export type Block =
   | (BlockBase & { typ: 'buehne'; kicker: string; titel: string; text: string; knopf1: Knopf; knopf2: Knopf; hinweis: string; bild: string; bildAlt: string })
   | (BlockBase & { typ: 'seitenkopf'; augenbraue: string; titel: string; text: string; knopf1: Knopf; knopf2: Knopf })
-  | (BlockBase & { typ: 'karten'; augenbraue: string; titel: string; text: string; hintergrund: Hintergrund; karten: Array<{ icon: string; titel: string; text: string }> })
+  | (BlockBase & { typ: 'karten'; augenbraue: string; titel: string; text: string; hintergrund: Hintergrund; karten: Array<{ icon: string; titel: string; text: string; link?: string; hinweis?: string }> })
   | (BlockBase & { typ: 'schritte'; augenbraue: string; titel: string; text: string; hintergrund: Hintergrund; schritte: Array<{ titel: string; text: string }> })
   | (BlockBase & {
       typ: 'liste';
