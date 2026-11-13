@@ -65,6 +65,7 @@ export interface Site {
   indexieren: boolean;
   favicon: Favicon | null;
   vorschaubild: string;
+  kopfStil: 'hell' | 'dunkel';
   logo: string;
   logoFuss: string;
   navigation: NavLink[];

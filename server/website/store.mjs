@@ -113,6 +113,7 @@ export function normalizeContent(raw) {
     indexieren: s.indexieren !== false,
     favicon: fav ? { svg: media(fav.svg), png32: media(fav.png32), png180: media(fav.png180), png512: media(fav.png512) } : null,
     vorschaubild: media(s.vorschaubild),
+    kopfStil: s.kopfStil === 'dunkel' ? 'dunkel' : 'hell',
     logo: media(s.logo),
     logoFuss: media(s.logoFuss),
     navigation: list(s.navigation, (n) => ({ label: str(n?.label, 40), link: link(n?.link) }), 12),

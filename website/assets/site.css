@@ -79,6 +79,12 @@ p { margin: 0; }
 .kopf__nav a:hover { color: var(--weiss); }
 .kopf__aktion { display: flex; gap: 10px; }
 .kopf .btn { min-height: 40px; padding: 0 16px; font-size: 0.95rem; }
+/* Helle Kopfzeile: farbiges Logo auf Weiß, darunter beginnt die Navy-Bühne */
+.kopf--hell { background: rgb(255 255 255 / 0.97); border-bottom: 1px solid var(--linie); box-shadow: 0 1px 12px rgb(17 36 60 / 0.06); }
+.kopf--hell .kopf__nav a { color: var(--navy-2); }
+.kopf--hell .kopf__nav a:hover { color: var(--petrol); }
+.kopf--hell .btn--leise { color: var(--navy); border-color: rgb(17 36 60 / 0.28); }
+.kopf--hell .btn--leise:hover { color: var(--navy); border-color: var(--navy); }
 @media (max-width: 960px) { .kopf__nav { display: none; } .kopf__aktion { margin-left: auto; } }
 @media (max-width: 560px) {
   .kopf__innen { gap: 12px; min-height: 64px; }

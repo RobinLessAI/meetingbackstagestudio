@@ -19,7 +19,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
-import { Badge, Button, Dialog, IconButton, Panel, Switch } from '../../components/ui.tsx';
+import { Badge, Button, Dialog, IconButton, Panel, Segmented, Switch } from '../../components/ui.tsx';
 import { useStore } from '../../state/store.tsx';
 import { currentUser } from '../mode.ts';
 import { BLOCKS, BlockEditor, blockSummary, createBlock } from './blocks.tsx';
@@ -642,7 +642,21 @@ function GeneralEditor({ site, onChange, onMedia }: { site: Site; onChange: (p: 
           </div>
           <span className="field-hint">Quadratisch, mindestens 512 × 512 Pixel, als PNG oder SVG. Die nötigen Größen werden automatisch erzeugt.</span>
         </div>
-        <ImageField label="Logo oben (auf Navy)" value={site.logo} onChange={(logo) => onChange({ logo })} hint="Leer = MeetingBackstage-Logo in Weiß. Am besten SVG oder PNG mit transparentem Hintergrund." />
+        <Segmented<'hell' | 'dunkel'>
+          label="Kopfzeile"
+          value={site.kopfStil === 'dunkel' ? 'dunkel' : 'hell'}
+          onChange={(kopfStil) => onChange({ kopfStil })}
+          options={[
+            { value: 'hell', label: 'Hell – farbiges Logo' },
+            { value: 'dunkel', label: 'Dunkel – weißes Logo' },
+          ]}
+        />
+        <ImageField
+          label="Eigenes Logo oben (optional)"
+          value={site.logo}
+          onChange={(logo) => onChange({ logo })}
+          hint={`Leer = MeetingBackstage-Logo ${site.kopfStil === 'dunkel' ? 'in Weiß' : 'in Farbe'}. Passend zur Kopfzeile wählen, am besten SVG oder PNG mit transparentem Hintergrund.`}
+        />
         <ImageField label="Logo in der Fußzeile" value={site.logoFuss} onChange={(logoFuss) => onChange({ logoFuss })} hint="Leer = Logo mit Slogan in Weiß." />
         <ImageField label="Standard-Vorschaubild beim Teilen" value={site.vorschaubild} onChange={(vorschaubild) => onChange({ vorschaubild })} hint="1200 × 630 Pixel. Gilt für alle Seiten ohne eigenes Vorschaubild." />
       </Panel>

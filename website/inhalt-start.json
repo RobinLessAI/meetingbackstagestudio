@@ -61,7 +61,8 @@
     "link": "/nutzungsbedingungen/"
    }
   ],
-  "fussKlein": "© {jahr} MeetingBackstage. Zoom ist eine Marke der Zoom Communications, Inc. MeetingBackstage ist ein unabhängiges Angebot und nicht mit Zoom verbunden."
+  "fussKlein": "© {jahr} MeetingBackstage. Zoom ist eine Marke der Zoom Communications, Inc. MeetingBackstage ist ein unabhängiges Angebot und nicht mit Zoom verbunden.",
+  "kopfStil": "hell"
  },
  "seiten": [
   {

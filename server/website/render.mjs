@@ -324,9 +324,9 @@ ${ld}
 <body>
 ${ctx.vorschau ? '<div class="vorschau-hinweis">Vorschau – so sieht die Seite nach dem Veröffentlichen aus. Links führen zur Vorschau der anderen Seiten.</div>' : ''}
 <a class="skip" href="#inhalt">Zum Inhalt springen</a>
-<header class="kopf">
+<header class="kopf${site.kopfStil === 'dunkel' ? '' : ' kopf--hell'}">
   <div class="wrap kopf__innen">
-    <a class="kopf__logo" href="/" aria-label="${esc(site.name)} – Startseite"><img src="${esc(site.logo || `${ASSET_BASE}/bilder/logo-weiss.svg`)}" alt="${esc(site.name)}" width="196" height="40"></a>
+    <a class="kopf__logo" href="/" aria-label="${esc(site.name)} – Startseite"><img src="${esc(site.logo || `${ASSET_BASE}/bilder/${site.kopfStil === 'dunkel' ? 'logo-weiss' : 'logo'}.svg`)}" alt="${esc(site.name)}" width="196" height="40"></a>
     <nav class="kopf__nav" aria-label="Hauptnavigation">${nav}</nav>
     <div class="kopf__aktion">${headButtons}</div>
   </div>
