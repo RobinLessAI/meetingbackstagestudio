@@ -29,7 +29,7 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { scroll-behavior: smooth; scroll-padding-top: 88px; }
+html { scroll-behavior: smooth; scroll-padding-top: 100px; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 body {
   margin: 0;
@@ -72,8 +72,9 @@ p { margin: 0; }
 
 /* ------------------------------------------------------------------ Kopf */
 .kopf { position: sticky; top: 0; z-index: 50; background: rgb(17 36 60 / 0.97); backdrop-filter: blur(8px); border-bottom: 1px solid rgb(255 255 255 / 0.08); }
-.kopf__innen { display: flex; align-items: center; gap: 28px; min-height: 72px; }
-.kopf__logo img { height: 36px; width: auto; }
+.kopf__innen { display: flex; align-items: center; gap: 28px; min-height: 84px; }
+.kopf__logo { display: block; flex: none; }
+.kopf__logo img { display: block; height: 50px; width: auto; }
 .kopf__nav { display: flex; gap: 22px; margin-left: auto; }
 .kopf__nav a { color: rgb(255 255 255 / 0.82); text-decoration: none; font-weight: 600; font-size: 0.98rem; }
 .kopf__nav a:hover { color: var(--weiss); }
@@ -87,8 +88,8 @@ p { margin: 0; }
 .kopf--hell .btn--leise:hover { color: var(--navy); border-color: var(--navy); }
 @media (max-width: 960px) { .kopf__nav { display: none; } .kopf__aktion { margin-left: auto; } }
 @media (max-width: 560px) {
-  .kopf__innen { gap: 12px; min-height: 64px; }
-  .kopf__logo img { height: 28px; }
+  .kopf__innen { gap: 12px; min-height: 68px; }
+  .kopf__logo img { height: 40px; }
   .kopf .btn--leise { display: none; }
   .kopf .btn { padding: 0 14px; }
 }

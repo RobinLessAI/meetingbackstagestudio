@@ -326,7 +326,12 @@ ${ctx.vorschau ? '<div class="vorschau-hinweis">Vorschau – so sieht die Seite 
 <a class="skip" href="#inhalt">Zum Inhalt springen</a>
 <header class="kopf${site.kopfStil === 'dunkel' ? '' : ' kopf--hell'}">
   <div class="wrap kopf__innen">
-    <a class="kopf__logo" href="/" aria-label="${esc(site.name)} – Startseite"><img src="${esc(site.logo || `${ASSET_BASE}/bilder/${site.kopfStil === 'dunkel' ? 'logo-weiss' : 'logo'}.svg`)}" alt="${esc(site.name)}" width="196" height="40"></a>
+    <a class="kopf__logo" href="/" aria-label="${esc(site.name)} – Startseite">${
+      site.logo
+        ? `<img src="${esc(site.logo)}" alt="${esc(site.name)}" width="226" height="46">`
+        : // Standard: Logo mit Slogan; auf schmalen Handys ohne Slogan (dort wäre er zu klein zum Lesen)
+          `<picture><source media="(max-width: 420px)" srcset="${ASSET_BASE}/bilder/${site.kopfStil === 'dunkel' ? 'logo-weiss' : 'logo'}.svg"><img src="${ASSET_BASE}/bilder/${site.kopfStil === 'dunkel' ? 'logo-slogan-weiss' : 'logo-slogan'}.svg" alt="${esc(site.name)} – ${esc(site.slogan || 'Moderieren und inspirieren')}" width="226" height="46"></picture>`
+    }</a>
     <nav class="kopf__nav" aria-label="Hauptnavigation">${nav}</nav>
     <div class="kopf__aktion">${headButtons}</div>
   </div>
