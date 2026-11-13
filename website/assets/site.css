@@ -81,7 +81,23 @@ p { margin: 0; }
 .kopf__aktion { display: flex; gap: 10px; }
 .kopf .btn { min-height: 40px; padding: 0 16px; font-size: 0.95rem; }
 /* Helle Kopfzeile: farbiges Logo auf Weiß, darunter beginnt die Navy-Bühne */
-.kopf--hell { background: rgb(255 255 255 / 0.97); border-bottom: 1px solid var(--linie); box-shadow: 0 1px 12px rgb(17 36 60 / 0.06); }
+.kopf--hell {
+  /* Weiß hinter dem Logo, nach rechts in helles Petrol-Grau; unten eine Farbkante Petrol → Navy */
+  background:
+    radial-gradient(520px 140px at 88% 0%, rgb(60 180 189 / 0.16), transparent 70%),
+    linear-gradient(100deg, #ffffff 0%, #ffffff 32%, #f1f7f8 58%, #dfeef0 100%);
+  border-bottom: 0;
+  box-shadow: 0 6px 20px rgb(17 36 60 / 0.08);
+}
+.kopf--hell::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--petrol) 0%, var(--petrol-hell) 45%, var(--navy-2) 100%);
+}
 .kopf--hell .kopf__nav a { color: var(--navy-2); }
 .kopf--hell .kopf__nav a:hover { color: var(--petrol); }
 .kopf--hell .btn--leise { color: var(--navy); border-color: rgb(17 36 60 / 0.28); }
