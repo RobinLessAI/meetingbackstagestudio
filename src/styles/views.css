@@ -1597,3 +1597,8 @@ a.btn { text-decoration: none; }
 .slides-card__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .slides-card__head h2 { font-size: var(--fs-lg); font-weight: 600; }
 .slides-card__actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.slides-deck { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.slides-deck summary { cursor: pointer; font-weight: 600; font-size: var(--fs-sm); color: var(--text-2); }
+.slides-deck[open] { gap: 8px; }
+.slides-deck .slides-url { align-items: center; margin-top: 6px; }
+.slides-deck__label { width: 140px; font-size: var(--fs-sm); color: var(--text-2); }

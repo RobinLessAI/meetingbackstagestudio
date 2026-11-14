@@ -21,14 +21,15 @@ import {
   Undo2,
   Upload,
 } from 'lucide-react';
-import { Button, Dialog, IconButton } from '../components/ui.tsx';
+import { Button, Dialog, IconButton, Segmented } from '../components/ui.tsx';
 import { mb, slidesApi, uploadMedium } from './api.ts';
 import { EditorCanvas } from './Canvas.tsx';
 import { ElementInspector, SlideInspector } from './Inspector.tsx';
-import { neueForm, neuerText, neuesBild, type Element, type Folie, type FolienState, type Medium } from './model.ts';
+import { maxSchritt, neueForm, neuerText, neuesBild, type Element, type Folie, type FolienState, type Medium } from './model.ts';
 import { SlideThumb } from './SlideRender.tsx';
 import { VORLAGEN, vorlage, type VorlageId } from './vorlagen.ts';
 import { mitTon, TonButton, useTon } from './ton.tsx';
+import { PraesentationenPanel } from './Praesentationen.tsx';
 
 type Toast = { id: number; text: string; tone: 'ok' | 'fehler' };
 const newId = () => Math.random().toString(36).slice(2, 10);
@@ -46,6 +47,9 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
   const [mediaFor, setMediaFor] = useState<null | { typ: 'bild' | 'video'; ziel: 'neu' | 'element' | 'hintergrund' }>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [ton, setTon] = useTon();
+  const [bereich, setBereich] = useState<'folien' | 'praesentationen'>(() =>
+    new URLSearchParams(window.location.search).get('bereich') === 'praesentationen' ? 'praesentationen' : 'folien',
+  );
   const textRef = useRef<HTMLTextAreaElement | null>(null);
   const past = useRef<Folie[]>([]);
   const future = useRef<Folie[]>([]);
@@ -86,6 +90,20 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
     window.history.replaceState(null, '', u);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [folieId, st?.folien.length]);
+
+  const switchBereich = async (b: 'folien' | 'praesentationen') => {
+    await flush();
+    setBereich(b);
+    const u = new URL(window.location.href);
+    if (b === 'praesentationen') u.searchParams.set('bereich', b);
+    else u.searchParams.delete('bereich');
+    window.history.replaceState(null, '', u);
+  };
+  const referentUrl = (() => {
+    const u = new URL(window.location.href);
+    u.search = '?ansicht=referent';
+    return u.toString();
+  })();
 
   // ------------------------------------------------------------- Speichern
   const flush = useCallback(async () => {
@@ -139,7 +157,11 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
     [],
   );
   const patchEl = (id: string, patch: Partial<Element>, key?: string, skipHistory = false) =>
-    commit((f) => ({ ...f, elemente: f.elemente.map((e) => (e.id === id ? ({ ...e, ...patch } as Element) : e)) }), key ? `${id}:${key}` : undefined, skipHistory);
+    commit(
+      (f) => ({ ...f, elemente: f.elemente.map((e) => (e.id === id ? ({ ...e, ...patch } as Element) : e)) }),
+      key ? `${id}:${key}` : undefined,
+      skipHistory,
+    );
   const undo = () => {
     const prev = past.current.pop();
     if (!prev || !draft) return;
@@ -200,7 +222,7 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
         return;
       }
       if (isTyping(e.target) || document.querySelector('dialog[open]')) return;
-      if (!selected) return;
+      if (!selected || bereich !== 'folien') return;
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         removeSelected();
@@ -288,7 +310,18 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
             MeetingBackstage <strong>Slides</strong>
           </span>
         </a>
-        <div className="sl-top__tools" role="toolbar" aria-label="Elemente hinzufügen">
+        <Segmented
+          label="Bereich"
+          hideLabel
+          size="sm"
+          value={bereich}
+          onChange={switchBereich}
+          options={[
+            { value: 'folien', label: 'Folien' },
+            { value: 'praesentationen', label: 'Präsentationen' },
+          ]}
+        />
+        <div className="sl-top__tools" role="toolbar" aria-label="Elemente hinzufügen" hidden={bereich !== 'folien'}>
           <Button size="sm" icon={Type} disabled={!draft} onClick={() => addElement(neuerText())}>
             Text
           </Button>
@@ -312,7 +345,11 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
           <IconButton label="Wiederholen (⇧ ⌘ Z)" icon={Redo2} onClick={redo} disabled={!future.current.length} />
         </div>
         <span className={`sl-top__status sl-top__status--${saving}`} role="status">
-          {saving === 'speichert' ? 'Speichert …' : saving === 'fehler' ? 'Nicht gespeichert' : (
+          {saving === 'speichert' ? (
+            'Speichert …'
+          ) : saving === 'fehler' ? (
+            'Nicht gespeichert'
+          ) : (
             <>
               <Check size={14} aria-hidden /> Gespeichert · live in OBS
             </>
@@ -320,179 +357,208 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
         </span>
       </header>
 
-      <div className="sl-body">
-        <aside className="sl-left" aria-label="Folien und Ebenen">
-          <div className="sl-left__head">
-            <h2>Folien</h2>
-            <Button size="sm" icon={Plus} onClick={() => setNewOpen(true)}>
-              Neu
-            </Button>
-          </div>
-          <ul className="sl-slides">
-            {st.folien.map((f) => {
-              const shown = f.id === draft?.id ? draft : f;
-              return (
-                <li key={f.id} className={`sl-slide${f.id === folieId ? ' is-active' : ''}`}>
-                  <button
-                    type="button"
-                    className="sl-slide__pick"
-                    onClick={async () => {
-                      await flush();
-                      setFolieId(f.id);
-                    }}
-                  >
-                    <SlideThumb folie={shown} />
-                    <span className="sl-slide__name">
-                      {live === f.id && <Radio size={13} className="sl-live" aria-label="auf Sendung" />}
-                      {shown.name}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-
-          <div className="sl-channel">
-            <h2>Kanal für OBS</h2>
-            <p className="sl-hint">Eine Adresse in OBS, die immer die Folie zeigt, die du auf Sendung schaltest.</p>
-            <div className="sl-url">
-              <input className="input mono" readOnly value={channelUrl} aria-label="Adresse des Kanals" onFocus={(e) => e.target.select()} />
-              <IconButton label="Kanal-Adresse kopieren" icon={Copy} onClick={() => copy(channelUrl, 'Kanal-Adresse')} />
-            </div>
-            <div className="sl-channel__row">
-              <TonButton on={ton} onChange={setTon} />
-              {live && (
-                <Button size="sm" variant="ghost" icon={EyeOff} onClick={() => setLive(null)}>
-                  Kanal leeren
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {draft && (
-            <div className="sl-layers">
-              <h2>Ebenen</h2>
-              {draft.elemente.length === 0 && <p className="sl-hint">Noch leer – oben Text, Fläche, Bild oder Video hinzufügen.</p>}
-              <ul>
-                {[...draft.elemente].reverse().map((e) => (
-                  <li key={e.id} className={`sl-layer${sel === e.id ? ' is-active' : ''}${e.hidden ? ' is-hidden' : ''}`}>
-                    <button type="button" className="sl-layer__pick" onClick={() => setSel(e.id)}>
-                      {e.typ === 'text' ? <Type size={14} /> : e.typ === 'bild' ? <ImageIcon size={14} /> : e.typ === 'video' ? <Film size={14} /> : <Square size={14} />}
-                      <span>{e.name}</span>
-                      {e.locked && <Lock size={12} aria-label="gesperrt" />}
-                    </button>
-                    <IconButton label={e.hidden ? 'Einblenden' : 'Ausblenden'} icon={e.hidden ? EyeOff : Eye} onClick={() => patchEl(e.id, { hidden: !e.hidden })} />
-                    <IconButton label="Eine Ebene nach vorne" icon={Plus} onClick={() => moveLayer(e.id, 1)} />
-                    <IconButton label="Eine Ebene nach hinten" icon={Minus} onClick={() => moveLayer(e.id, -1)} />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </aside>
-
-        <main className="sl-main">
-          {draft ? (
-            <>
-              <EditorCanvas
-                folie={draft}
-                selected={sel}
-                onSelect={setSel}
-                onBegin={() => commit((f) => f)}
-                onPatch={(id, patch) => patchEl(id, patch, undefined, true)}
-                onEditText={() => window.setTimeout(() => textRef.current?.focus(), 0)}
-              />
-              <div className="sl-output">
-                <span className="sl-output__label">OBS-Adresse dieser Folie</span>
-                <input className="input mono" readOnly value={outputUrl} aria-label="OBS-Adresse dieser Folie" onFocus={(e) => e.target.select()} />
-                <Button size="sm" icon={Copy} onClick={() => copy(outputUrl, 'OBS-Adresse')}>
-                  Kopieren
-                </Button>
-                <a className="btn btn--ghost btn--sm" href={outputUrl} target="_blank" rel="noreferrer">
-                  <ExternalLink size={14} aria-hidden /> Ansehen
-                </a>
-                <TonButton on={ton} onChange={setTon} />
-                <Button size="sm" variant={live === draft.id ? 'secondary' : 'primary'} icon={Radio} onClick={() => setLive(live === draft.id ? null : draft.id)}>
-                  {live === draft.id ? 'Auf Sendung' : 'Im Kanal zeigen'}
-                </Button>
-              </div>
-              <p className="sl-hint sl-hint--center">In OBS: Quelle „Browser“, Adresse einfügen, Breite 1920 und Höhe 1080. Änderungen erscheinen sofort.</p>
-            </>
-          ) : (
-            <div className="sl-empty">
-              <p>Noch keine Folie.</p>
-              <Button variant="primary" icon={Plus} onClick={() => setNewOpen(true)}>
-                Erste Folie anlegen
+      {bereich === 'praesentationen' ? (
+        <PraesentationenPanel st={st} onState={(fn) => setSt((s) => (s ? fn(s) : s))} toast={toast} referentUrl={referentUrl} />
+      ) : (
+        <div className="sl-body">
+          <aside className="sl-left" aria-label="Folien und Ebenen">
+            <div className="sl-left__head">
+              <h2>Folien</h2>
+              <Button size="sm" icon={Plus} onClick={() => setNewOpen(true)}>
+                Neu
               </Button>
             </div>
-          )}
-        </main>
+            <ul className="sl-slides">
+              {st.folien.map((f) => {
+                const shown = f.id === draft?.id ? draft : f;
+                return (
+                  <li key={f.id} className={`sl-slide${f.id === folieId ? ' is-active' : ''}`}>
+                    <button
+                      type="button"
+                      className="sl-slide__pick"
+                      onClick={async () => {
+                        await flush();
+                        setFolieId(f.id);
+                      }}
+                    >
+                      <SlideThumb folie={shown} />
+                      <span className="sl-slide__name">
+                        {live === f.id && <Radio size={13} className="sl-live" aria-label="auf Sendung" />}
+                        {shown.name}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
 
-        <aside className="sl-right" aria-label="Eigenschaften">
-          {draft && selected ? (
-            <ElementInspector
-              key={selected.id}
-              el={selected}
-              textRef={textRef}
-              onChange={(patch, key) => patchEl(selected.id, patch, key)}
-              onPickMedia={(typ) => setMediaFor({ typ, ziel: 'element' })}
-              onDuplicate={duplicateSelected}
-              onDelete={removeSelected}
-              onOrder={order}
-            />
-          ) : draft ? (
-            <>
-              <SlideInspector
-                folie={draft}
-                onChange={(patch, key) => commit((f) => ({ ...f, ...patch }), key)}
-                onPickMedia={(typ) => setMediaFor({ typ, ziel: 'hintergrund' })}
-              />
-              <div className="sl-actions sl-actions--slide">
-                <Button
-                  size="sm"
-                  icon={Copy}
-                  onClick={async () => {
-                    await flush();
-                    const r = await slidesApi.duplicate(draft.id);
-                    setSt((s) => (s ? { ...s, folien: [...s.folien, r.folie] } : s));
-                    setFolieId(r.folie.id);
-                  }}
-                >
-                  Folie duplizieren
-                </Button>
-                <Button
-                  size="sm"
-                  icon={KeyRound}
-                  onClick={async () => {
-                    if (!window.confirm('Neue OBS-Adresse erzeugen? Die bisherige Adresse zeigt danach nichts mehr.')) return;
-                    await flush();
-                    const r = await slidesApi.renewKey(draft.id);
-                    setSt((s) => (s ? { ...s, folien: s.folien.map((x) => (x.id === r.folie.id ? r.folie : x)) } : s));
-                    setDraft((d) => (d ? { ...d, key: r.folie.key } : d));
-                    toast('Neue OBS-Adresse erzeugt.');
-                  }}
-                >
-                  Neue OBS-Adresse
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  icon={Trash2}
-                  onClick={async () => {
-                    if (!window.confirm(`Folie „${draft.name}“ löschen?`)) return;
-                    pending.current = null;
-                    await slidesApi.remove(draft.id);
-                    setFolieId(null);
-                    load();
-                  }}
-                >
-                  Folie löschen
+            <div className="sl-channel">
+              <h2>Kanal für OBS</h2>
+              <p className="sl-hint">Eine Adresse in OBS, die immer die Folie zeigt, die du auf Sendung schaltest.</p>
+              <div className="sl-url">
+                <input className="input mono" readOnly value={channelUrl} aria-label="Adresse des Kanals" onFocus={(e) => e.target.select()} />
+                <IconButton label="Kanal-Adresse kopieren" icon={Copy} onClick={() => copy(channelUrl, 'Kanal-Adresse')} />
+              </div>
+              <div className="sl-channel__row">
+                <TonButton on={ton} onChange={setTon} />
+                {live && (
+                  <Button size="sm" variant="ghost" icon={EyeOff} onClick={() => setLive(null)}>
+                    Kanal leeren
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {draft && (
+              <div className="sl-layers">
+                <h2>Ebenen</h2>
+                {draft.elemente.length === 0 && <p className="sl-hint">Noch leer – oben Text, Fläche, Bild oder Video hinzufügen.</p>}
+                <ul>
+                  {[...draft.elemente].reverse().map((e) => (
+                    <li key={e.id} className={`sl-layer${sel === e.id ? ' is-active' : ''}${e.hidden ? ' is-hidden' : ''}`}>
+                      <button type="button" className="sl-layer__pick" onClick={() => setSel(e.id)}>
+                        {e.typ === 'text' ? (
+                          <Type size={14} />
+                        ) : e.typ === 'bild' ? (
+                          <ImageIcon size={14} />
+                        ) : e.typ === 'video' ? (
+                          <Film size={14} />
+                        ) : (
+                          <Square size={14} />
+                        )}
+                        <span>{e.name}</span>
+                        {(e.schritt ?? 0) > 0 && (
+                          <span className="sl-layer__step" title={`Erscheint beim ${e.schritt}. Klick`}>
+                            {e.schritt}
+                          </span>
+                        )}
+                        {e.locked && <Lock size={12} aria-label="gesperrt" />}
+                      </button>
+                      <IconButton
+                        label={e.hidden ? 'Einblenden' : 'Ausblenden'}
+                        icon={e.hidden ? EyeOff : Eye}
+                        onClick={() => patchEl(e.id, { hidden: !e.hidden })}
+                      />
+                      <IconButton label="Eine Ebene nach vorne" icon={Plus} onClick={() => moveLayer(e.id, 1)} />
+                      <IconButton label="Eine Ebene nach hinten" icon={Minus} onClick={() => moveLayer(e.id, -1)} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </aside>
+
+          <main className="sl-main">
+            {draft ? (
+              <>
+                <EditorCanvas
+                  folie={draft}
+                  selected={sel}
+                  onSelect={setSel}
+                  onBegin={() => commit((f) => f)}
+                  onPatch={(id, patch) => patchEl(id, patch, undefined, true)}
+                  onEditText={() => window.setTimeout(() => textRef.current?.focus(), 0)}
+                />
+                <div className="sl-output">
+                  <span className="sl-output__label">OBS-Adresse dieser Folie</span>
+                  <input className="input mono" readOnly value={outputUrl} aria-label="OBS-Adresse dieser Folie" onFocus={(e) => e.target.select()} />
+                  <Button size="sm" icon={Copy} onClick={() => copy(outputUrl, 'OBS-Adresse')}>
+                    Kopieren
+                  </Button>
+                  <a className="btn btn--ghost btn--sm" href={outputUrl} target="_blank" rel="noreferrer">
+                    <ExternalLink size={14} aria-hidden /> Ansehen
+                  </a>
+                  <TonButton on={ton} onChange={setTon} />
+                  <Button
+                    size="sm"
+                    variant={live === draft.id ? 'secondary' : 'primary'}
+                    icon={Radio}
+                    onClick={() => setLive(live === draft.id ? null : draft.id)}
+                  >
+                    {live === draft.id ? 'Auf Sendung' : 'Im Kanal zeigen'}
+                  </Button>
+                </div>
+                <p className="sl-hint sl-hint--center">
+                  In OBS: Quelle „Browser“, Adresse einfügen, Breite 1920 und Höhe 1080. Änderungen erscheinen sofort.
+                </p>
+              </>
+            ) : (
+              <div className="sl-empty">
+                <p>Noch keine Folie.</p>
+                <Button variant="primary" icon={Plus} onClick={() => setNewOpen(true)}>
+                  Erste Folie anlegen
                 </Button>
               </div>
-            </>
-          ) : null}
-        </aside>
-      </div>
+            )}
+          </main>
+
+          <aside className="sl-right" aria-label="Eigenschaften">
+            {draft && selected ? (
+              <ElementInspector
+                key={selected.id}
+                el={selected}
+                textRef={textRef}
+                onChange={(patch, key) => patchEl(selected.id, patch, key)}
+                onPickMedia={(typ) => setMediaFor({ typ, ziel: 'element' })}
+                onDuplicate={duplicateSelected}
+                onDelete={removeSelected}
+                onOrder={order}
+                maxSchritt={maxSchritt(draft)}
+              />
+            ) : draft ? (
+              <>
+                <SlideInspector
+                  folie={draft}
+                  onChange={(patch, key) => commit((f) => ({ ...f, ...patch }), key)}
+                  onPickMedia={(typ) => setMediaFor({ typ, ziel: 'hintergrund' })}
+                />
+                <div className="sl-actions sl-actions--slide">
+                  <Button
+                    size="sm"
+                    icon={Copy}
+                    onClick={async () => {
+                      await flush();
+                      const r = await slidesApi.duplicate(draft.id);
+                      setSt((s) => (s ? { ...s, folien: [...s.folien, r.folie] } : s));
+                      setFolieId(r.folie.id);
+                    }}
+                  >
+                    Folie duplizieren
+                  </Button>
+                  <Button
+                    size="sm"
+                    icon={KeyRound}
+                    onClick={async () => {
+                      if (!window.confirm('Neue OBS-Adresse erzeugen? Die bisherige Adresse zeigt danach nichts mehr.')) return;
+                      await flush();
+                      const r = await slidesApi.renewKey(draft.id);
+                      setSt((s) => (s ? { ...s, folien: s.folien.map((x) => (x.id === r.folie.id ? r.folie : x)) } : s));
+                      setDraft((d) => (d ? { ...d, key: r.folie.key } : d));
+                      toast('Neue OBS-Adresse erzeugt.');
+                    }}
+                  >
+                    Neue OBS-Adresse
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    icon={Trash2}
+                    onClick={async () => {
+                      if (!window.confirm(`Folie „${draft.name}“ löschen?`)) return;
+                      pending.current = null;
+                      await slidesApi.remove(draft.id);
+                      setFolieId(null);
+                      load();
+                    }}
+                  >
+                    Folie löschen
+                  </Button>
+                </div>
+              </>
+            ) : null}
+          </aside>
+        </div>
+      )}
 
       <MediaLibrary
         open={!!mediaFor}
@@ -508,7 +574,7 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
         <div className="sl-templates">
           {VORLAGEN.map((v) => (
             <button key={v.id} type="button" className="sl-template" onClick={() => createFolie(v.id)}>
-              <SlideThumb folie={{ id: v.id, key: '', updatedAt: 0, ...(vorlage(v.id, v.name) as Pick<Folie, 'name' | 'hintergrund' | 'elemente'>) }} />
+              <SlideThumb folie={{ id: v.id, key: '', updatedAt: 0, ...vorlage(v.id, v.name) }} />
               <strong>{v.name}</strong>
               <span>{v.beschreibung}</span>
             </button>
@@ -558,7 +624,8 @@ function MediaLibrary({
       footer={
         <>
           <span className="subtle sl-quota">
-            Speicher: {mb(sp.belegt)} von {mb(sp.max)} · {typ === 'video' ? `Videos (MP4, WebM) bis ${mb(sp.videoMax)}` : `Bilder bis ${mb(sp.bildMax)}, große Fotos werden verkleinert`}
+            Speicher: {mb(sp.belegt)} von {mb(sp.max)} ·{' '}
+            {typ === 'video' ? `Videos (MP4, WebM) bis ${mb(sp.videoMax)}` : `Bilder bis ${mb(sp.bildMax)}, große Fotos werden verkleinert`}
           </span>
           {progress !== null && (
             <span className="sl-progress" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100}>

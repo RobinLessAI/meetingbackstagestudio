@@ -9,6 +9,33 @@
 @keyframes sl-zoom { from { opacity: 0; scale: 0.85; } }
 @media (prefers-reduced-motion: reduce) { .slide-canvas * { animation: none !important; } }
 
+/* Übergänge zwischen Folien (Präsentation). --tr-dir: 1 = vorwärts, -1 = zurück */
+.sl-buehne { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+.sl-ebene { position: absolute; inset: 0; }
+.sl-ebene--neu { z-index: 2; }
+.sl-ebene--alt { z-index: 1; pointer-events: none; }
+.sl-ebene--neu:not(.sl-ebene--start), .sl-ebene--alt { animation-duration: var(--tr-dauer, .6s); animation-fill-mode: both; animation-timing-function: cubic-bezier(.45, .05, .25, 1); }
+.sl-tr--blende .sl-ebene--neu:not(.sl-ebene--start) { animation-name: tr-ein; }
+.sl-tr--blende .sl-ebene--alt { animation-name: tr-aus; }
+.sl-tr--schieben .sl-ebene--neu:not(.sl-ebene--start) { animation-name: tr-schieben-ein; }
+.sl-tr--schieben .sl-ebene--alt { animation-name: tr-schieben-aus; }
+.sl-tr--schieben-hoch .sl-ebene--neu:not(.sl-ebene--start) { animation-name: tr-hoch-ein; }
+.sl-tr--schieben-hoch .sl-ebene--alt { animation-name: tr-hoch-aus; }
+.sl-tr--abdecken .sl-ebene--neu:not(.sl-ebene--start) { animation-name: tr-schieben-ein; }
+.sl-tr--zoom .sl-ebene--neu:not(.sl-ebene--start) { animation-name: tr-zoom-ein; }
+.sl-tr--zoom .sl-ebene--alt { animation-name: tr-zoom-aus; }
+.sl-tr--wischen .sl-ebene--neu:not(.sl-ebene--start) { animation-name: tr-wischen; }
+@keyframes tr-ein { from { opacity: 0; } }
+@keyframes tr-aus { to { opacity: 0; } }
+@keyframes tr-schieben-ein { from { transform: translateX(calc(var(--tr-dir, 1) * 100%)); } }
+@keyframes tr-schieben-aus { to { transform: translateX(calc(var(--tr-dir, 1) * -100%)); } }
+@keyframes tr-hoch-ein { from { transform: translateY(calc(var(--tr-dir, 1) * 100%)); } }
+@keyframes tr-hoch-aus { to { transform: translateY(calc(var(--tr-dir, 1) * -100%)); } }
+@keyframes tr-zoom-ein { from { opacity: 0; transform: scale(.82); } }
+@keyframes tr-zoom-aus { to { opacity: 0; transform: scale(1.12); } }
+@keyframes tr-wischen { from { clip-path: inset(0 calc(50% + var(--tr-dir, 1) * 50%) 0 calc(50% - var(--tr-dir, 1) * 50%)); } to { clip-path: inset(0 0 0 0); } }
+@media (prefers-reduced-motion: reduce) { .sl-ebene { animation: none !important; } }
+
 /* OBS-Seite */
 html.folie-seite, html.folie-seite body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
 .folie-ausgabe { position: fixed; inset: 0; overflow: hidden; }

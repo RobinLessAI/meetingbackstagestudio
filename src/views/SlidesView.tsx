@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CircleAlert, Copy, ExternalLink, Pencil, Plus, Radio, RefreshCw } from 'lucide-react';
+import { CircleAlert, Copy, ExternalLink, Pencil, Plus, Presentation, Radio, RefreshCw } from 'lucide-react';
 import { Badge, Button, Panel } from '../components/ui.tsx';
 import { useStore } from '../state/store.tsx';
-import { slidesApi } from '../slides/api.ts';
-import type { FolienState } from '../slides/model.ts';
+import { slidesApi, useSlideEvents } from '../slides/api.ts';
+import { Steuerpult, usePraesentationsTasten, type Befehl } from '../slides/Steuerpult.tsx';
+import { useSync } from '../sync/SyncProvider.tsx';
+import type { FolienState, KanalState } from '../slides/model.ts';
 import { SlideThumb } from '../slides/SlideRender.tsx';
 import { slidesUrl } from '../web/mode.ts';
 import { mitTon, TonButton, useTon } from '../slides/ton.tsx';
@@ -17,6 +19,21 @@ export function SlidesView() {
   const editor = slidesUrl() ?? '/folien';
   const editLink = (id?: string) => `${editor}${id ? `${editor.includes('?') ? '&' : '?'}folie=${id}` : ''}`;
 
+  const { baseUrl, actionKey } = useSync();
+  const setKanal = useCallback((kanal: KanalState) => setSt((s) => (s ? { ...s, kanal } : s)), []);
+  const send = useCallback(
+    async (b: Befehl) => {
+      try {
+        setKanal((await slidesApi.control(b)).kanal);
+      } catch (e) {
+        notify((e as Error).message, 'fehler');
+      }
+    },
+    [setKanal, notify],
+  );
+  // Präsentation läuft: Pfeiltasten und Bild auf/ab (Presenter) schalten weiter
+  usePraesentationsTasten(send, !!st?.kanal.ablauf);
+
   const load = useCallback(async () => {
     try {
       setSt(await slidesApi.state());
@@ -27,14 +44,15 @@ export function SlidesView() {
   }, []);
   useEffect(() => {
     load();
-    // Änderungen aus dem Editor (anderer Tab) regelmäßig übernehmen
-    const t = window.setInterval(load, 8000);
+    // Sicherheitsnetz zusätzlich zu den Live-Ereignissen
+    const t = window.setInterval(load, 30000);
     window.addEventListener('focus', load);
     return () => {
       window.clearInterval(t);
       window.removeEventListener('focus', load);
     };
   }, [load]);
+  useSlideEvents(setKanal, load);
 
   const copy = (text: string, what: string) => {
     navigator.clipboard?.writeText(text);
@@ -43,13 +61,15 @@ export function SlidesView() {
   const setLive = async (id: string | null) => {
     try {
       const r = await slidesApi.setLive(id);
-      setSt((s) => (s ? { ...s, kanal: r.kanal } : s));
+      setKanal(r.kanal);
       notify(id ? 'Folie ist im Kanal auf Sendung' : 'Kanal ist leer', 'erfolg');
     } catch (e) {
       notify((e as Error).message, 'fehler');
     }
   };
   const channelUrl = st ? mitTon(`${st.basis}/kanal/${st.kanal.key}`, ton) : '';
+  const referentUrl = `${editor}${editor.includes('?') ? '&' : '?'}ansicht=referent`;
+  const deckUrl = (id: string) => `${baseUrl}/aktion/${id}?schluessel=${actionKey ?? '…'}`;
 
   return (
     <div className="view">
@@ -92,6 +112,40 @@ export function SlidesView() {
               </Button>
             )}
           </div>
+        </Panel>
+      )}
+
+      {st && (
+        <Panel
+          eyebrow="Mehrere Folien nacheinander"
+          title="Präsentation"
+          actions={
+            <a className="btn btn--ghost btn--sm" href={`${editor}${editor.includes('?') ? '&' : '?'}bereich=praesentationen`} target="_blank" rel="noreferrer">
+              <Presentation size={14} aria-hidden /> Präsentationen bearbeiten
+            </a>
+          }
+        >
+          <Steuerpult st={st} kanal={st.kanal} onKanal={setKanal} onError={(m) => notify(m, 'fehler')} referentUrl={referentUrl} />
+          <details className="slides-deck">
+            <summary>Stream Deck: Weiter, Zurück, Anfang, Schwarz</summary>
+            <p className="muted">
+              Aktion „Website“ auf eine Taste ziehen, Adresse einfügen und „GET-Anfrage im Hintergrund“ einschalten. Wirkt auch, wenn kein Browserfenster offen ist.
+            </p>
+            {[
+              ['folie-weiter', 'Weiter'],
+              ['folie-zurueck', 'Zurück'],
+              ['folie-anfang', 'Zur ersten Folie'],
+              ['folie-leer', 'Schwarz an/aus'],
+            ].map(([id, label]) => (
+              <div key={id} className="slides-url">
+                <span className="slides-deck__label">{label}</span>
+                <input className="input mono" readOnly value={deckUrl(id)} aria-label={`Stream-Deck-Adresse: ${label}`} onFocus={(e) => e.target.select()} />
+                <Button icon={Copy} disabled={!actionKey} onClick={() => copy(deckUrl(id), 'Stream-Deck-Adresse')}>
+                  Kopieren
+                </Button>
+              </div>
+            ))}
+          </details>
         </Panel>
       )}
 

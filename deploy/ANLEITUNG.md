@@ -182,7 +182,21 @@ Folien mit Text, Formen, Bildern und Videos für OBS – unabhängig von Zoom. G
 3. Einmal neu anmelden: Die Anmeldung gilt ab jetzt für Studio und Slides gemeinsam.
 
 **OBS:** Je Folie eine feste Adresse `https://slide.meetingbackstage.de/s/…`, dazu ein **Kanal** `…/kanal/…`, der immer die
-Folie „auf Sendung“ zeigt. Quelle „Browser“, 1920 × 1080. Änderungen erscheinen sofort. Mit `?ton=1` am Ende spielen Videos mit Ton.
+Folie „auf Sendung“ zeigt. Quelle „Browser“, 1920 × 1080. Änderungen erscheinen sofort. Der Knopf **„Mit Ton“** neben den
+Adressen hängt `?ton=1` an, dann spielen Videos mit Ton (zusätzlich beim Video „Ton abspielen“ einschalten).
+
+**Präsentationen:** Im Folien-Editor oben auf **Präsentationen** umschalten, Präsentation anlegen und Folien in die gewünschte
+Reihenfolge bringen (ziehen oder Pfeile). Pro Folie stellst du rechts unter „Präsentation“ den **Übergang** (Überblenden,
+Schieben, Zoom, Wischen …) und die **Notizen** ein; bei einem Element legt „Erscheint → Beim 1. Klick“ fest, dass es erst nach
+einem Klick auf „Weiter“ erscheint. Optional: automatisch weiter (z. B. alle 10 Sekunden) und Endlosschleife für Pausen.
+Gezeigt wird die Präsentation über die **Kanal-Adresse** – in OBS ändert sich nichts.
+
+- **Starten und weiterschalten:** im Studio unter „Slides“, im Editor oder in der **Referentenansicht**
+  (`slide.meetingbackstage.de/?ansicht=referent`: aktuelle und nächste Folie, Notizen, Uhr, Laufzeit).
+- **Tasten:** Pfeil rechts / Bild ab = weiter, Pfeil links / Bild auf = zurück, Pos1 = Anfang, B = schwarz. Ein Presenter
+  (Klicker) sendet genau diese Tasten. In der Referentenansicht zusätzlich Leertaste und Enter.
+- **Stream Deck:** Adressen für Weiter, Zurück, Anfang und Schwarz stehen im Studio unter „Slides“ → „Präsentation“.
+  Sie wirken direkt auf dem Server, auch wenn kein Browserfenster offen ist.
 
 **Grenzen:** Bilder bis 15 MB (große Fotos werden im Browser verkleinert), Videos (MP4, WebM) bis 200 MB, insgesamt 2 GB je Konto.
 Dateien liegen in `/var/lib/meetingbackstage/folien-medien/`, die Folien je Konto in `konten/<id>/folien.json`.

@@ -16,7 +16,13 @@ function frameStyle(e: Element, animate: boolean): CSSProperties {
     opacity: e.opacity,
     display: e.hidden ? 'none' : undefined,
     ...(animate && e.anim !== 'keine'
-      ? { animationName: `sl-${e.anim}`, animationDuration: `${e.animDauer}s`, animationDelay: `${e.animVerz}s`, animationFillMode: 'both', animationTimingFunction: 'cubic-bezier(.2,.7,.2,1)' }
+      ? {
+          animationName: `sl-${e.anim}`,
+          animationDuration: `${e.animDauer}s`,
+          animationDelay: `${e.animVerz}s`,
+          animationFillMode: 'both',
+          animationTimingFunction: 'cubic-bezier(.2,.7,.2,1)',
+        }
       : {}),
   };
 }
@@ -58,7 +64,9 @@ function ElementView({ e, animate, muted }: { e: Element; animate: boolean; mute
     );
   }
   if (e.typ === 'form') {
-    const fill = e.verlauf ? `linear-gradient(${e.winkel}deg, ${rgba(e.fill, e.fillOpacity)}, ${rgba(e.fill2, e.fillOpacity)})` : rgba(e.fill, e.fillOpacity);
+    const fill = e.verlauf
+      ? `linear-gradient(${e.winkel}deg, ${rgba(e.fill, e.fillOpacity)}, ${rgba(e.fill2, e.fillOpacity)})`
+      : rgba(e.fill, e.fillOpacity);
     return (
       <div style={frame}>
         <div
@@ -86,7 +94,14 @@ function ElementView({ e, animate, muted }: { e: Element; animate: boolean; mute
     boxShadow: shadowOf(e.shadow, e.shadowColor, e.shadowBlur),
     background: e.src ? undefined : 'rgba(255,255,255,0.08)',
   };
-  if (!e.src) return <div style={frame}><div style={{ ...box, display: 'grid', placeItems: 'center', color: 'rgba(255,255,255,.6)', fontSize: 32, fontFamily: 'Barlow, sans-serif' }}>{e.typ === 'video' ? 'Video wählen' : 'Bild wählen'}</div></div>;
+  if (!e.src)
+    return (
+      <div style={frame}>
+        <div style={{ ...box, display: 'grid', placeItems: 'center', color: 'rgba(255,255,255,.6)', fontSize: 32, fontFamily: 'Barlow, sans-serif' }}>
+          {e.typ === 'video' ? 'Video wählen' : 'Bild wählen'}
+        </div>
+      </div>
+    );
   return (
     <div style={frame}>
       {e.typ === 'video' ? (
@@ -103,8 +118,10 @@ function Background({ h, muted }: { h: Hintergrund; muted: boolean }) {
   let content: ReactNode = null;
   if (h.typ === 'farbe') content = <div style={{ ...fill, background: h.color }} />;
   else if (h.typ === 'verlauf') content = <div style={{ ...fill, background: `linear-gradient(${h.winkel}deg, ${h.color}, ${h.color2})` }} />;
-  else if (h.typ === 'bild' && h.src) content = <img src={h.src} alt="" style={{ ...fill, width: '100%', height: '100%', objectFit: h.fit }} draggable={false} />;
-  else if (h.typ === 'video' && h.src) content = <video src={h.src} style={{ ...fill, width: '100%', height: '100%', objectFit: h.fit }} autoPlay loop muted={muted} playsInline />;
+  else if (h.typ === 'bild' && h.src)
+    content = <img src={h.src} alt="" style={{ ...fill, width: '100%', height: '100%', objectFit: h.fit }} draggable={false} />;
+  else if (h.typ === 'video' && h.src)
+    content = <video src={h.src} style={{ ...fill, width: '100%', height: '100%', objectFit: h.fit }} autoPlay loop muted={muted} playsInline />;
   return (
     <>
       {content}
@@ -113,25 +130,45 @@ function Background({ h, muted }: { h: Hintergrund; muted: boolean }) {
   );
 }
 
-/** Die Folie in Originalgröße (1920 × 1080). Skaliert wird außen. */
-export function SlideCanvas({ folie, animate = false, muted = true, children }: { folie: Folie; animate?: boolean; muted?: boolean; children?: ReactNode }) {
+/**
+ * Die Folie in Originalgröße (1920 × 1080). Skaliert wird außen.
+ * schritt: bis zu welchem Klick-Schritt Elemente zu sehen sind (Präsentation); ohne Angabe alle.
+ * Neu sichtbare Elemente werden frisch eingehängt und spielen so ihre Einblend-Animation.
+ */
+export function SlideCanvas({
+  folie,
+  animate = false,
+  muted = true,
+  schritt = Infinity,
+  children,
+}: {
+  folie: Folie;
+  animate?: boolean;
+  muted?: boolean;
+  schritt?: number;
+  children?: ReactNode;
+}) {
   return (
     <div className="slide-canvas" style={{ width: FLAECHE.w, height: FLAECHE.h }}>
       <Background h={folie.hintergrund} muted={muted} />
-      {folie.elemente.map((e) => (
-        <ElementView key={animate ? `${folie.id}-${e.id}` : e.id} e={e} animate={animate} muted={muted} />
-      ))}
+      {folie.elemente
+        .filter((e) => (e.schritt ?? 0) <= schritt)
+        .map((e) => (
+          <ElementView key={animate ? `${folie.id}-${e.id}` : e.id} e={e} animate={animate} muted={muted} />
+        ))}
       {children}
     </div>
   );
 }
 
-/** Skalierungsfaktor, damit 1920 × 1080 in den Behälter passt. */
+/**
+ * Skalierungsfaktor, damit 1920 × 1080 in den Behälter passt.
+ * ref ist ein Callback-Ref: misst auch Behälter, die erst später erscheinen (z. B. nach dem Laden).
+ */
 export function useFitScale(mode: 'breite' | 'ganz' = 'breite') {
-  const ref = useRef<HTMLDivElement>(null);
+  const [el, setEl] = useState<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(0.25);
   useEffect(() => {
-    const el = ref.current;
     if (!el) return;
     const update = () => {
       const w = el.clientWidth;
@@ -142,18 +179,77 @@ export function useFitScale(mode: 'breite' | 'ganz' = 'breite') {
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [mode]);
-  return { ref, scale };
+  }, [el, mode]);
+  return { ref: setEl, scale };
 }
 
 /** Verkleinerte Vorschau (z. B. im Studio und in der Folienliste). */
-export function SlideThumb({ folie, className = '' }: { folie: Folie; className?: string }) {
+export function SlideThumb({ folie, className = '', schritt }: { folie: Folie; className?: string; schritt?: number }) {
   const { ref, scale } = useFitScale('breite');
   return (
     <div ref={ref} className={`slide-thumb ${className}`} style={{ aspectRatio: '16 / 9' }}>
-      <div style={{ position: 'absolute', left: 0, top: 0, transform: `scale(${scale})`, transformOrigin: '0 0', width: FLAECHE.w, height: FLAECHE.h }}>
-        <SlideCanvas folie={folie} />
+      <div
+        style={{ position: 'absolute', left: 0, top: 0, transform: `scale(${scale})`, transformOrigin: '0 0', width: FLAECHE.w, height: FLAECHE.h }}
+      >
+        <SlideCanvas folie={folie} schritt={schritt} />
       </div>
+    </div>
+  );
+}
+
+type Ebene = { folie: Folie; n: number; rolle: 'neu' | 'alt' };
+export type Uebergang = Folie['uebergang'];
+const OHNE: Uebergang = { typ: 'keiner', dauer: 0 };
+
+/**
+ * Bühne mit Übergängen zwischen Folien (OBS-Ausgabe und Referentenansicht).
+ * Wechselt die Folie, bleibt die alte kurz stehen und geht mit dem Übergang der neuen Folie hinaus.
+ * richtung: 1 = vorwärts, -1 = zurück (Schieben und Wischen laufen dann andersherum).
+ */
+export function UebergangsBuehne({
+  folie,
+  schritt,
+  richtung = 1,
+  muted = true,
+}: {
+  folie: Folie | null;
+  schritt?: number;
+  richtung?: number;
+  muted?: boolean;
+}) {
+  const [ebenen, setEbenen] = useState<Ebene[]>(() => (folie ? [{ folie, n: 0, rolle: 'neu' }] : []));
+  const [tr, setTr] = useState<{ u: Uebergang; dir: number }>({ u: OHNE, dir: 1 });
+  const zaehler = useRef(1);
+  const aufraeumen = useRef<number | undefined>(undefined);
+  const aktuell = ebenen.find((e) => e.rolle === 'neu')?.folie ?? null;
+
+  useEffect(() => {
+    if (folie && aktuell && folie.id === aktuell.id) {
+      // Dieselbe Folie (bearbeitet): an Ort und Stelle aktualisieren, ohne Übergang
+      if (folie !== aktuell) setEbenen((list) => list.map((e) => (e.rolle === 'neu' ? { ...e, folie } : e)));
+      return;
+    }
+    if (!folie && !aktuell) return;
+    const u: Uebergang = folie ? (folie.uebergang ?? { typ: 'blende', dauer: 0.6 }) : { typ: 'blende', dauer: 0.5 };
+    setTr({ u, dir: richtung < 0 ? -1 : 1 });
+    const n = zaehler.current++;
+    setEbenen((list) => {
+      const alt = list.filter((e) => e.rolle === 'neu').map((e) => ({ ...e, rolle: 'alt' as const }));
+      return u.typ === 'keiner' ? (folie ? [{ folie, n, rolle: 'neu' }] : []) : [...alt, ...(folie ? [{ folie, n, rolle: 'neu' as const }] : [])];
+    });
+    window.clearTimeout(aufraeumen.current);
+    if (u.typ !== 'keiner')
+      aufraeumen.current = window.setTimeout(() => setEbenen((list) => list.filter((e) => e.rolle === 'neu')), u.dauer * 1000 + 80);
+  }, [folie, richtung]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => window.clearTimeout(aufraeumen.current), []);
+
+  return (
+    <div className={`sl-buehne sl-tr--${tr.u.typ}`} style={{ ['--tr-dauer' as string]: `${tr.u.dauer}s`, ['--tr-dir' as string]: tr.dir }}>
+      {ebenen.map((e) => (
+        <div key={e.n} className={`sl-ebene sl-ebene--${e.rolle}${e.n === 0 ? ' sl-ebene--start' : ''}`}>
+          <SlideCanvas folie={e.folie} animate muted={muted || e.rolle === 'alt'} schritt={e.rolle === 'neu' ? schritt : Infinity} />
+        </div>
+      ))}
     </div>
   );
 }

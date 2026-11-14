@@ -350,11 +350,22 @@ function handleAction(req, res, id) {
   const url = new URL(req.url ?? '/', 'http://localhost');
   const key = url.searchParams.get('schluessel') ?? '';
   let room = null;
+  let user = null;
   if (WEB) {
-    const user = accounts.byActionKey(key);
+    user = accounts.byActionKey(key);
     if (user?.status === 'aktiv') room = roomFor(user);
   } else if (key === localRoom.actionKey) room = localRoom;
   if (!room) return json(res, 403, { ok: false, fehler: 'Schlüssel fehlt oder ist falsch.' });
+  // Präsentation weiterschalten: direkt auf dem Server, ohne dass die Steuerung geöffnet sein muss
+  const befehl = { 'folie-weiter': 'weiter', 'folie-zurueck': 'zurueck', 'folie-anfang': 'anfang', 'folie-leer': 'leer' }[id];
+  if (befehl) {
+    if (user && !rightsOf(user).bereiche.includes('slides')) return json(res, 403, { ok: false, fehler: 'Slides sind in deinem Paket nicht enthalten.' });
+    slides
+      .control(user ? user.id : 'lokal', befehl)
+      .then((kanal) => json(res, 200, { ok: true, aktion: id, folie: kanal.ablauf ? kanal.ablauf.index + 1 : null, schritt: kanal.ablauf?.schritt ?? null }))
+      .catch((e) => json(res, e.status ?? 400, { ok: false, fehler: e.message }));
+    return;
+  }
   const r = room.action(id);
   json(res, r.status, r.body);
 }
@@ -728,6 +739,24 @@ async function handleSlidesApi(req, res, url) {
     if (route === '/' && req.method === 'GET') return json(res, 200, slides.state(owner, SLIDE_URL));
     if (route === '/' && req.method === 'POST') return json(res, 200, { folie: await slides.create(owner, await body()) });
     if (route === '/kanal' && req.method === 'POST') return json(res, 200, { kanal: await slides.setLive(owner, (await body()).liveId ?? null) });
+    if (route === '/steuerung' && req.method === 'POST') {
+      const b = await body();
+      return json(res, 200, { kanal: await slides.control(owner, String(b.befehl ?? ''), { id: b.id, index: b.index, an: b.an }) });
+    }
+    // Live-Zustand für die eigene Steuerung (Studio, Editor, Referentenansicht)
+    if (route === '/ereignisse' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
+      res.write(`retry: 3000\ndata: ${JSON.stringify({ typ: 'kanal', kanal: slides.kanalState(owner) })}\n\n`);
+      slides.subscribe('o', owner, res);
+      return;
+    }
+    if (route === '/praesentationen' && req.method === 'POST') return json(res, 200, { praesentation: await slides.createPraesentation(owner, await body()) });
+    const pr = /^\/praesentationen\/([a-f0-9]{12})$/.exec(route);
+    if (pr && req.method === 'PUT') return json(res, 200, { praesentation: await slides.updatePraesentation(owner, pr[1], await body()) });
+    if (pr && req.method === 'DELETE') {
+      await slides.removePraesentation(owner, pr[1]);
+      return json(res, 200, { ok: true });
+    }
     if (route === '/medien' && req.method === 'POST') {
       let original = '';
       try {

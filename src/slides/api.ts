@@ -1,5 +1,6 @@
 // Schnittstelle zum Server für Folien (Editor und Studio).
-import type { Folie, FolienState, Medium } from './model.ts';
+import { useEffect, useRef } from 'react';
+import type { Folie, FolienState, KanalState, Medium, Praesentation } from './model.ts';
 
 async function request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
   const res = await fetch(path, {
@@ -24,9 +25,45 @@ export const slidesApi = {
   duplicate: (id: string) => request<{ folie: Folie }>(`/api/slides/${id}/duplizieren`, 'POST', {}),
   remove: (id: string) => request<{ ok: boolean }>(`/api/slides/${id}`, 'DELETE'),
   renewKey: (id: string) => request<{ folie: Folie }>(`/api/slides/${id}/schluessel`, 'POST', {}),
-  setLive: (liveId: string | null) => request<{ kanal: FolienState['kanal'] }>('/api/slides/kanal', 'POST', { liveId }),
+  setLive: (liveId: string | null) => request<{ kanal: KanalState }>('/api/slides/kanal', 'POST', { liveId }),
+  /** Präsentation steuern: start (id, index), weiter, zurueck, gehe (index), anfang, leer (an), ende */
+  control: (befehl: 'start' | 'weiter' | 'zurueck' | 'gehe' | 'anfang' | 'leer' | 'ende', arg: { id?: string; index?: number; an?: boolean } = {}) =>
+    request<{ kanal: KanalState }>('/api/slides/steuerung', 'POST', { befehl, ...arg }),
+  createPraes: (p: Partial<Praesentation>) => request<{ praesentation: Praesentation }>('/api/slides/praesentationen', 'POST', p),
+  updatePraes: (p: Praesentation) => request<{ praesentation: Praesentation }>(`/api/slides/praesentationen/${p.id}`, 'PUT', p),
+  removePraes: (id: string) => request<{ ok: boolean }>(`/api/slides/praesentationen/${id}`, 'DELETE'),
   removeMedia: (name: string) => request<FolienState>(`/api/slides/medien/${encodeURIComponent(name)}`, 'DELETE'),
 };
+
+/**
+ * Live-Zustand der eigenen Folien: onKanal bei jedem Wechsel (Weiter, Zurück, auf Sendung …),
+ * onFolien, wenn Folien oder Präsentationen geändert wurden (z. B. im Editor in einem anderen Fenster).
+ */
+export function useSlideEvents(onKanal: (k: KanalState) => void, onFolien?: () => void) {
+  const cb = useRef({ onKanal, onFolien });
+  cb.current = { onKanal, onFolien };
+  useEffect(() => {
+    const es = new EventSource('/api/slides/ereignisse', { withCredentials: true });
+    let timer: number | undefined;
+    es.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data) as { typ: 'kanal'; kanal: KanalState } | { typ: 'folien' };
+        if (msg.typ === 'kanal') cb.current.onKanal(msg.kanal);
+        else {
+          // Viele Speichervorgänge kurz hintereinander (Tippen im Editor) zu einem Neuladen bündeln
+          window.clearTimeout(timer);
+          timer = window.setTimeout(() => cb.current.onFolien?.(), 700);
+        }
+      } catch {
+        /* ignorieren */
+      }
+    };
+    return () => {
+      window.clearTimeout(timer);
+      es.close();
+    };
+  }, []);
+}
 
 /** Große Fotos verkleinern (höchstens 2560 Pixel, WebP mit Transparenz); GIF und SVG bleiben unverändert. */
 async function shrinkImage(file: File): Promise<Blob> {
@@ -87,4 +124,5 @@ export async function uploadMedium(
   });
 }
 
-export const mb = (bytes: number) => (bytes >= 1024 * 1024 * 1024 ? `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB` : `${Math.max(0.1, bytes / 1024 / 1024).toFixed(1)} MB`);
+export const mb = (bytes: number) =>
+  bytes >= 1024 * 1024 * 1024 ? `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB` : `${Math.max(0.1, bytes / 1024 / 1024).toFixed(1)} MB`;

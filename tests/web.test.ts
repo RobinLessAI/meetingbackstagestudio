@@ -29,16 +29,27 @@ const fakeZoom = http.createServer((req, res) => {
     if (u.pathname === '/oauth/token') {
       const p = new URLSearchParams(body);
       if (req.headers.authorization !== `Basic ${Buffer.from('cid:cs').toString('base64')}`) return send(401, { reason: 'client' });
-      if (p.get('grant_type') === 'authorization_code' && p.get('code') === 'gut' && p.get('redirect_uri') === `http://localhost:${PORT}/api/zoom/zurueck`) {
-        return send(200, { access_token: 'at-1', refresh_token: 'rt-1', expires_in: 3600, scope: 'meeting:read:list_meetings user:read:user user:read:token' });
+      if (
+        p.get('grant_type') === 'authorization_code' &&
+        p.get('code') === 'gut' &&
+        p.get('redirect_uri') === `http://localhost:${PORT}/api/zoom/zurueck`
+      ) {
+        return send(200, {
+          access_token: 'at-1',
+          refresh_token: 'rt-1',
+          expires_in: 3600,
+          scope: 'meeting:read:list_meetings user:read:user user:read:token',
+        });
       }
       return send(400, { reason: 'Invalid authorization code' });
     }
     if (u.pathname === '/oauth/revoke') return send(200, { status: 'success' });
     if (req.headers.authorization !== 'Bearer at-1') return send(401, { message: 'Invalid access token.' });
     if (u.pathname === '/v2/users/me') return send(200, { id: 'zu-anna', account_id: 'acc-anna', email: 'anna@zoom.example' });
-    if (u.pathname === '/v2/users/me/token' && u.searchParams.get('type') === 'onbehalf') return send(200, { token: `obf-${u.searchParams.get('meeting_id')}` });
-    if (u.pathname === '/v2/users/me/meetings') return send(200, { meetings: [{ id: 81234567890, topic: 'Workshop', type: 2, start_time: '2026-12-01T10:00:00Z' }] });
+    if (u.pathname === '/v2/users/me/token' && u.searchParams.get('type') === 'onbehalf')
+      return send(200, { token: `obf-${u.searchParams.get('meeting_id')}` });
+    if (u.pathname === '/v2/users/me/meetings')
+      return send(200, { meetings: [{ id: 81234567890, topic: 'Workshop', type: 2, start_time: '2026-12-01T10:00:00Z' }] });
     send(404, {});
   });
 });
@@ -83,13 +94,23 @@ after(() => {
 });
 
 const post = (path: string, body: unknown, cookie = '', extra: Record<string, string> = {}) =>
-  fetch(`${BASE}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', cookie, ...extra }, body: JSON.stringify(body), redirect: 'manual' });
+  fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', cookie, ...extra },
+    body: JSON.stringify(body),
+    redirect: 'manual',
+  });
 const cookieOf = (res: Response) => (res.headers.get('set-cookie') ?? '').split(';')[0];
 /** Letzten Link einer Art aus dem Mail-Protokoll holen. */
 function lastLink(kind: 'bestaetigen' | 'passwort', to: string): string {
-  const mails = readFileSync(join(dir, 'web', 'mails.log'), 'utf8').split('--- ').filter((m) => m.includes(`An: ${to}`));
+  const mails = readFileSync(join(dir, 'web', 'mails.log'), 'utf8')
+    .split('--- ')
+    .filter((m) => m.includes(`An: ${to}`));
   const pattern = kind === 'bestaetigen' ? /\/api\/konto\/bestaetigen\?token=([\w-]+)/ : /\/\?passwort=([\w-]+)/;
-  const hit = mails.reverse().map((m) => m.match(pattern)).find(Boolean);
+  const hit = mails
+    .reverse()
+    .map((m) => m.match(pattern))
+    .find(Boolean);
   assert.ok(hit, `kein ${kind}-Link für ${to}`);
   return hit![1];
 }
@@ -135,7 +156,13 @@ let anna = '';
 let ben = '';
 
 test('Registrierung, Bestätigung, Freischaltung durch die Verwaltung', async () => {
-  assert.deepEqual(await (await fetch(`${BASE}/api/modus`)).json(), { web: true, minPasswort: 10, hauptseite: 'https://mb.test', slides: 'https://slide.mb.test', studio: `http://localhost:${PORT}` });
+  assert.deepEqual(await (await fetch(`${BASE}/api/modus`)).json(), {
+    web: true,
+    minPasswort: 10,
+    hauptseite: 'https://mb.test',
+    slides: 'https://slide.mb.test',
+    studio: `http://localhost:${PORT}`,
+  });
   // Zu kurzes Passwort, ungültige Adresse
   assert.equal((await post('/api/konto/registrieren', { email: 'x@example.org', passwort: 'kurz' })).status, 400);
   assert.equal((await post('/api/konto/registrieren', { email: 'keine-adresse', passwort: 'sehr-geheim-123' })).status, 400);
@@ -276,7 +303,9 @@ test('Mit Zoom verbinden: Weiterleitung, Rückkehr, OBF-Token für die Regie, Ap
   assert.equal((await back(`code=gut&state=${state}`)).headers.get('location'), '/?zoom=abgelaufen');
 
   // Richtiger Ablauf
-  const state2 = new URL((await fetch(`${BASE}/api/zoom/verbinden`, { headers: { cookie: anna }, redirect: 'manual' })).headers.get('location')!).searchParams.get('state')!;
+  const state2 = new URL(
+    (await fetch(`${BASE}/api/zoom/verbinden`, { headers: { cookie: anna }, redirect: 'manual' })).headers.get('location')!,
+  ).searchParams.get('state')!;
   assert.equal((await back(`code=gut&state=${state2}`)).headers.get('location'), '/?zoom=verbunden');
   const a = socket('steuerung', anna);
   const hello = await a.next('hello');
@@ -311,10 +340,14 @@ test('Mit Zoom verbinden: Weiterleitung, Rückkehr, OBF-Token für die Regie, Ap
   assert.equal(last.status.account.connected, false);
 
   // Erneut verbinden (für den Lösch-Test: dort wird die Anmeldung bei Zoom zurückgezogen)
-  const state3 = new URL((await fetch(`${BASE}/api/zoom/verbinden`, { headers: { cookie: anna }, redirect: 'manual' })).headers.get('location')!).searchParams.get('state')!;
+  const state3 = new URL(
+    (await fetch(`${BASE}/api/zoom/verbinden`, { headers: { cookie: anna }, redirect: 'manual' })).headers.get('location')!,
+  ).searchParams.get('state')!;
   assert.equal((await back(`code=gut&state=${state3}`)).headers.get('location'), '/?zoom=verbunden');
   // Abgebrochen bei Zoom
-  const state4 = new URL((await fetch(`${BASE}/api/zoom/verbinden`, { headers: { cookie: anna }, redirect: 'manual' })).headers.get('location')!).searchParams.get('state')!;
+  const state4 = new URL(
+    (await fetch(`${BASE}/api/zoom/verbinden`, { headers: { cookie: anna }, redirect: 'manual' })).headers.get('location')!,
+  ).searchParams.get('state')!;
   assert.equal((await back(`error=access_denied&state=${state4}`)).headers.get('location'), '/?zoom=abgebrochen');
   for (const s of [a, r]) s.ws.close();
 });
@@ -371,9 +404,20 @@ test('Website: nur die Verwaltung bearbeitet, Veröffentlichen, Bilder, Vorschau
     beschreibung: 'Unsere Preise',
     vorschaubild: '',
     indexieren: true,
-    bloecke: [{ id: 'b1', typ: 'text', html: '<h2>Pakete</h2><script>alert(1)</script><p><a href="javascript:alert(1)">x</a></p>', inhaltsverzeichnis: false }],
+    bloecke: [
+      {
+        id: 'b1',
+        typ: 'text',
+        html: '<h2>Pakete</h2><script>alert(1)</script><p><a href="javascript:alert(1)">x</a></p>',
+        inhaltsverzeichnis: false,
+      },
+    ],
   });
-  assert.equal((await call('/api/website/entwurf', 'PUT', admin, { ...draft, seiten: [...draft.seiten, { ...draft.seiten[1], id: 'z' }] })).status, 400, 'doppelte Adresse');
+  assert.equal(
+    (await call('/api/website/entwurf', 'PUT', admin, { ...draft, seiten: [...draft.seiten, { ...draft.seiten[1], id: 'z' }] })).status,
+    400,
+    'doppelte Adresse',
+  );
   assert.equal((await call('/api/website/entwurf', 'PUT', admin, draft, { origin: 'https://boese.example' })).status, 403);
   const saved = await (await call('/api/website/entwurf', 'PUT', admin, draft)).json();
   assert.equal(saved.geaendert, true);
@@ -396,18 +440,35 @@ test('Website: nur die Verwaltung bearbeitet, Veröffentlichen, Bilder, Vorschau
 
   // Bilder: PNG wird angenommen und harmlos ausgeliefert, SVG mit Skript abgelehnt
   const png = Buffer.from('89504e470d0a1a0a0000000d4948445200000001000000010806000000', 'hex');
-  const up = await call('/api/website/medien', 'POST', admin, undefined, { 'Content-Type': 'image/png', 'X-Dateiname': encodeURIComponent('Mein Foto.png') });
+  const up = await call('/api/website/medien', 'POST', admin, undefined, {
+    'Content-Type': 'image/png',
+    'X-Dateiname': encodeURIComponent('Mein Foto.png'),
+  });
   assert.equal(up.status, 400, 'leere Datei');
-  const up2 = await fetch(`${BASE}/api/website/medien`, { method: 'POST', headers: { cookie: admin, 'Content-Type': 'image/png', 'X-Dateiname': 'Mein%20Foto.png' }, body: png });
+  const up2 = await fetch(`${BASE}/api/website/medien`, {
+    method: 'POST',
+    headers: { cookie: admin, 'Content-Type': 'image/png', 'X-Dateiname': 'Mein%20Foto.png' },
+    body: png,
+  });
   const media = await up2.json();
   assert.match(media.url, /^\/_web\/medien\/mein-foto-[a-f0-9]{8}\.png$/);
   const served = await site(media.url);
   assert.equal(served.status, 200);
   assert.match(served.headers.get('content-security-policy') ?? '', /sandbox/);
-  const svg = await fetch(`${BASE}/api/website/medien`, { method: 'POST', headers: { cookie: admin, 'Content-Type': 'image/svg+xml' }, body: '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>' });
+  const svg = await fetch(`${BASE}/api/website/medien`, {
+    method: 'POST',
+    headers: { cookie: admin, 'Content-Type': 'image/svg+xml' },
+    body: '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+  });
   assert.equal(svg.status, 400);
-  assert.equal((await fetch(`${BASE}/api/website/medien`, { method: 'POST', headers: { cookie: admin, 'Content-Type': 'text/html' }, body: '<p>' })).status, 415);
-  assert.equal((await fetch(`${BASE}/api/website/medien`, { method: 'POST', headers: { cookie: anna, 'Content-Type': 'image/png' }, body: png })).status, 403);
+  assert.equal(
+    (await fetch(`${BASE}/api/website/medien`, { method: 'POST', headers: { cookie: admin, 'Content-Type': 'text/html' }, body: '<p>' })).status,
+    415,
+  );
+  assert.equal(
+    (await fetch(`${BASE}/api/website/medien`, { method: 'POST', headers: { cookie: anna, 'Content-Type': 'image/png' }, body: png })).status,
+    403,
+  );
 
   // Verwendetes Bild lässt sich nicht löschen; nach dem Entfernen schon
   draft.seiten[0].vorschaubild = media.url;
@@ -427,17 +488,34 @@ test('Website: nur die Verwaltung bearbeitet, Veröffentlichen, Bilder, Vorschau
 
 test('E-Mail-Vorlagen: nur die Verwaltung, eigene Texte werden verschickt', async () => {
   const call = (path: string, method: string, cookie: string, body?: unknown) =>
-    fetch(`${BASE}${path}`, { method, headers: { cookie, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) }, body: body === undefined ? undefined : JSON.stringify(body) });
+    fetch(`${BASE}${path}`, {
+      method,
+      headers: { cookie, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
   assert.equal((await call('/api/website/mails', 'GET', anna)).status, 403);
   const state = await (await call('/api/website/mails', 'GET', admin)).json();
-  assert.deepEqual(state.katalog.map((k: { id: string }) => k.id), ['bestaetigen', 'passwort', 'freigeschaltet', 'neuesKonto']);
+  assert.deepEqual(
+    state.katalog.map((k: { id: string }) => k.id),
+    ['bestaetigen', 'passwort', 'freigeschaltet', 'neuesKonto'],
+  );
   assert.deepEqual(state.eigene, []);
   // Vorschau mit ungespeicherter Fassung
-  const pv = await (await call('/api/website/mails/vorschau', 'POST', admin, { id: 'passwort', vorlage: { ...state.vorlagen.passwort, betreff: 'Hallo {{name}}' } })).json();
+  const pv = await (
+    await call('/api/website/mails/vorschau', 'POST', admin, { id: 'passwort', vorlage: { ...state.vorlagen.passwort, betreff: 'Hallo {{name}}' } })
+  ).json();
   assert.match(pv.subject, /^Hallo /);
   assert.match(pv.html, /<table/);
   // Eigene Vorlage speichern (mit eingeschleustem Skript)
-  const vorlagen = { ...state.vorlagen, passwort: { betreff: 'Eigenes Passwort-Thema für {{email}}', ueberschrift: 'Los gehts', inhalt: '<p>Servus {{name}}!</p><script>alert(1)</script>', knopf: 'Jetzt ändern' } };
+  const vorlagen = {
+    ...state.vorlagen,
+    passwort: {
+      betreff: 'Eigenes Passwort-Thema für {{email}}',
+      ueberschrift: 'Los gehts',
+      inhalt: '<p>Servus {{name}}!</p><script>alert(1)</script>',
+      knopf: 'Jetzt ändern',
+    },
+  };
   const saved = await (await call('/api/website/mails', 'PUT', admin, { vorlagen, fuss: 'Grüße aus Werl' })).json();
   assert.deepEqual(saved.eigene, ['passwort']);
   assert.doesNotMatch(JSON.stringify(saved.vorlagen.passwort), /script/);
@@ -447,9 +525,17 @@ test('E-Mail-Vorlagen: nur die Verwaltung, eigene Texte werden verschickt', asyn
   // Echter Ablauf nutzt die eigene Vorlage
   await post('/api/konto/passwort-vergessen', { email: 'anna@example.org' });
   const log = readFileSync(join(dir, 'web', 'mails.log'), 'utf8');
-  assert.match(log, /Betreff: Eigenes Passwort-Thema für anna@example\.org[\s\S]*Jetzt ändern:\nhttp:\/\/localhost:\d+\/\?passwort=[\w-]+[\s\S]*Grüße aus Werl/);
+  assert.match(
+    log,
+    /Betreff: Eigenes Passwort-Thema für anna@example\.org[\s\S]*Jetzt ändern:\nhttp:\/\/localhost:\d+\/\?passwort=[\w-]+[\s\S]*Grüße aus Werl/,
+  );
   // Zurück auf Standard
-  const reset = await (await call('/api/website/mails', 'PUT', admin, { vorlagen: Object.fromEntries(state.katalog.map((k: { id: string; standard: unknown }) => [k.id, k.standard])), fuss: state.standardFuss })).json();
+  const reset = await (
+    await call('/api/website/mails', 'PUT', admin, {
+      vorlagen: Object.fromEntries(state.katalog.map((k: { id: string; standard: unknown }) => [k.id, k.standard])),
+      fuss: state.standardFuss,
+    })
+  ).json();
   assert.deepEqual(reset.eigene, []);
 });
 
@@ -464,7 +550,13 @@ test('Rollen: Bereiche je Rolle, Zuweisung, gesperrtes Spotlight, feste Admins',
   const alle = konten.rollen.bereiche.map((b: { id: string }) => b.id);
   const rollen = [
     ...konten.rollen.rollen,
-    { id: 'basis', name: 'Basis', bereiche: alle.filter((b: string) => b !== 'spotlight' && b !== 'grafik:gluecksrad'), gesperrteZeigen: true, hinweis: 'Gibt es in Pro.' },
+    {
+      id: 'basis',
+      name: 'Basis',
+      bereiche: alle.filter((b: string) => b !== 'spotlight' && b !== 'grafik:gluecksrad'),
+      gesperrteZeigen: true,
+      hinweis: 'Gibt es in Pro.',
+    },
   ];
   assert.equal((await post('/api/verwaltung/rollen', { rollen: [{ id: 'x', name: 'Admin', bereiche: [] }] }, admin)).status, 400);
   assert.equal((await post('/api/verwaltung/rollen', { rollen, standard: 'nutzer' }, anna)).status, 403);
@@ -495,14 +587,20 @@ test('Rollen: Bereiche je Rolle, Zuweisung, gesperrtes Spotlight, feste Admins',
 
 test('Slides: Folien je Konto, feste OBS-Adressen mit Live-Aktualisierung, Kanal, Medien', async () => {
   const call = (path: string, method: string, cookie: string, body?: unknown, headers: Record<string, string> = {}) =>
-    fetch(`${BASE}${path}`, { method, headers: { cookie, ...(body === undefined || body instanceof Buffer ? {} : { 'Content-Type': 'application/json' }), ...headers }, body: body === undefined ? undefined : body instanceof Buffer ? body : JSON.stringify(body) });
+    fetch(`${BASE}${path}`, {
+      method,
+      headers: { cookie, ...(body === undefined || body instanceof Buffer ? {} : { 'Content-Type': 'application/json' }), ...headers },
+      body: body === undefined ? undefined : body instanceof Buffer ? body : JSON.stringify(body),
+    });
   const host = (path: string, h: string) =>
     new Promise<{ status: number; body: string; headers: http.IncomingHttpHeaders }>((resolve, reject) => {
-      http.get({ host: '127.0.0.1', port: PORT, path, headers: { host: h } }, (res) => {
-        let body = '';
-        res.on('data', (c) => (body += c));
-        res.on('end', () => resolve({ status: res.statusCode ?? 0, body, headers: res.headers }));
-      }).on('error', reject);
+      http
+        .get({ host: '127.0.0.1', port: PORT, path, headers: { host: h } }, (res) => {
+          let body = '';
+          res.on('data', (c) => (body += c));
+          res.on('end', () => resolve({ status: res.statusCode ?? 0, body, headers: res.headers }));
+        })
+        .on('error', reject);
     });
   // Ohne Anmeldung kein Zugriff
   assert.equal((await call('/api/slides', 'GET', '')).status, 401);
@@ -510,15 +608,17 @@ test('Slides: Folien je Konto, feste OBS-Adressen mit Live-Aktualisierung, Kanal
   assert.deepEqual(st.folien, []);
   assert.equal(st.basis, 'https://slide.mb.test');
   // Folie anlegen: Felder werden gefiltert (Farben, Schriften, fremde Bildadressen)
-  const created = await (await call('/api/slides', 'POST', anna, {
-    name: 'Bauchbinde',
-    hintergrund: { typ: 'farbe', color: 'red; background:url(x)' },
-    elemente: [
-      { typ: 'text', text: '<script>alert(1)</script>Hallo', font: 'Comic Sans', size: 99999, color: '#abcdef' },
-      { typ: 'bild', src: 'https://evil.example/x.png' },
-      { typ: 'unbekannt' },
-    ],
-  })).json();
+  const created = await (
+    await call('/api/slides', 'POST', anna, {
+      name: 'Bauchbinde',
+      hintergrund: { typ: 'farbe', color: 'red; background:url(x)' },
+      elemente: [
+        { typ: 'text', text: '<script>alert(1)</script>Hallo', font: 'Comic Sans', size: 99999, color: '#abcdef' },
+        { typ: 'bild', src: 'https://evil.example/x.png' },
+        { typ: 'unbekannt' },
+      ],
+    })
+  ).json();
   const f = created.folie;
   assert.equal(f.hintergrund.color, '#11243c');
   assert.equal(f.elemente.length, 2);
@@ -553,6 +653,39 @@ test('Slides: Folien je Konto, feste OBS-Adressen mit Live-Aktualisierung, Kanal
   assert.equal((await (await fetch(`${BASE}/kanal/${kanal}.json`)).json()).folie, null);
   await call('/api/slides/kanal', 'POST', anna, { liveId: f.id });
   assert.equal((await (await fetch(`${BASE}/kanal/${kanal}.json`)).json()).folie.id, f.id);
+  // Präsentation: anlegen, starten, weiterschalten (auch per Stream Deck), Notizen bleiben privat
+  const f2 = (
+    await (
+      await call('/api/slides', 'POST', anna, { name: 'Zwei', notizen: 'Nur für mich', elemente: [{ typ: 'text', text: 'Klick', schritt: 1 }] })
+    ).json()
+  ).folie;
+  const praes = (await (await call('/api/slides/praesentationen', 'POST', anna, { name: 'Vortrag', folien: [f.id, f2.id] })).json()).praesentation;
+  assert.equal((await call(`/api/slides/praesentationen/${praes.id}`, 'PUT', admin, praes)).status, 404, 'fremde Präsentation');
+  const evAc = new AbortController();
+  const ev = await fetch(`${BASE}/api/slides/ereignisse`, { headers: { cookie: anna }, signal: evAc.signal });
+  assert.equal(ev.headers.get('content-type'), 'text/event-stream; charset=utf-8');
+  evAc.abort();
+  assert.equal((await fetch(`${BASE}/api/slides/ereignisse`)).status, 401);
+  let ctl = await (await call('/api/slides/steuerung', 'POST', anna, { befehl: 'start', id: praes.id })).json();
+  assert.equal(ctl.kanal.liveId, f.id);
+  const hi = socket('steuerung', anna);
+  const deckKey = (await hi.next('hello')).aktionSchluessel;
+  hi.ws.close();
+  const deck = await (await fetch(`${BASE}/aktion/folie-weiter?schluessel=${deckKey}`)).json();
+  assert.deepEqual([deck.ok, deck.folie, deck.schritt], [true, 2, 0]);
+  let out = await (await fetch(`${BASE}/kanal/${kanal}.json`)).json();
+  assert.deepEqual([out.folie.id, out.schritt, out.ablauf.index], [f2.id, 0, 1]);
+  assert.equal(out.folie.notizen, undefined);
+  assert.equal((await (await fetch(`${BASE}/s/${f2.key}.json`)).json()).folie.notizen, undefined);
+  await fetch(`${BASE}/aktion/folie-weiter?schluessel=${deckKey}`);
+  out = await (await fetch(`${BASE}/kanal/${kanal}.json`)).json();
+  assert.equal(out.schritt, 1);
+  assert.equal((await fetch(`${BASE}/aktion/folie-weiter?schluessel=falsch`)).status, 403);
+  ctl = await (await call('/api/slides/steuerung', 'POST', anna, { befehl: 'ende' })).json();
+  assert.equal(ctl.kanal.ablauf, null);
+  assert.equal((await (await fetch(`${BASE}/aktion/folie-weiter?schluessel=${deckKey}`)).json()).ok, false);
+  await call(`/api/slides/${f2.id}`, 'DELETE', anna);
+  await call('/api/slides/kanal', 'POST', anna, { liveId: f.id });
   // Medien: PNG ok, falscher Inhalt abgelehnt, Video mit Bereichsanfrage
   const png = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489', 'hex');
   const upPng = await call('/api/slides/medien', 'POST', anna, png, { 'Content-Type': 'image/png', 'X-Dateiname': 'logo.png' });
@@ -602,9 +735,16 @@ test('Passwort vergessen: neuer Link, altes Passwort und alte Sitzungen ungülti
 
 test('Schutz: fremde Seiten, Durchprobieren, Abmelden', async () => {
   // Anfrage von einer fremden Seite wird abgelehnt
-  assert.equal((await post('/api/konto/anmelden', { email: 'anna@example.org', passwort: 'sehr-geheim-123' }, '', { origin: 'https://boese.example' })).status, 403);
+  assert.equal(
+    (await post('/api/konto/anmelden', { email: 'anna@example.org', passwort: 'sehr-geheim-123' }, '', { origin: 'https://boese.example' })).status,
+    403,
+  );
   // Ohne JSON abgelehnt
-  const form = await fetch(`${BASE}/api/konto/anmelden`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'email=x' });
+  const form = await fetch(`${BASE}/api/konto/anmelden`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'email=x',
+  });
   assert.equal(form.status, 403);
   // Durchprobieren
   let status = 0;

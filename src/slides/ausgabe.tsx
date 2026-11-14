@@ -3,16 +3,16 @@
 import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../styles/slides.css';
-import type { Folie } from './model.ts';
+import type { KanalAusgabe } from './model.ts';
 import { FLAECHE } from './model.ts';
-import { SlideCanvas, useFitScale } from './SlideRender.tsx';
+import { UebergangsBuehne, useFitScale } from './SlideRender.tsx';
 
 const base = window.location.pathname.replace(/\/+$/, '');
 // ?ton=1 erlaubt Videos mit Ton (OBS spielt den Ton der Browserquelle ab)
 const allowSound = new URLSearchParams(window.location.search).get('ton') === '1';
 
 function Ausgabe() {
-  const [folie, setFolie] = useState<Folie | null>(null);
+  const [data, setData] = useState<KanalAusgabe>({ folie: null });
   const [fehlt, setFehlt] = useState(false);
   const { ref, scale } = useFitScale('ganz');
 
@@ -23,8 +23,7 @@ function Ausgabe() {
       es = new EventSource(`${base}/live`);
       es.onmessage = (ev) => {
         try {
-          const data = JSON.parse(ev.data) as { folie: Folie | null };
-          setFolie(data.folie);
+          setData(JSON.parse(ev.data) as KanalAusgabe);
           setFehlt(false);
         } catch {
           /* ignorieren */
@@ -36,7 +35,7 @@ function Ausgabe() {
           .then((r) => {
             if (r.status === 404 && !stopped) {
               setFehlt(true);
-              setFolie(null);
+              setData({ folie: null });
               es?.close();
             }
           })
@@ -55,10 +54,10 @@ function Ausgabe() {
   // Der Behälter ist immer da (er misst die Größe der Browserquelle), die Folie nur, wenn es eine gibt.
   return (
     <div ref={ref} className="folie-ausgabe">
-      {!fehlt && folie && (
+      {!fehlt && (
         <div className="folie-ausgabe__stage" style={{ transform: `scale(${scale})`, left, top, width: FLAECHE.w, height: FLAECHE.h }}>
-          {/* key: beim Wechsel der Folie (Kanal) Animationen neu abspielen */}
-          <SlideCanvas key={folie.id} folie={folie} animate muted={!allowSound} />
+          {/* Übergänge zwischen Folien und Klick-Schritte (Präsentation) */}
+          <UebergangsBuehne folie={data.folie} schritt={data.schritt ?? Infinity} richtung={data.richtung ?? 1} muted={!allowSound} />
         </div>
       )}
     </div>

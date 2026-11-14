@@ -20,7 +20,7 @@ import {
   Unlock,
 } from 'lucide-react';
 import { Button } from '../components/ui.tsx';
-import { FLAECHE, SCHRIFTEN, type Animation, type Element, type Folie, type Hintergrund } from './model.ts';
+import { FLAECHE, SCHRIFTEN, UEBERGAENGE, type Animation, type Element, type Folie, type Hintergrund, type UebergangTyp } from './model.ts';
 
 type Patch<T> = (patch: Partial<T>, key?: string) => void;
 
@@ -142,7 +142,9 @@ export function ElementInspector({
   onDelete,
   onOrder,
   textRef,
+  maxSchritt = 0,
 }: {
+  maxSchritt?: number;
   el: Element;
   onChange: Patch<Element>;
   onPickMedia: (typ: 'bild' | 'video') => void;
@@ -332,6 +334,17 @@ export function ElementInspector({
 
       <Section title="Animation beim Einblenden">
         <div className="sl-field">
+          <label htmlFor={`schritt-${el.id}`}>Erscheint</label>
+          <select id={`schritt-${el.id}`} className="select" value={el.schritt ?? 0} onChange={(e) => onChange({ schritt: Number(e.target.value) }, 'schritt')}>
+            <option value={0}>Mit der Folie</option>
+            {Array.from({ length: Math.min(20, Math.max(maxSchritt, el.schritt ?? 0) + 1) }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>
+                Beim {n}. Klick (Präsentation)
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="sl-field">
           <label htmlFor={`anim-${el.id}`}>Art</label>
           <select id={`anim-${el.id}`} className="select" value={el.anim} onChange={(e) => onChange({ anim: e.target.value as Animation }, 'anim')}>
             {ANIMS.map((a) => (
@@ -347,7 +360,11 @@ export function ElementInspector({
             <NumberField label="Verzögerung" value={el.animVerz} onChange={setAny('animVerz')} min={0} max={30} step={0.1} unit="s" />
           </Row>
         )}
-        <p className="sl-hint">Die Animation läuft in OBS beim Laden und beim Wechsel der Folie im Kanal.</p>
+        <p className="sl-hint">
+          {(el.schritt ?? 0) > 0
+            ? `In einer Präsentation erscheint das Element erst beim ${el.schritt}. Klick auf „Weiter“. Einzeln und im Editor ist es immer zu sehen.`
+            : 'Die Animation läuft in OBS beim Laden und beim Wechsel der Folie.'}
+        </p>
       </Section>
 
       <div className="sl-actions">
@@ -418,6 +435,46 @@ export function SlideInspector({ folie, onChange, onPickMedia }: { folie: Folie;
           <NumberField label="Abdunkeln" value={Math.round(h.abdunkeln * 100)} onChange={(v) => setH({ abdunkeln: v / 100 }, 'abdunkeln')} min={0} max={90} unit="%" slider />
         )}
         {h.typ === 'transparent' && <p className="sl-hint">Durchsichtig: In OBS liegt die Folie über deinem Video. Das Karomuster zeigt die durchsichtigen Stellen.</p>}
+      </Section>
+      <Section title="Präsentation">
+        <div className="sl-field">
+          <label htmlFor="folie-uebergang">Übergang zu dieser Folie</label>
+          <select
+            id="folie-uebergang"
+            className="select"
+            value={folie.uebergang.typ}
+            onChange={(e) => onChange({ uebergang: { ...folie.uebergang, typ: e.target.value as UebergangTyp } }, 'uebergang')}
+          >
+            {UEBERGAENGE.map((u) => (
+              <option key={u.v} value={u.v}>
+                {u.t}
+              </option>
+            ))}
+          </select>
+        </div>
+        {folie.uebergang.typ !== 'keiner' && (
+          <NumberField
+            label="Dauer des Übergangs"
+            value={folie.uebergang.dauer}
+            onChange={(dauer) => onChange({ uebergang: { ...folie.uebergang, dauer } }, 'uebergang-dauer')}
+            min={0.1}
+            max={3}
+            step={0.1}
+            unit="s"
+          />
+        )}
+        <div className="sl-field">
+          <label htmlFor="folie-notizen">Notizen für die Referentenansicht</label>
+          <textarea
+            id="folie-notizen"
+            className="input sl-notes"
+            rows={5}
+            value={folie.notizen}
+            maxLength={4000}
+            placeholder="Was du zu dieser Folie sagen willst. Erscheint nie in OBS."
+            onChange={(e) => onChange({ notizen: e.target.value }, 'notizen')}
+          />
+        </div>
       </Section>
       <p className="sl-hint">Tipp: Element anklicken, um es zu bearbeiten. Ziehen verschiebt, die Griffe ändern die Größe (Umschalt: Seitenverhältnis halten, Alt: ohne Einrasten).</p>
     </div>

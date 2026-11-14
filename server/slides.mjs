@@ -13,7 +13,15 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SCHRIFTEN = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'slides', 'schriften.json'), 'utf8')).map((s) => s.name);
 
-export const LIMITS = { bildMax: 15 * 1024 * 1024, videoMax: 200 * 1024 * 1024, kontoMax: 2 * 1024 * 1024 * 1024, folienMax: 200, elementeMax: 120 };
+export const LIMITS = {
+  bildMax: 15 * 1024 * 1024,
+  videoMax: 200 * 1024 * 1024,
+  kontoMax: 2 * 1024 * 1024 * 1024,
+  folienMax: 200,
+  elementeMax: 120,
+  praesMax: 50,
+  schritteMax: 20,
+};
 export const MEDIA_TYPES = {
   'image/png': { ext: '.png', typ: 'bild' },
   'image/jpeg': { ext: '.jpg', typ: 'bild' },
@@ -44,6 +52,7 @@ const pick = (v, list, d) => (list.includes(v) ? v : d);
 const str = (v, max) => String(v ?? '').slice(0, max);
 const media = (v) => (typeof v === 'string' && /^\/m\/[a-z0-9-]{1,60}\.(png|jpg|webp|gif|svg|mp4|webm)$/.test(v) ? v : '');
 const ANIM = ['keine', 'einblenden', 'von-unten', 'von-oben', 'von-links', 'von-rechts', 'zoom'];
+export const UEBERGAENGE = ['keiner', 'blende', 'schieben', 'schieben-hoch', 'abdecken', 'zoom', 'wischen'];
 const randomId = (n = 4) => crypto.randomBytes(n).toString('hex');
 
 function normalizeElement(e) {
@@ -64,6 +73,8 @@ function normalizeElement(e) {
     anim: pick(e.anim, ANIM, 'keine'),
     animDauer: num(e.animDauer, 0.1, 5, 0.6),
     animVerz: num(e.animVerz, 0, 30, 0),
+    // 0 = erscheint mit der Folie, 1…n = erscheint beim n-ten Klick (Präsentation)
+    schritt: Math.round(num(e.schritt, 0, LIMITS.schritteMax, 0)),
   };
   const deko = {
     radius: num(e.radius, 0, 1000, 0),
@@ -132,9 +143,33 @@ export function normalizeFolie(raw, keep = {}) {
     name: str(raw?.name, 80).trim() || 'Folie',
     updatedAt: Date.now(),
     hintergrund: normalizeHintergrund(raw?.hintergrund),
+    uebergang: { typ: pick(raw?.uebergang?.typ, UEBERGAENGE, 'blende'), dauer: num(raw?.uebergang?.dauer, 0.1, 3, 0.6) },
+    notizen: str(raw?.notizen, 4000),
     elemente: (Array.isArray(raw?.elemente) ? raw.elemente.slice(0, LIMITS.elementeMax) : []).map(normalizeElement).filter(Boolean),
   };
 }
+
+/** Präsentation: Name, Reihenfolge der Folien, automatisch weiter (Sekunden, 0 = aus), Endlosschleife. */
+export function normalizePraesentation(raw, keep = {}) {
+  const ids = Array.isArray(raw?.folien) ? raw.folien.filter((x) => typeof x === 'string' && /^[a-f0-9]{10}$/.test(x)).slice(0, LIMITS.folienMax) : [];
+  return {
+    id: keep.id ?? randomId(6),
+    name: str(raw?.name, 80).trim() || 'Präsentation',
+    folien: ids,
+    auto: Math.round(num(raw?.auto, 0, 3600, 0)),
+    schleife: bool(raw?.schleife),
+  };
+}
+
+/** Höchster Klick-Schritt einer Folie (0 = keine Klick-Animationen). */
+export const maxSchritt = (f) => (f ? f.elemente.reduce((m, e) => (e.hidden ? m : Math.max(m, e.schritt ?? 0)), 0) : 0);
+
+/** Für die öffentlichen OBS-Adressen: ohne Notizen. */
+const oeffentlich = (f) => {
+  if (!f) return null;
+  const { notizen: _n, ...rest } = f;
+  return rest;
+};
 
 /** Dateianfang prüfen: passt der Inhalt zum angegebenen Typ? */
 function signatureOk(mime, head) {
@@ -180,12 +215,22 @@ export function createSlides({ dataDir, ownerDir, owners = () => [], log = () =>
     }
     const folien = (d?.folien ?? []).map((f) => ({ ...normalizeFolie(f, { id: f.id, key: f.key }), updatedAt: f.updatedAt ?? Date.now() }));
     const medien = (d?.medien ?? []).filter((m) => MEDIA_NAME.test(m?.name ?? ''));
-    const kanal = { key: d?.kanal?.key ?? randomId(12), liveId: d?.kanal?.liveId ?? null };
-    const entry = { folien, medien, kanal };
+    const praesentationen = (d?.praesentationen ?? []).map((p) => normalizePraesentation(p, { id: p.id }));
+    const k = d?.kanal ?? {};
+    const kanal = {
+      key: k.key ?? randomId(12),
+      liveId: folien.some((f) => f.id === k.liveId) ? k.liveId : null,
+      ablauf: k.ablauf && praesentationen.some((p) => p.id === k.ablauf.id) ? { id: k.ablauf.id, index: num(k.ablauf.index, 0, 1e4, 0), schritt: num(k.ablauf.schritt, 0, 99, 0) } : null,
+      richtung: 1,
+      leer: bool(k.leer),
+      seit: Date.now(),
+    };
+    const entry = { folien, medien, kanal, praesentationen };
     data.set(owner, entry);
     if (!d) save(owner).catch(() => {}); // neuer Kanal-Schlüssel: sofort festhalten
     for (const f of folien) slideIndex.set(f.key, { owner, id: f.id });
     channelIndex.set(kanal.key, owner);
+    if (kanal.ablauf) setTimeout(() => schedule(owner), 0);
     return entry;
   }
   for (const o of owners()) {
@@ -218,11 +263,103 @@ export function createSlides({ dataDir, ownerDir, owners = () => [], log = () =>
     const msg = `data: ${JSON.stringify(payload)}\n\n`;
     for (const res of set) res.write(msg);
   }
+  /** Was die Kanal-Adresse zeigt: Folie, Klick-Schritt, Richtung (für den Übergang), Stelle in der Präsentation. */
+  function channelPayload(owner) {
+    const d = load(owner);
+    const live = d.kanal.leer ? null : (d.folien.find((f) => f.id === d.kanal.liveId) ?? null);
+    const a = d.kanal.ablauf;
+    const p = a ? d.praesentationen.find((x) => x.id === a.id) : null;
+    return {
+      folie: oeffentlich(live),
+      schritt: a ? a.schritt : 99,
+      richtung: d.kanal.richtung,
+      ablauf: p ? { index: a.index, anzahl: ablaufFolien(d, p).length } : null,
+    };
+  }
+  /** Zustand für die eigene Steuerung (Studio, Editor, Referentenansicht). */
+  function kanalState(owner) {
+    const d = load(owner);
+    const a = d.kanal.ablauf;
+    const p = a ? d.praesentationen.find((x) => x.id === a.id) : null;
+    return { ...d.kanal, ablauf: a && p ? { ...a, anzahl: ablaufFolien(d, p).length, maxSchritt: maxSchritt(d.folien.find((f) => f.id === d.kanal.liveId)) } : null };
+  }
+  function pushChannel(owner) {
+    const d = load(owner);
+    push(`k:${d.kanal.key}`, channelPayload(owner));
+    push(`o:${owner}`, { typ: 'kanal', kanal: kanalState(owner) });
+  }
   function notify(owner, folie) {
     const d = load(owner);
-    if (folie) push(`s:${folie.key}`, { folie });
-    const live = d.folien.find((f) => f.id === d.kanal.liveId) ?? null;
-    if (!folie || folie.id === d.kanal.liveId) push(`k:${d.kanal.key}`, { folie: live });
+    if (folie) push(`s:${folie.key}`, { folie: oeffentlich(folie) });
+    if (!folie || folie.id === d.kanal.liveId) pushChannel(owner);
+    push(`o:${owner}`, { typ: 'folien' });
+  }
+  const ablaufFolien = (d, p) => p.folien.filter((id) => d.folien.some((f) => f.id === id));
+
+  // ------------------------------------------------------------- Präsentation steuern
+  const timers = new Map();
+  /** Automatisch weiter: Zeit läuft ab jedem Wechsel neu. */
+  function schedule(owner) {
+    clearTimeout(timers.get(owner));
+    timers.delete(owner);
+    const d = load(owner);
+    const a = d.kanal.ablauf;
+    const p = a ? d.praesentationen.find((x) => x.id === a.id) : null;
+    if (!p || !p.auto || d.kanal.leer) return;
+    const t = setTimeout(() => {
+      timers.delete(owner);
+      control(owner, 'weiter').catch((e) => log(`Folien: automatisch weiter fehlgeschlagen: ${e.message}`));
+    }, p.auto * 1000);
+    t.unref?.();
+    timers.set(owner, t);
+  }
+
+  async function control(owner, befehl, arg = {}) {
+    const d = load(owner);
+    const k = d.kanal;
+    if (befehl === 'start') {
+      const p = d.praesentationen.find((x) => x.id === arg.id);
+      if (!p) throw new SlideError('Präsentation nicht gefunden.', 404);
+      const list = ablaufFolien(d, p);
+      if (!list.length) throw new SlideError('Die Präsentation enthält noch keine Folien.');
+      const index = Math.min(list.length - 1, Math.max(0, Math.round(Number(arg.index) || 0)));
+      Object.assign(k, { ablauf: { id: p.id, index, schritt: 0 }, liveId: list[index], richtung: 1, leer: false });
+    } else if (befehl === 'leer') {
+      k.leer = arg.an === undefined ? !k.leer : Boolean(arg.an);
+    } else if (befehl === 'ende') {
+      Object.assign(k, { ablauf: null, liveId: null, leer: false, richtung: 1 });
+    } else {
+      const a = k.ablauf;
+      const p = a ? d.praesentationen.find((x) => x.id === a.id) : null;
+      if (!p) throw new SlideError('Es läuft keine Präsentation. Bitte zuerst eine starten.', 409);
+      const list = ablaufFolien(d, p);
+      if (!list.length) throw new SlideError('Die Präsentation enthält keine Folien mehr.', 409);
+      a.index = Math.min(list.length - 1, a.index);
+      const folieAt = (i) => d.folien.find((f) => f.id === list[i]);
+      const go = (i, schritt, richtung) => {
+        Object.assign(a, { index: i, schritt });
+        Object.assign(k, { liveId: list[i], richtung });
+      };
+      if (k.leer && (befehl === 'weiter' || befehl === 'zurueck')) k.leer = false; // wie PowerPoint: Taste beendet „schwarz“
+      else if (befehl === 'weiter') {
+        if (a.schritt < maxSchritt(folieAt(a.index))) a.schritt += 1;
+        else if (a.index < list.length - 1) go(a.index + 1, 0, 1);
+        else if (p.schleife) go(0, 0, 1);
+      } else if (befehl === 'zurueck') {
+        if (a.schritt > 0) a.schritt -= 1;
+        else if (a.index > 0) go(a.index - 1, maxSchritt(folieAt(a.index - 1)), -1);
+        else if (p.schleife && list.length > 1) go(list.length - 1, maxSchritt(folieAt(list.length - 1)), -1);
+      } else if (befehl === 'gehe') {
+        const i = Math.min(list.length - 1, Math.max(0, Math.round(Number(arg.index) || 0)));
+        go(i, 0, i >= a.index ? 1 : -1);
+      } else if (befehl === 'anfang') go(0, 0, -1);
+      else throw new SlideError('Unbekannter Befehl.');
+    }
+    k.seit = Date.now();
+    await save(owner);
+    pushChannel(owner);
+    schedule(owner);
+    return kanalState(owner);
   }
   setInterval(() => {
     for (const set of subscribers.values()) for (const res of set) res.write(': ping\n\n');
@@ -243,7 +380,8 @@ export function createSlides({ dataDir, ownerDir, owners = () => [], log = () =>
       return {
         folien: d.folien,
         medien: d.medien,
-        kanal: d.kanal,
+        kanal: kanalState(owner),
+        praesentationen: d.praesentationen,
         speicher: { belegt: used(owner), max: LIMITS.kontoMax, bildMax: LIMITS.bildMax, videoMax: LIMITS.videoMax },
         basis,
       };
@@ -280,7 +418,11 @@ export function createSlides({ dataDir, ownerDir, owners = () => [], log = () =>
       d.folien = d.folien.filter((x) => x.id !== id);
       slideIndex.delete(f.key);
       push(`s:${f.key}`, { folie: null });
-      if (d.kanal.liveId === id) d.kanal.liveId = null;
+      for (const p of d.praesentationen) p.folien = p.folien.filter((x) => x !== id);
+      if (d.kanal.liveId === id) {
+        d.kanal.liveId = null;
+        d.kanal.ablauf = null;
+      }
       await save(owner);
       notify(owner, null);
     },
@@ -296,13 +438,64 @@ export function createSlides({ dataDir, ownerDir, owners = () => [], log = () =>
       return f;
     },
 
+    /** Eine einzelne Folie auf Sendung (beendet eine laufende Präsentation). */
     async setLive(owner, id) {
       const d = load(owner);
       if (id) findFolie(owner, id);
-      d.kanal.liveId = id || null;
+      Object.assign(d.kanal, { liveId: id || null, ablauf: null, leer: false, richtung: 1, seit: Date.now() });
       await save(owner);
-      notify(owner, null);
-      return d.kanal;
+      pushChannel(owner);
+      schedule(owner);
+      return kanalState(owner);
+    },
+
+    control,
+    kanalState,
+
+    // ------------------------------------------------------------- Präsentationen
+    async createPraesentation(owner, raw) {
+      const d = load(owner);
+      if (d.praesentationen.length >= LIMITS.praesMax) throw new SlideError(`Höchstens ${LIMITS.praesMax} Präsentationen.`);
+      const p = normalizePraesentation(raw);
+      d.praesentationen.push(p);
+      await save(owner);
+      push(`o:${owner}`, { typ: 'folien' });
+      return p;
+    },
+    async updatePraesentation(owner, id, raw) {
+      const d = load(owner);
+      if (!d.praesentationen.some((p) => p.id === id)) throw new SlideError('Präsentation nicht gefunden.', 404);
+      const p = normalizePraesentation(raw, { id });
+      d.praesentationen = d.praesentationen.map((x) => (x.id === id ? p : x));
+      const a = d.kanal.ablauf;
+      if (a?.id === id) {
+        // Läuft gerade: auf der aktuellen Folie bleiben, wenn sie noch dabei ist
+        const list = ablaufFolien(d, p);
+        if (!list.length) Object.assign(d.kanal, { ablauf: null, liveId: null });
+        else {
+          const at = list.indexOf(d.kanal.liveId);
+          a.index = at >= 0 ? at : Math.min(a.index, list.length - 1);
+          if (at < 0) {
+            a.schritt = 0;
+            d.kanal.liveId = list[a.index];
+          }
+        }
+      }
+      await save(owner);
+      pushChannel(owner);
+      schedule(owner);
+      push(`o:${owner}`, { typ: 'folien' });
+      return p;
+    },
+    async removePraesentation(owner, id) {
+      const d = load(owner);
+      if (!d.praesentationen.some((p) => p.id === id)) throw new SlideError('Präsentation nicht gefunden.', 404);
+      d.praesentationen = d.praesentationen.filter((p) => p.id !== id);
+      if (d.kanal.ablauf?.id === id) Object.assign(d.kanal, { ablauf: null, liveId: null, leer: false });
+      await save(owner);
+      pushChannel(owner);
+      schedule(owner);
+      push(`o:${owner}`, { typ: 'folien' });
     },
 
     // ------------------------------------------------------------- Medien
@@ -379,6 +572,8 @@ export function createSlides({ dataDir, ownerDir, owners = () => [], log = () =>
       for (const m of d.medien) await fsp.rm(path.join(MEDIA_DIR, m.name), { force: true });
       for (const f of d.folien) slideIndex.delete(f.key);
       channelIndex.delete(d.kanal.key);
+      clearTimeout(timers.get(owner));
+      timers.delete(owner);
       data.delete(owner);
     },
 
@@ -392,14 +587,13 @@ export function createSlides({ dataDir, ownerDir, owners = () => [], log = () =>
     bySlideKey(key) {
       const hit = slideIndex.get(String(key));
       if (!hit) return null;
-      return load(hit.owner).folien.find((f) => f.id === hit.id) ?? null;
+      return oeffentlich(load(hit.owner).folien.find((f) => f.id === hit.id) ?? null);
     },
-    /** Kanal: { folie } (folie = null, wenn nichts auf Sendung) oder null, wenn der Schlüssel unbekannt ist. */
+    /** Kanal: { folie, schritt, richtung, ablauf } (folie = null, wenn nichts auf Sendung) oder null bei unbekanntem Schlüssel. */
     byChannelKey(key) {
       const owner = channelIndex.get(String(key));
       if (!owner) return null;
-      const d = load(owner);
-      return { folie: d.folien.find((f) => f.id === d.kanal.liveId) ?? null };
+      return channelPayload(owner);
     },
     subscribe(kind, key, res) {
       const channel = `${kind}:${key}`;

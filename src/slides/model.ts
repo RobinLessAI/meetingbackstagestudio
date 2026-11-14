@@ -22,6 +22,8 @@ interface Basis {
   anim: Animation;
   animDauer: number;
   animVerz: number;
+  /** 0 = erscheint mit der Folie, 1…n = erscheint beim n-ten Klick (Präsentation) */
+  schritt: number;
 }
 
 export interface TextEl extends Basis {
@@ -98,14 +100,57 @@ export interface Hintergrund {
   abdunkeln: number;
 }
 
+export type UebergangTyp = 'keiner' | 'blende' | 'schieben' | 'schieben-hoch' | 'abdecken' | 'zoom' | 'wischen';
+export const UEBERGAENGE: { v: UebergangTyp; t: string }[] = [
+  { v: 'keiner', t: 'Keiner (harter Schnitt)' },
+  { v: 'blende', t: 'Überblenden' },
+  { v: 'schieben', t: 'Schieben (seitlich)' },
+  { v: 'schieben-hoch', t: 'Schieben (nach oben)' },
+  { v: 'abdecken', t: 'Hereinschieben über die alte Folie' },
+  { v: 'zoom', t: 'Zoom' },
+  { v: 'wischen', t: 'Wischen' },
+];
+
 export interface Folie {
   id: string;
   key: string;
   name: string;
   updatedAt: number;
   hintergrund: Hintergrund;
+  /** Übergang beim Wechsel auf diese Folie */
+  uebergang: { typ: UebergangTyp; dauer: number };
+  /** Notizen für die Referentenansicht (nie in der OBS-Ausgabe) */
+  notizen: string;
   elemente: Element[];
 }
+
+export interface Praesentation {
+  id: string;
+  name: string;
+  folien: string[];
+  /** Sekunden bis zum automatischen Weiterschalten, 0 = aus */
+  auto: number;
+  schleife: boolean;
+}
+
+export interface KanalState {
+  key: string;
+  liveId: string | null;
+  ablauf: null | { id: string; index: number; schritt: number; anzahl: number; maxSchritt: number };
+  richtung: number;
+  leer: boolean;
+  seit: number;
+}
+
+/** Was die öffentliche Kanal-Adresse liefert */
+export interface KanalAusgabe {
+  folie: Folie | null;
+  schritt?: number;
+  richtung?: number;
+  ablauf?: { index: number; anzahl: number } | null;
+}
+
+export const maxSchritt = (f: Folie | null | undefined) => (f ? f.elemente.reduce((m, e) => (e.hidden ? m : Math.max(m, e.schritt ?? 0)), 0) : 0);
 
 export interface Medium {
   name: string;
@@ -119,7 +164,8 @@ export interface Medium {
 export interface FolienState {
   folien: Folie[];
   medien: Medium[];
-  kanal: { key: string; liveId: string | null };
+  kanal: KanalState;
+  praesentationen: Praesentation[];
   speicher: { belegt: number; max: number; bildMax: number; videoMax: number };
   basis: string;
 }
@@ -140,6 +186,7 @@ const basis = (name: string, x: number, y: number, w: number, h: number): Basis 
   anim: 'einblenden',
   animDauer: 0.6,
   animVerz: 0,
+  schritt: 0,
 });
 
 export function neuerText(): TextEl {
@@ -174,7 +221,13 @@ export function neuerText(): TextEl {
 
 export function neueForm(form: FormEl['form'] = 'rechteck'): FormEl {
   return {
-    ...basis(form === 'ellipse' ? 'Kreis' : form === 'linie' ? 'Linie' : 'Fläche', 660, 340, form === 'linie' ? 600 : 600, form === 'linie' ? 8 : 400),
+    ...basis(
+      form === 'ellipse' ? 'Kreis' : form === 'linie' ? 'Linie' : 'Fläche',
+      660,
+      340,
+      form === 'linie' ? 600 : 600,
+      form === 'linie' ? 8 : 400,
+    ),
     typ: 'form',
     form,
     fill: '#026c75',

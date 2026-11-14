@@ -253,4 +253,8 @@ Folien für OBS mit fester Adresse, unabhängig von Zoom. Editor auf `slide.<Hau
 - `server/slides.mjs` – Folien je Konto, Kanal („auf Sendung“), Medien-Upload als Datenstrom mit Grenzen und Prüfung des Dateityps, Live-Aktualisierung per Server-Sent Events
 - `src/slides/` – Datenmodell, Darstellung (`SlideRender.tsx`), OBS-Seite (`ausgabe.tsx`, `folie.html`), Editor (`Editor.tsx`, `Canvas.tsx`, `Inspector.tsx`)
 - Öffentliche Adressen: `/s/<key>`, `/kanal/<key>` (je `.json` und `/live`), Medien unter `/m/<name>` mit Bereichsanfragen
+- Präsentationen: Reihenfolge, Klick-Schritte (`schritt` je Element), Übergänge (`uebergang` je Folie), Notizen (nie öffentlich),
+  automatisch weiter (Zeitgeber auf dem Server), Steuerung über `/api/slides/steuerung`, Live-Zustand für die eigene Steuerung über
+  `/api/slides/ereignisse`, Stream Deck über `/aktion/folie-weiter|folie-zurueck|folie-anfang|folie-leer`
+- Steuerpult (`Steuerpult.tsx`), Präsentationen im Editor (`Praesentationen.tsx`), Referentenansicht (`Referent.tsx`, `?ansicht=referent`)
 - Schriften (frei lizenziert) in `public/folien-schriften/`

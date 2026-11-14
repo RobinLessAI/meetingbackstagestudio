@@ -3,6 +3,7 @@ import { App } from '../App.tsx';
 import { AuthScreen } from './AuthScreen.tsx';
 import { api, canUse, isSlidesApp, setMainSite, setMode, setSiteUrls, studioUrl, type Rechte, type WebUser } from './mode.ts';
 import { SlidesEditor } from '../slides/Editor.tsx';
+import { Referentenansicht } from '../slides/Referent.tsx';
 import { Lock } from 'lucide-react';
 
 /**
@@ -58,13 +59,17 @@ export function Root() {
               <Lock size={26} />
             </span>
             <h1 className="locked__title">MeetingBackstage Slides</h1>
-            <p className="locked__text">Slides sind in deinem Paket nicht enthalten. Schreib uns an info@meetingbackstage.de, wenn du sie freischalten möchtest.</p>
+            <p className="locked__text">
+              Slides sind in deinem Paket nicht enthalten. Schreib uns an info@meetingbackstage.de, wenn du sie freischalten möchtest.
+            </p>
             <a className="btn btn--secondary" href={studioUrl() ?? '/'}>
               Zum Studio
             </a>
           </div>
         </div>
       );
+    if (new URLSearchParams(window.location.search).get('ansicht') === 'referent')
+      return <Referentenansicht editorUrl={`${window.location.pathname}?bereich=praesentationen`} />;
     return <SlidesEditor studioUrl={studioUrl() ?? '/'} />;
   }
   return <App />;
