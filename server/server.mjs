@@ -21,6 +21,7 @@ import { WebSocketServer } from 'ws';
 import { AccountError, createAccounts, createLimiter, MIN_PASSWORD, normalizeEmail, publicUser } from './accounts.mjs';
 import { brevoTransport, createMailer, smtpTransport } from './mailer.mjs';
 import { createMailTemplates } from './mailTemplates.mjs';
+import { createRoles, RoleError } from './roles.mjs';
 import { createRoom } from './room.mjs';
 import { zoomSignatureOk } from './zoomAccount.mjs';
 import { ICONS, BLOCK_TYPES } from './website/render.mjs';
@@ -196,6 +197,14 @@ const website = WEB
       log,
     })
   : null;
+// Rollen und Rechte (bearbeitbar unter Verwaltung)
+const roles = WEB ? createRoles({ file: path.join(WEB_DIR, 'rollen.json'), log }) : null;
+const rightsOf = (user) => roles.permissionsFor(user);
+/** Steuerungen aller offenen Konten über geänderte Rechte informieren (sie laden ihre Rechte neu). */
+const notifyRights = (userId = null) => {
+  for (const [id, room] of rooms) if (!userId || id === userId) room.notify({ type: 'rechte' });
+};
+
 // E-Mail-Vorlagen (bearbeitbar unter Website → E-Mail-Vorlagen)
 const mailTemplates = WEB
   ? createMailTemplates({
@@ -220,6 +229,7 @@ function roomFor(user) {
       log,
       keys: { actionKey: user.actionKey, outputKey: user.outputKey },
       renewKeys: () => accounts.renewKeys(user.id),
+      can: (bereich) => rightsOf(accounts.get(user.id)).bereiche.includes(bereich),
     });
     rooms.set(user.id, room);
   }
@@ -344,7 +354,7 @@ async function handleAccountApi(req, res, url) {
     }
     if (route === '/api/konto/ich' && req.method === 'GET') {
       const user = sessionUser(req);
-      return user ? json(res, 200, { user: publicUser(user) }) : json(res, 401, { user: null });
+      return user ? json(res, 200, { user: publicUser(user), rechte: rightsOf(user) }) : json(res, 401, { user: null });
     }
     if (req.method !== 'POST') return json(res, 405, { fehler: 'Methode nicht erlaubt.' });
     // Schutz gegen fremde Seiten: nur JSON und nur von dieser Adresse.
@@ -405,8 +415,15 @@ async function handleAccountApi(req, res, url) {
       case '/api/verwaltung/konten': {
         const user = sessionUser(req);
         if (!user?.admin) return json(res, 403, { fehler: 'Nur für die Verwaltung.' });
-        const list = accounts.list().map((u) => ({ ...u, online: rooms.get(u.id)?.counts() ?? null }));
-        return json(res, 200, { konten: list });
+        const list = accounts.list().map((u) => ({ ...u, festAdmin: accounts.isFixedAdmin(u.email), online: rooms.get(u.id)?.counts() ?? null }));
+        return json(res, 200, { konten: list, rollen: roles.state() });
+      }
+      case '/api/verwaltung/rollen': {
+        const user = sessionUser(req);
+        if (!user?.admin) return json(res, 403, { fehler: 'Nur für die Verwaltung.' });
+        const state = await roles.save(body);
+        notifyRights();
+        return json(res, 200, { rollen: state });
       }
       case '/api/verwaltung/konto': {
         const user = sessionUser(req);
@@ -421,6 +438,11 @@ async function handleAccountApi(req, res, url) {
         } else if (body.aktion === 'sperren') {
           await accounts.setStatus(target.id, 'gesperrt');
           await closeRoom(target.id, 'Konto gesperrt');
+        } else if (body.aktion === 'rolle') {
+          const rolle = String(body.rolle ?? '');
+          if (!roles.exists(rolle)) return json(res, 400, { fehler: 'Unbekannte Rolle.' });
+          await accounts.setRole(target.id, rolle);
+          notifyRights(target.id);
         } else if (body.aktion === 'loeschen') {
           // Verbindung zu Zoom zurückziehen, bevor die Daten verschwinden
           await roomFor(target).zoomDisconnect().catch(() => {});
@@ -435,6 +457,7 @@ async function handleAccountApi(req, res, url) {
     }
   } catch (e) {
     if (e instanceof AccountError) return json(res, e.status, { fehler: e.message, code: e.code });
+    if (e instanceof RoleError) return json(res, e.status, { fehler: e.message });
     log(`Fehler bei ${route}: ${e.message}`);
     return json(res, 500, { fehler: 'Interner Fehler. Bitte später erneut versuchen.' });
   }

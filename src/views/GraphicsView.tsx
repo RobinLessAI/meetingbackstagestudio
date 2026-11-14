@@ -7,7 +7,9 @@ import { GraphicsDashboard } from './graphics/Dashboard.tsx';
 import { HighlightTab } from './graphics/HighlightTab.tsx';
 import { LookPanel } from './graphics/LookPanel.tsx';
 import { MapTab } from './graphics/MapTab.tsx';
-import { GRAPHIC_PAGES } from './graphics/pages.ts';
+import { GRAPHIC_PAGES, visibleGraphicPages } from './graphics/pages.ts';
+import { graphicAllowed, useRightsVersion } from '../state/rights.ts';
+import { LockedView } from './LockedView.tsx';
 import { PollTab } from './graphics/PollTab.tsx';
 import { useGraphicCounts } from './graphics/counts.ts';
 
@@ -21,7 +23,9 @@ export function GraphicsView() {
   const { state } = useStore();
   const counts = useGraphicCounts();
   const overview = graphicTab === 'uebersicht';
+  useRightsVersion();
   const page = GRAPHIC_PAGES.find((p) => p.id === graphicTab) ?? GRAPHIC_PAGES[0];
+  const pageLocked = !overview && !graphicAllowed(page.id);
 
   return (
     <div className="view view--graphics">
@@ -35,11 +39,12 @@ export function GraphicsView() {
           <LayoutGrid size={16} aria-hidden />
           Übersicht
         </button>
-        {GRAPHIC_PAGES.map((p) => (
+        {visibleGraphicPages().map((p) => (
           <button
             key={p.id}
             type="button"
-            className={`tab${graphicTab === p.id ? ' is-active' : ''}`}
+            className={`tab${graphicTab === p.id ? ' is-active' : ''}${p.locked ? ' is-locked' : ''}`}
+            title={p.locked ? `${p.label} – nicht in deinem Paket` : undefined}
             aria-current={graphicTab === p.id ? 'page' : undefined}
             onClick={() => setGraphicTab(p.id)}
           >
@@ -50,7 +55,9 @@ export function GraphicsView() {
         ))}
       </nav>
 
-      {overview ? (
+      {pageLocked ? (
+        <LockedView title={page.label} />
+      ) : overview ? (
         <header className="view__head">
           <div className="view__titles">
             <span className="eyebrow">Live Grafiken</span>
@@ -73,7 +80,7 @@ export function GraphicsView() {
         </header>
       )}
 
-      {overview ? (
+      {pageLocked ? null : overview ? (
         <GraphicsDashboard />
       ) : (
         <section className="graphics-main" aria-label={page.label}>

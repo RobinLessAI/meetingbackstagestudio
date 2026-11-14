@@ -1,5 +1,6 @@
 import { CloudIcon, Disc3, MapPin, MessageSquareQuote, Vote, type LucideIcon } from 'lucide-react';
 import type { GraphicKind } from '../../state/types.ts';
+import { graphicAllowed, showLocked } from '../../state/rights.ts';
 
 /** Unterseiten von „Live Grafiken“ in der Reihenfolge des Ausklappmenüs. „Live Grafiken“ selbst zeigt die Übersicht. */
 export const GRAPHIC_PAGES: Array<{ id: GraphicKind; label: string; icon: LucideIcon; lead: string }> = [
@@ -9,3 +10,8 @@ export const GRAPHIC_PAGES: Array<{ id: GraphicKind; label: string; icon: Lucide
   { id: 'wortwolke', label: 'Wortwolke', icon: CloudIcon, lead: 'Begriffe aus dem Chat, gefiltert nach Füllwörtern und unangemessenen Begriffen.' },
   { id: 'gluecksrad', label: 'Glücksrad', icon: Disc3, lead: 'Ein Rad, das sich dreht und zufällig einen Namen aus dem Chat oder aus deiner eigenen Liste auswählt.' },
 ];
+
+/** Grafik-Seiten für das angemeldete Konto: gesperrte ausgegraut (locked) oder ausgeblendet, je nach Rolle. */
+export function visibleGraphicPages() {
+  return GRAPHIC_PAGES.map((p) => ({ ...p, locked: !graphicAllowed(p.id) })).filter((p) => !p.locked || showLocked());
+}

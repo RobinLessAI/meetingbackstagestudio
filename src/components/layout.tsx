@@ -13,6 +13,7 @@ import {
   Sparkles,
   Star,
   ListChecks,
+  Lock,
   ShieldCheck,
   Globe,
   Boxes,
@@ -29,7 +30,7 @@ import type { ViewId } from '../state/types.ts';
 import { useTheme } from '../state/theme.ts';
 import { useUi } from '../state/ui.tsx';
 import { useSync } from '../sync/SyncProvider.tsx';
-import { GRAPHIC_PAGES } from '../views/graphics/pages.ts';
+import { visibleGraphicPages } from '../views/graphics/pages.ts';
 import { useGraphicCounts } from '../views/graphics/counts.ts';
 import { regieLabel } from './LiveChat.tsx';
 import { ProgramMonitor } from './ProgramMonitor.tsx';
@@ -96,7 +97,7 @@ export function Sidebar() {
             <li key={v.id}>
               <a
                 href={`#${v.id}`}
-                className={`nav__link${active ? ' is-active' : ''}${isGraphics && view === v.id ? ' is-parent' : ''}`}
+                className={`nav__link${active ? ' is-active' : ''}${isGraphics && view === v.id ? ' is-parent' : ''}${v.locked ? ' is-locked' : ''}`}
                 aria-current={active ? 'page' : undefined}
                 aria-expanded={isGraphics ? graphicsOpen : undefined}
                 onClick={(e) => {
@@ -110,7 +111,7 @@ export function Sidebar() {
                   }
                   go(v.id);
                 }}
-                title={`${v.label} (Alt+${i + 1})`}
+                title={v.locked ? `${v.label} – nicht in deinem Paket` : `${v.label} (Alt+${i + 1})`}
               >
                 <span className="nav__num tabular" aria-hidden>
                   {i + 1}
@@ -126,19 +127,21 @@ export function Sidebar() {
                       {c.n}
                     </span>
                   )}
-                  {isGraphics && <ChevronDown size={16} className={`nav__chevron${graphicsOpen ? ' is-open' : ''}`} aria-hidden />}
+                  {v.locked && <Lock size={13} className="nav__lock" aria-label="gesperrt" />}
+                  {isGraphics && !v.locked && <ChevronDown size={16} className={`nav__chevron${graphicsOpen ? ' is-open' : ''}`} aria-hidden />}
                 </span>
               </a>
-              {isGraphics && graphicsOpen && (
+              {isGraphics && graphicsOpen && !v.locked && (
                 <ul className="nav__sub" aria-label="Live Grafiken">
-                  {GRAPHIC_PAGES.map((p) => {
+                  {visibleGraphicPages().map((p) => {
                     const on = view === 'grafiken' && graphicTab === p.id;
                     const n = pageCounts[p.id];
                     return (
                       <li key={p.id}>
                         <a
                           href="#grafiken"
-                          className={`nav__sublink${on ? ' is-active' : ''}`}
+                          className={`nav__sublink${on ? ' is-active' : ''}${p.locked ? ' is-locked' : ''}`}
+                          title={p.locked ? `${p.label} – nicht in deinem Paket` : undefined}
                           aria-current={on ? 'page' : undefined}
                           onClick={(e) => {
                             e.preventDefault();
@@ -148,6 +151,7 @@ export function Sidebar() {
                           <p.icon size={15} strokeWidth={1.9} aria-hidden />
                           <span>{p.label}</span>
                           <span className="nav__end">
+                            {p.locked && <Lock size={12} className="nav__lock" aria-label="gesperrt" />}
                             {state.program.graphic === p.id && (
                               <span className="nav__live" title="Im Programm" aria-label="im Programm" />
                             )}

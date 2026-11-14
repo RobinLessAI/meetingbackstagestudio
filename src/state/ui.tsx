@@ -1,9 +1,19 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { GraphicKind, ViewId } from './types.ts';
 import { currentUser, isWeb } from '../web/mode.ts';
+import { showLocked, useRightsVersion, viewAllowed } from './rights.ts';
 
 /** Alle Bereiche. demo = nur simuliert, standardmäßig ausgeblendet. */
-export const VIEWS: Array<{ id: ViewId; label: string; short: string; demo?: boolean; admin?: boolean }> = [
+export interface ViewDef {
+  id: ViewId;
+  label: string;
+  short: string;
+  demo?: boolean;
+  admin?: boolean;
+  /** Für dieses Konto gesperrt (ausgegraut sichtbar). */
+  locked?: boolean;
+}
+export const VIEWS: ViewDef[] = [
   { id: 'meeting', label: 'Meeting', short: 'Meeting' },
   { id: 'grafiken', label: 'Live Grafiken', short: 'Grafiken' },
   { id: 'spotlight', label: 'Spotlight', short: 'Spotlight' },
@@ -60,7 +70,7 @@ interface UiValue {
   showDemo: boolean;
   setShowDemo: (on: boolean) => void;
   /** Die aktuell sichtbaren Bereiche in Reihenfolge der Leiste. */
-  views: typeof VIEWS;
+  views: ViewDef[];
 }
 
 const UiCtx = createContext<UiValue | null>(null);
@@ -95,7 +105,16 @@ export function UiProvider({ children }: { children: ReactNode }) {
   const [helpOpen, setHelpOpen] = useState(false);
   const [showDemo, setShowDemoState] = useState(readDemo);
   // Verwaltung nur im Web-Modus für die Verwaltung sichtbar.
-  const views = useMemo(() => VIEWS.filter((v) => (showDemo || !v.demo) && (!v.admin || (isWeb() && !!currentUser()?.admin))), [showDemo]);
+  const rightsVer = useRightsVersion();
+  // Gesperrte Bereiche: ausblenden oder (je nach Rolle) ausgegraut zeigen
+  const views = useMemo(
+    () =>
+      VIEWS.filter((v) => (showDemo || !v.demo) && (!v.admin || (isWeb() && !!currentUser()?.admin)))
+        .map((v) => (viewAllowed(v.id) ? v : { ...v, locked: true }))
+        .filter((v) => !v.locked || showLocked()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [showDemo, rightsVer],
+  );
   const setShowDemo = useCallback((on: boolean) => {
     setShowDemoState(on);
     try {

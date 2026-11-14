@@ -42,7 +42,7 @@ function keyFile(file, bytes) {
  * @param {{actionKey: string, outputKey: string}} [o.keys] Schlüssel aus dem Konto (Web-Modus); sonst aus Dateien im Datenordner
  * @param {() => Promise<{actionKey: string, outputKey: string}>} [o.renewKeys] neue Schlüssel im Konto speichern (Web-Modus)
  */
-export function createRoom({ id, dataDir, web, cfg, log: baseLog, keys, renewKeys: renewExternal }) {
+export function createRoom({ id, dataDir, web, cfg, log: baseLog, keys, renewKeys: renewExternal, can = () => true }) {
   const log = web ? (...a) => baseLog(`[${id.slice(0, 8)}]`, ...a) : baseLog;
   const SAVE_FILE = path.join(dataDir, 'veranstaltung.json');
   const TEMPLATE_FILE = path.join(dataDir, 'vorlagen.json');
@@ -423,6 +423,11 @@ export function createRoom({ id, dataDir, web, cfg, log: baseLog, keys, renewKey
 
   // ------------------------------------------------------------- Nachrichten
   async function handleSteuerung(ws, msg) {
+    // Rechte der Rolle: Spotlight-Befehle nur, wenn der Bereich freigeschaltet ist
+    if (String(msg?.type ?? '').startsWith('zoom-spotlight') && !can('spotlight')) {
+      send(ws, { type: 'zoom-aktion', ok: false, message: 'Spotlight ist in deinem Paket nicht enthalten.' });
+      return;
+    }
     switch (msg.type) {
       case 'snapshot':
         lastSnapshot = msg.snapshot;
@@ -685,6 +690,11 @@ export function createRoom({ id, dataDir, web, cfg, log: baseLog, keys, renewKey
     },
 
     /** Alle Fenster trennen (z. B. bei Sperre oder Löschung des Kontos). */
+    /** Nachricht an alle offenen Steuerungen dieses Kontos (z. B. „Rechte geändert“). */
+    notify(msg) {
+      broadcast('steuerung', msg);
+    },
+
     kick(code = 4001, reason = 'Konto gesperrt') {
       for (const ws of roles.keys()) ws.close(code, reason);
     },

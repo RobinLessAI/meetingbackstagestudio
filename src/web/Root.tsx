@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { App } from '../App.tsx';
 import { AuthScreen } from './AuthScreen.tsx';
-import { api, setMainSite, setMode, type WebUser } from './mode.ts';
+import { api, setMainSite, setMode, type Rechte, type WebUser } from './mode.ts';
 
 /**
  * Startet die App: lokal sofort, im Web-Modus erst nach der Anmeldung.
@@ -34,8 +34,8 @@ export function Root() {
         return;
       }
       try {
-        const me = await api<{ user: WebUser }>('/api/konto/ich');
-        setMode(true, me.user);
+        const me = await api<{ user: WebUser; rechte: Rechte }>('/api/konto/ich');
+        setMode(true, me.user, me.rechte);
         setPhase('app');
       } catch {
         setMode(true);

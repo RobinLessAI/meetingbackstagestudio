@@ -1559,3 +1559,29 @@ a.btn { text-decoration: none; }
 .info-tip__pop--wide { width: min(440px, 86vw); }
 .info-tip__title { color: var(--text); font-size: var(--fs-md); }
 .info-tip__pop .meet-steps { margin: 6px 0 0; padding-top: 12px; }
+
+/* ------------------------------------------------------------------ Rollen & Rechte */
+.admin__role { height: 30px; padding-top: 0; padding-bottom: 0; font-size: var(--fs-sm); }
+.roles { display: grid; gap: 14px; }
+.role { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--raised); }
+.role--admin { gap: 6px; }
+.role__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.role__name { max-width: 240px; font-weight: 600; }
+.role__standard { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-size: var(--fs-sm); color: var(--text-2); }
+.role__groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.role__group { margin: 0; padding: 8px 12px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); display: flex; flex-direction: column; gap: 6px; }
+.role__group legend { padding: 0 4px; font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
+.role__check { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); cursor: pointer; }
+.role__check.is-off { color: var(--text-3); }
+.role__check input { accent-color: var(--accent); }
+
+/* Gesperrte Bereiche im Menü und auf Seiten */
+.nav__link.is-locked, .nav__sublink.is-locked, .tab.is-locked { opacity: 0.5; }
+.nav__link.is-locked:hover, .nav__sublink.is-locked:hover, .tab.is-locked:hover { opacity: 0.75; }
+.nav__lock { color: var(--text-3); }
+.locked { width: min(620px, 100%); margin: 48px auto 0; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 32px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.locked__icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 12px; background: var(--raised); color: var(--text-3); }
+.locked__title { font-size: var(--fs-2xl); font-weight: 600; }
+.locked__text { color: var(--text-2); }
+.locked__text a { color: var(--accent); }
+.locked__actions { margin-top: 6px; flex-wrap: wrap; }

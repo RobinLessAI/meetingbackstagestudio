@@ -58,6 +58,7 @@ export const publicUser = (u) => ({
   name: u.name,
   status: u.status,
   admin: Boolean(u.admin),
+  rolle: u.admin ? 'admin' : (u.rolle ?? null),
   verified: Boolean(u.verifiedAt),
   createdAt: u.createdAt,
   lastLoginAt: u.lastLoginAt ?? null,
@@ -259,6 +260,22 @@ export function createAccounts({ dir, adminEmails = [], log = () => {}, now = ()
     },
 
     // ------------------------------------------------------------- Verwaltung
+    /** Rolle zuweisen: 'admin' oder die ID einer Rolle. Adressen aus MB_ADMIN_EMAILS bleiben immer Admin. */
+    async setRole(userId, rolle) {
+      const u = byId(userId);
+      if (!u) throw new AccountError('unbekannt', 'Konto nicht gefunden.', 404);
+      if (admins.has(u.email) && rolle !== 'admin') {
+        throw new AccountError('fest', 'Dieses Konto ist fest als Admin eingerichtet (MB_ADMIN_EMAILS) und bleibt Admin.');
+      }
+      u.admin = rolle === 'admin';
+      u.rolle = rolle === 'admin' ? null : String(rolle);
+      await persist();
+      log(`Konto ${u.id}: Rolle ${rolle}`);
+      return publicUser(u);
+    },
+    /** Adresse ist fest als Admin eingerichtet? */
+    isFixedAdmin: (email) => admins.has(normalizeEmail(email)),
+
     async setStatus(userId, status) {
       const u = byId(userId);
       if (!u) throw new AccountError('unbekannt', 'Konto nicht gefunden.', 404);

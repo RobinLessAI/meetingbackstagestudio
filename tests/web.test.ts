@@ -453,6 +453,46 @@ test('E-Mail-Vorlagen: nur die Verwaltung, eigene Texte werden verschickt', asyn
   assert.deepEqual(reset.eigene, []);
 });
 
+test('Rollen: Bereiche je Rolle, Zuweisung, gesperrtes Spotlight, feste Admins', async () => {
+  const me = async (cookie: string) => (await (await fetch(`${BASE}/api/konto/ich`, { headers: { cookie } })).json()).rechte;
+  // Standard: Rolle „Nutzer“ mit allen Bereichen; Admin sieht zusätzlich Verwaltung und Website
+  assert.equal((await me(anna)).rolleName, 'Nutzer');
+  assert.ok((await me(admin)).bereiche.includes('website'));
+  const konten = await (await post('/api/verwaltung/konten', {}, admin)).json();
+  assert.ok(konten.konten.find((k: { email: string }) => k.email === 'chef@example.org').festAdmin);
+  // Neue Rolle „Basis“ ohne Spotlight und Glücksrad, gesperrte Bereiche sichtbar
+  const alle = konten.rollen.bereiche.map((b: { id: string }) => b.id);
+  const rollen = [
+    ...konten.rollen.rollen,
+    { id: 'basis', name: 'Basis', bereiche: alle.filter((b: string) => b !== 'spotlight' && b !== 'grafik:gluecksrad'), gesperrteZeigen: true, hinweis: 'Gibt es in Pro.' },
+  ];
+  assert.equal((await post('/api/verwaltung/rollen', { rollen: [{ id: 'x', name: 'Admin', bereiche: [] }] }, admin)).status, 400);
+  assert.equal((await post('/api/verwaltung/rollen', { rollen, standard: 'nutzer' }, anna)).status, 403);
+  assert.equal((await post('/api/verwaltung/rollen', { rollen, standard: 'nutzer' }, admin)).status, 200);
+  const annaId = konten.konten.find((k: { email: string }) => k.email === 'anna@example.org').id;
+  const a = socket('steuerung', anna);
+  await a.next('hello');
+  assert.equal((await post('/api/verwaltung/konto', { id: annaId, aktion: 'rolle', rolle: 'gibt-es-nicht' }, admin)).status, 400);
+  assert.equal((await post('/api/verwaltung/konto', { id: annaId, aktion: 'rolle', rolle: 'basis' }, admin)).status, 200);
+  await a.next('rechte'); // offene Steuerung wird informiert
+  const r = await me(anna);
+  assert.equal(r.rolleName, 'Basis');
+  assert.ok(!r.bereiche.includes('spotlight'));
+  assert.equal(r.hinweis, 'Gibt es in Pro.');
+  // Spotlight-Befehl wird vom Server abgelehnt
+  a.send({ type: 'zoom-spotlight', userId: 1 });
+  assert.match((await a.next('zoom-aktion')).message, /nicht enthalten/);
+  // Fest eingerichtete Admins bleiben Admin; das eigene Konto lässt sich nicht ändern
+  const chefId = konten.konten.find((k: { email: string }) => k.email === 'chef@example.org').id;
+  assert.equal((await post('/api/verwaltung/konto', { id: chefId, aktion: 'rolle', rolle: 'basis' }, admin)).status, 400);
+  // Zum Admin machen und zurück
+  assert.equal((await post('/api/verwaltung/konto', { id: annaId, aktion: 'rolle', rolle: 'admin' }, admin)).status, 200);
+  assert.equal((await me(anna)).rolle, 'admin');
+  assert.equal((await post('/api/verwaltung/konto', { id: annaId, aktion: 'rolle', rolle: 'nutzer' }, admin)).status, 200);
+  assert.equal((await me(anna)).rolleName, 'Nutzer');
+  a.ws.close();
+});
+
 test('Passwort vergessen: neuer Link, altes Passwort und alte Sitzungen ungültig', async () => {
   // Gleiche Antwort für unbekannte Adressen (verrät nichts)
   assert.equal((await post('/api/konto/passwort-vergessen', { email: 'niemand@example.org' })).status, 200);

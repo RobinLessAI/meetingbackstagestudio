@@ -6,6 +6,7 @@ import { countNew, toChatMessages } from '../state/chatImport.ts';
 import { nextId, useStore } from '../state/store.tsx';
 import type { AppState } from '../state/types.ts';
 import { buildSnapshot } from './snapshot.ts';
+import { refreshRights } from '../web/mode.ts';
 import { canUseLocalServer, openSyncSocket, type SocketStatus, type SyncSocket } from './socket.ts';
 
 export interface WatchStatus {
@@ -284,6 +285,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       case 'zoom-result':
         connectWaiter.current?.({ ok: Boolean(msg.ok), message: String(msg.message ?? '') });
         connectWaiter.current = null;
+        break;
+      case 'rechte':
+        // Rolle oder Rechte wurden in der Verwaltung geändert: neu laden, Menü passt sich an
+        refreshRights();
         break;
       case 'schluessel':
         setActionKey(msg.aktionSchluessel ?? null);

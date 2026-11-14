@@ -156,6 +156,18 @@ Technik: Der MeetingBackstage-Dienst liefert die Hauptseite selbst aus; Caddy le
 Beim allerersten Start wird der Inhalt aus `website/inhalt-start.json` übernommen; danach gilt nur noch, was du in der Verwaltung
 speicherst. Design (Farben, Schrift, Aufbau der Abschnitte) liegt im Code: `website/assets/site.css`, `server/website/render.mjs`.
 
+## 9. Rollen und Rechte
+
+In der **Verwaltung** weist du jedem Konto eine Rolle zu (Spalte „Rolle“). **Admin** sieht alles, inklusive Verwaltung und Website;
+Adressen aus `MB_ADMIN_EMAILS` bleiben immer Admin. Darunter unter **Rollen & Rechte**:
+
+- Rollen anlegen, umbenennen, löschen (z. B. „Nutzer“, „Basis“, „Pro“) und eine **Standard-Rolle** für neue Konten wählen.
+- Je Rolle die Bereiche anhaken: Meeting, jede Live-Grafik einzeln, Spotlight, Wer war dran, OBS-Ausgabe, Zoom & Einstellungen, Weitere Produkte.
+- **„Fehlende Bereiche ausgegraut im Menü zeigen“**: gesperrte Bereiche erscheinen grau mit Schloss; ein Klick zeigt deinen Hinweis
+  (z. B. „Gibt es in MeetingBackstage Pro – schreib uns an info@meetingbackstage.de.“). Aus: fehlende Bereiche sind unsichtbar.
+- Änderungen wirken sofort, auch in bereits geöffneten Studio-Fenstern. Gesperrt werden auch Tastenkürzel und Stream-Deck-Aktionen;
+  Spotlight-Befehle lehnt zusätzlich der Server ab.
+
 ## Im Alltag
 
 | Was | Befehl auf dem Server |

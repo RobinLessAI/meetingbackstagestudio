@@ -12,6 +12,7 @@ import type { GraphicKind, GraphicLooks, HighlightStyle } from '../../state/type
 import { useUi } from '../../state/ui.tsx';
 import { buildSnapshot } from '../../sync/snapshot.ts';
 import { GRAPHIC_PAGES } from './pages.ts';
+import { graphicAllowed } from '../../state/rights.ts';
 
 /**
  * Übersicht „Live Grafiken“: alle vier Grafiken nebeneinander mit Vorschau wie in OBS,
@@ -98,7 +99,7 @@ export function GraphicsDashboard() {
         </div>
       </section>
       <div className="dash">
-        {GRAPHIC_PAGES.map((p) => {
+        {GRAPHIC_PAGES.filter((p) => graphicAllowed(p.id)).map((p) => {
           const onAir = state.program.graphic === p.id;
           const i = info[p.id];
           const options: OutputOptions = {

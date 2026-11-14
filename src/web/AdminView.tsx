@@ -3,9 +3,11 @@ import { Ban, Check, CircleAlert, RefreshCw, RotateCcw, ShieldCheck, Trash2 } fr
 import { Badge, Button, Empty, Panel, Segmented } from '../components/ui.tsx';
 import { useStore } from '../state/store.tsx';
 import { api, currentUser, type WebUser } from './mode.ts';
+import { RolesPanel, type RollenState } from './RolesPanel.tsx';
 
 interface Account extends WebUser {
   online: { steuerungen: number; ausgaben: number } | null;
+  festAdmin?: boolean;
 }
 type Filter = 'alle' | 'wartet' | 'aktiv' | 'gesperrt';
 
@@ -21,14 +23,16 @@ export function AdminView() {
   const { notify } = useStore();
   const me = currentUser();
   const [list, setList] = useState<Account[] | null>(null);
+  const [rollen, setRollen] = useState<RollenState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('alle');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const r = await api<{ konten: Account[] }>('/api/verwaltung/konten', {});
+      const r = await api<{ konten: Account[]; rollen: RollenState }>('/api/verwaltung/konten', {});
       setList(r.konten);
+      setRollen((cur) => cur ?? r.rollen);
       setError(null);
     } catch (e) {
       setError((e as Error).message);
@@ -39,6 +43,17 @@ export function AdminView() {
     const t = window.setInterval(load, 15_000);
     return () => window.clearInterval(t);
   }, [load]);
+
+  const setRole = async (a: Account, rolle: string) => {
+    try {
+      await api('/api/verwaltung/konto', { id: a.id, aktion: 'rolle', rolle });
+      const name = rolle === 'admin' ? 'Admin' : (rollen?.rollen.find((r) => r.id === rolle)?.name ?? rolle);
+      notify(`${a.email} hat jetzt die Rolle „${name}“. Offene Fenster passen sich sofort an.`, 'erfolg');
+      load();
+    } catch (e) {
+      notify((e as Error).message, 'fehler');
+    }
+  };
 
   const act = async (a: Account, aktion: 'freischalten' | 'sperren' | 'entsperren' | 'loeschen') => {
     try {
@@ -131,6 +146,7 @@ export function AdminView() {
                 <tr>
                   <th scope="col">Konto</th>
                   <th scope="col">Status</th>
+                  <th scope="col">Rolle</th>
                   <th scope="col">Registriert</th>
                   <th scope="col">Zuletzt angemeldet</th>
                   <th scope="col">Gerade offen</th>
@@ -149,12 +165,33 @@ export function AdminView() {
                         <div className="admin__who">
                           <span className="admin__email">{a.email}</span>
                           {a.name && <span className="obs-table__desc">{a.name}</span>}
-                          {a.admin && <Badge tone="neutral">Verwaltung</Badge>}
+
                         </div>
                       </th>
                       <td>
                         <Badge tone={s.tone}>{s.label}</Badge>
                         {!a.verified && <span className="obs-table__desc">E-Mail noch nicht bestätigt</span>}
+                      </td>
+                      <td>
+                        {self || a.festAdmin ? (
+                          <span className="admin__role-fixed" title={a.festAdmin ? 'Fest eingerichtet (MB_ADMIN_EMAILS)' : 'Dein eigenes Konto'}>
+                            <Badge tone="accent">{a.admin ? 'Admin' : (rollen?.rollen.find((r) => r.id === a.rolle)?.name ?? 'Nutzer')}</Badge>
+                          </span>
+                        ) : (
+                          <select
+                            className="select admin__role"
+                            aria-label={`Rolle von ${a.email}`}
+                            value={a.admin ? 'admin' : (a.rolle && rollen?.rollen.some((r) => r.id === a.rolle) ? a.rolle : (rollen?.standard ?? ''))}
+                            onChange={(e) => setRole(a, e.target.value)}
+                          >
+                            <option value="admin">Admin</option>
+                            {rollen?.rollen.map((r) => (
+                              <option key={r.id} value={r.id}>
+                                {r.name}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </td>
                       <td className="tabular">{date(a.createdAt)}</td>
                       <td className="tabular">{date(a.lastLoginAt)}</td>
@@ -214,6 +251,16 @@ export function AdminView() {
           </div>
         )}
       </Panel>
+
+      {rollen && (
+        <RolesPanel
+          state={rollen}
+          onSaved={(r) => {
+            setRollen(r);
+            load();
+          }}
+        />
+      )}
     </div>
   );
 }

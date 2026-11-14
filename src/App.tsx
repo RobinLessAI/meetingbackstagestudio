@@ -15,6 +15,8 @@ import { RosterView } from './views/RosterView.tsx';
 import { AdminView } from './web/AdminView.tsx';
 import { WebsiteView } from './web/website/WebsiteView.tsx';
 import { ProductsView } from './views/ProductsView.tsx';
+import { LockedView } from './views/LockedView.tsx';
+import { actionAllowed } from './state/rights.ts';
 import { RosterPopupWindow, useRosterSync } from './components/RosterList.tsx';
 import { MeetingView } from './views/MeetingView.tsx';
 import { AudioView } from './views/AudioView.tsx';
@@ -75,6 +77,7 @@ function useShortcuts() {
       const id = SHORTCUTS[e.key.toLowerCase()];
       if (id) {
         e.preventDefault();
+        if (!actionAllowed(id)) return; // gehört zu einem gesperrten Bereich
         a[id].run();
       }
     };
@@ -95,6 +98,10 @@ function useRemoteActions() {
       const action = latest.current[id as DeckActionId];
       if (!action) {
         notify(`Stream Deck: unbekannte Aktion „${id}“`, 'fehler');
+        return;
+      }
+      if (!actionAllowed(id)) {
+        notify('Stream Deck: Diese Funktion ist in deinem Paket nicht enthalten.', 'fehler');
         return;
       }
       action.run();
@@ -139,8 +146,9 @@ function Shell() {
 
   // Ausgeblendete Bereiche nicht offen lassen.
   useEffect(() => {
-    if (!views.some((v) => v.id === view)) go(DEFAULT_VIEW);
+    if (!views.some((v) => v.id === view)) go(views.find((v) => !v.locked)?.id ?? DEFAULT_VIEW);
   }, [view, views, go]);
+  const lockedView = views.find((v) => v.id === view && v.locked);
 
   useEffect(() => {
     const label = VIEWS.find((v) => v.id === view)?.label;
@@ -161,20 +169,21 @@ function Shell() {
             {view !== 'veranstaltung' && view !== 'integrationen' && view !== 'ausgabe' && <LockedBanner />}
           </div>
         )}
-        {view === 'veranstaltung' && <EventView />}
-        {view === 'teilnehmende' && <ParticipantsView />}
-        {view === 'galerie' && <GalleryView />}
-        {view === 'grafiken' && <GraphicsView />}
-        {view === 'steuerpult' && <ControlView />}
-        {view === 'audio' && <AudioView />}
-        {view === 'ausgabe' && <ObsView />}
-        {view === 'integrationen' && <IntegrationsView />}
-        {view === 'meeting' && <MeetingView />}
-        {view === 'spotlight' && <SpotlightView />}
-        {view === 'dran' && <RosterView />}
-        {view === 'verwaltung' && <AdminView />}
-        {view === 'website' && <WebsiteView />}
-        {view === 'produkte' && <ProductsView />}
+        {lockedView && <LockedView title={lockedView.label} />}
+        {!lockedView && view === 'veranstaltung' && <EventView />}
+        {!lockedView && view === 'teilnehmende' && <ParticipantsView />}
+        {!lockedView && view === 'galerie' && <GalleryView />}
+        {!lockedView && view === 'grafiken' && <GraphicsView />}
+        {!lockedView && view === 'steuerpult' && <ControlView />}
+        {!lockedView && view === 'audio' && <AudioView />}
+        {!lockedView && view === 'ausgabe' && <ObsView />}
+        {!lockedView && view === 'integrationen' && <IntegrationsView />}
+        {!lockedView && view === 'meeting' && <MeetingView />}
+        {!lockedView && view === 'spotlight' && <SpotlightView />}
+        {!lockedView && view === 'dran' && <RosterView />}
+        {!lockedView && view === 'verwaltung' && <AdminView />}
+        {!lockedView && view === 'website' && <WebsiteView />}
+        {!lockedView && view === 'produkte' && <ProductsView />}
       </main>
       <MuteAllDialog />
       <Presentation />
