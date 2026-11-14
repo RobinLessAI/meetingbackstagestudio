@@ -1162,16 +1162,27 @@ a.icon-btn { text-decoration: none; }
 
 /* ------------------------------------------------ Startseite Meeting */
 .meet { align-items: center; }
-.meet-card { width: min(880px, 100%); margin: 24px auto 0; display: flex; flex-direction: column; gap: 18px; padding: 32px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
-.meet-card__icon { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 12px; background: var(--accent-soft); color: var(--accent); }
-.meet-card__title { margin: 0; font-size: var(--fs-2xl); font-weight: 600; text-wrap: balance; }
-.meet-card__lead { margin: -6px 0 0; color: var(--text-2); max-width: 60ch; }
+.meet-card { width: min(880px, 100%); margin: 8px auto 0; display: flex; flex-direction: column; gap: 16px; padding: 24px 28px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.meet-card__head { display: flex; align-items: center; gap: 12px; }
+.meet-card__icon { flex: none; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; background: var(--accent-soft); color: var(--accent); }
+.meet-card__title { margin: 0; font-size: var(--fs-xl); font-weight: 600; text-wrap: balance; }
+.meet-card__lead { margin: -4px 0 0; color: var(--text-2); max-width: 60ch; }
 .meet-card__note { margin: 0; }
-.meet-form { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
-.meet-form__label { font-weight: 600; }
-.meet-form__row { display: flex; gap: 8px; }
-.meet-form__input { flex: 1; min-width: 0; height: 48px; font-size: var(--fs-lg); }
-.meet-form .btn--lg { align-self: flex-start; }
+.meet-form { display: grid; grid-template-columns: minmax(0, 1fr) 200px auto; gap: 12px; align-items: end; }
+.meet-form--teams { grid-template-columns: minmax(0, 1fr) auto; }
+.meet-form__field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.meet-form__label { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: var(--fs-sm); }
+.meet-form__optional { padding: 1px 7px; border-radius: 999px; background: var(--raised); color: var(--text-3); font-weight: 500; font-size: var(--fs-xs); }
+.meet-form__row { display: flex; gap: 6px; }
+.meet-form__input { flex: 1; min-width: 0; height: 44px; font-size: var(--fs-md); }
+.meet-form__submit { height: 44px; }
+.meet-form__field > .meet-form__input { flex: none; }
+@media (max-width: 820px) {
+  .meet-form, .meet-form--teams { grid-template-columns: 1fr; }
+  .meet-form__submit { justify-self: start; }
+}
+@media (max-width: 480px) { .meet-form__paste { display: none; } }
+.meet-progress { margin: 0; display: flex; align-items: center; gap: 8px; color: var(--accent); font-size: var(--fs-sm); font-weight: 600; }
 .meet-form__more { align-self: flex-start; border: 0; background: none; padding: 0; color: var(--text-3); font: inherit; font-size: var(--fs-sm); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .meet-form__more:hover { color: var(--text); }
 .meet-connected { display: flex; flex-direction: column; gap: 14px; }
@@ -1187,10 +1198,10 @@ a.icon-btn { text-decoration: none; }
 .meet-step.is-done { color: var(--text-2); }
 .meet-step.is-done .meet-step__dot { border-color: var(--ok); background: var(--ok); color: var(--bg); }
 .meet-foot { text-align: center; }
-@media (max-width: 600px) { .meet-card { padding: 20px; } .meet-form__row { flex-wrap: wrap; } }
+@media (max-width: 600px) { .meet-card { padding: 18px; } }
 
 /* Meine Meetings */
-.meet-lists { width: min(880px, 100%); margin: 24px auto 0; display: flex; flex-direction: column; gap: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.meet-lists { width: min(880px, 100%); margin: 20px auto 0; display: flex; flex-direction: column; gap: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
 .meet-lists__tabs { padding: 0 16px; border-radius: 12px 12px 0 0; }
 .meet-list { display: flex; flex-direction: column; gap: 12px; padding: 16px; align-items: flex-start; }
 .meet-list > * { max-width: 100%; }
@@ -1532,3 +1543,19 @@ a.btn { text-decoration: none; }
 .mt-chip:hover { border-color: var(--accent); }
 .mt-preview { width: 100%; height: 640px; border: 1px solid var(--line); border-radius: var(--r-md); background: #f2f2f2; }
 .mt-text { margin: 0; padding: 16px; max-height: 640px; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg); color: var(--text); font: var(--fs-sm)/1.55 var(--font-mono); white-space: pre-wrap; }
+
+/* Kreis mit Fragezeichen und Info-Fenster */
+.info-tip { position: relative; display: inline-flex; }
+.info-tip__btn { display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--text-3); cursor: pointer; }
+.info-tip__btn:hover, .info-tip__btn.is-open { color: var(--accent); background: var(--accent-soft); }
+.info-tip__pop {
+  position: absolute; top: calc(100% + 6px); z-index: 40; width: min(300px, 80vw);
+  display: flex; flex-direction: column; gap: 6px; padding: 12px 14px;
+  border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--raised); box-shadow: 0 12px 32px rgb(0 0 0 / 0.35);
+  color: var(--text-2); font-size: var(--fs-sm); font-weight: 400; line-height: 1.5; text-align: left;
+}
+.info-tip__pop--start { left: -6px; }
+.info-tip__pop--end { right: -6px; }
+.info-tip__pop--wide { width: min(440px, 86vw); }
+.info-tip__title { color: var(--text); font-size: var(--fs-md); }
+.info-tip__pop .meet-steps { margin: 6px 0 0; padding-top: 12px; }

@@ -2,10 +2,11 @@ import {
   useEffect,
   useId,
   useRef,
+  useState,
   type ButtonHTMLAttributes,
   type ReactNode,
 } from 'react';
-import { CircleDashed, FlaskConical, LoaderCircle, X, type LucideIcon } from 'lucide-react';
+import { CircleDashed, CircleHelp, FlaskConical, LoaderCircle, X, type LucideIcon } from 'lucide-react';
 
 type Tone = 'neutral' | 'accent' | 'ok' | 'danger' | 'warn' | 'info';
 
@@ -342,4 +343,38 @@ export function Field({
 
 export function Kbd({ children }: { children: ReactNode }) {
   return <kbd className="kbd">{children}</kbd>;
+}
+
+/** Kreis mit Fragezeichen: öffnet weitere Informationen in einem kleinen Fenster (Esc oder Klick daneben schließt). */
+export function InfoTip({ label, children, align = 'start', wide }: { label: string; children: ReactNode; align?: 'start' | 'end'; wide?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+  const id = useId();
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  return (
+    <span className="info-tip" ref={ref}>
+      <button type="button" className={`info-tip__btn${open ? ' is-open' : ''}`} aria-label={label} title={label} aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
+        <CircleHelp size={16} strokeWidth={2.1} aria-hidden />
+      </button>
+      {open && (
+        <span id={id} role="note" className={`info-tip__pop info-tip__pop--${align}${wide ? ' info-tip__pop--wide' : ''}`}>
+          {children}
+        </span>
+      )}
+    </span>
+  );
 }

@@ -1,7 +1,7 @@
 import { useId, useState, type ReactNode } from 'react';
 import { ArrowRight, Check, CircleAlert, Clipboard, LoaderCircle, LogOut, MonitorPlay, MonitorUp, Settings, Video } from 'lucide-react';
 import { openPresentationWindow } from '../lib/presentation.ts';
-import { Button } from '../components/ui.tsx';
+import { Button, InfoTip } from '../components/ui.tsx';
 import { clock } from '../lib/time.ts';
 import { useStore } from '../state/store.tsx';
 import { useUi } from '../state/ui.tsx';
@@ -61,7 +61,6 @@ export function MeetingView() {
   const { go } = useUi();
   const [meeting, setMeeting] = useState(() => readStored('mb-letztes-meeting'));
   const [passcode, setPasscode] = useState('');
-  const [showPasscode, setShowPasscode] = useState(false);
   const ids = { meeting: useId(), passcode: useId() };
   const tl = teams?.live;
   const teamsActive = !!tl && tl.state !== 'bereit' && tl.state !== 'fehler';
@@ -121,38 +120,69 @@ export function MeetingView() {
   }
   const blocker = blockerFor(meeting);
 
+  const isTeams = isTeamsLink(meeting);
+  const steps =
+    platform === 'teams' ? (
+      <ol className="meet-steps" aria-label="Ablauf">
+        <Step n={0} current={step} title="Teams-Link einfügen oder Meeting unten wählen, dann „Chat mitlesen“" />
+        <Step n={1} current={step} title="Live-Verbindung wird eingerichtet">
+          Tunnel und Benachrichtigung bei Microsoft, dauert bis zu einer halben Minute.
+        </Step>
+        <Step n={2} current={step} title="Verbunden">
+          Neue Nachrichten im Meeting-Chat kommen live an. Du selbst musst im Meeting sein, MeetingBackstage erscheint nicht als Teilnehmer.
+        </Step>
+      </ol>
+    ) : (
+      <ol className="meet-steps" aria-label="Ablauf">
+        <Step n={0} current={step} title="Link oder Meeting-ID einfügen, dann „Meeting beitreten“" />
+        <Step n={1} current={step} title="Regie-Fenster öffnet sich">
+          Lass es offen, solange der Workshop läuft. Kamera und Mikrofon nicht erlauben.
+        </Step>
+        <Step n={2} current={step} title="In Zoom zulassen">
+          „{regie?.name ?? 'MeetingBackstage (Regie)'}“ wartet ggf. im Warteraum.
+        </Step>
+        <Step n={3} current={step} title="Verbunden">
+          Chat-Nachrichten an alle kommen live an.
+        </Step>
+      </ol>
+    );
+  // Kurzer Stand während des Beitretens (die ausführlichen Schritte stehen hinter dem Fragezeichen)
+  const progress =
+    platform === 'teams'
+      ? tl?.state === 'verbindet'
+        ? 'Live-Verbindung zu Teams wird eingerichtet … (bis zu einer halben Minute)'
+        : null
+      : regie?.state === 'verbindet'
+        ? 'Das Regie-Fenster ist offen und tritt dem Meeting bei … Bitte offen lassen.'
+        : regie?.state === 'wartet'
+          ? `„${regie?.name ?? 'MeetingBackstage (Regie)'}“ wartet im Warteraum – bitte in Zoom zulassen.`
+          : null;
+
   return (
     <div className="view meet">
-      {!connected && (
-        <MeetingLists
-          currentLink={meeting}
-          disabled={!available || busy}
-          onJoin={(link, code, topic) => join(link, code, topic)}
-          onUse={(link, code) => {
-            setMeeting(link);
-            if (code) {
-              setPasscode(code);
-              setShowPasscode(true);
-            }
-            document.getElementById(ids.meeting)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }}
-        />
-      )}
-
-      <section className="meet-card" aria-labelledby="meet-title">
-        <div className="meet-card__icon" aria-hidden>
-          <Video size={26} />
+      <section className={`meet-card${connected ? '' : ' meet-card--slim'}`} aria-labelledby="meet-title">
+        <div className="meet-card__head">
+          <span className="meet-card__icon" aria-hidden>
+            <Video size={20} />
+          </span>
+          <h1 id="meet-title" className="meet-card__title">
+            {connected ? 'Mit dem Meeting verbunden' : 'Per Link verbinden'}
+          </h1>
+          <InfoTip label="So funktioniert’s" wide>
+            <strong className="info-tip__title">So funktioniert’s</strong>
+            {platform === 'teams'
+              ? 'Bei Microsoft Teams liest MeetingBackstage den Meeting-Chat über dein Konto mit.'
+              : `„${regie?.name ?? 'MeetingBackstage (Regie)'}“ tritt deinem Zoom-Meeting als Teilnehmer ohne Kamera und Mikrofon bei und liest den Chat mit.`}
+            {steps}
+          </InfoTip>
         </div>
-        <h1 id="meet-title" className="meet-card__title">
-          {connected ? 'Mit dem Meeting verbunden' : 'Per Link verbinden'}
-        </h1>
-        <p className="meet-card__lead">
-          {teamsConnected
-            ? `Der Chat von „${tl?.meeting ?? 'Teams-Meeting'}“ wird live mitgelesen. Die Nachrichten kommen jetzt in MeetingBackstage an.`
-            : zoomConnected
-              ? `„${regie?.name}“ ist im Meeting ${regie?.meeting ?? ''}. Der Chat kommt jetzt live in MeetingBackstage an.`
-              : 'Füge den Einladungslink deines Meetings ein. Bei Zoom tritt „MeetingBackstage (Regie)“ bei, bei Microsoft Teams liest MeetingBackstage den Meeting-Chat über dein Konto mit.'}
-        </p>
+        {connected && (
+          <p className="meet-card__lead">
+            {teamsConnected
+              ? `Der Chat von „${tl?.meeting ?? 'Teams-Meeting'}“ wird live mitgelesen. Die Nachrichten kommen jetzt in MeetingBackstage an.`
+              : `„${regie?.name}“ ist im Meeting ${regie?.meeting ?? ''}. Der Chat kommt jetzt live in MeetingBackstage an.`}
+          </p>
+        )}
 
         {blocker && (
           <p className="callout callout--warn meet-card__note" role="status">
@@ -194,67 +224,70 @@ export function MeetingView() {
           </div>
         ) : (
           <form
-            className="meet-form"
+            className={`meet-form${isTeams ? ' meet-form--teams' : ''}`}
             onSubmit={(e) => {
               e.preventDefault();
-              join(meeting, passcode);
+              join(meeting, isTeams ? '' : passcode);
             }}
           >
-            <label htmlFor={ids.meeting} className="meet-form__label">
-              Zoom- oder Teams-Link
-            </label>
-            <div className="meet-form__row">
-              <input
-                id={ids.meeting}
-                className="input meet-form__input"
-                value={meeting}
-                onChange={(e) => setMeeting(e.target.value)}
-                placeholder="https://zoom.us/j/… oder https://teams.microsoft.com/l/meetup-join/…"
-                autoComplete="off"
-                disabled={!!blocker || busy}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                icon={Clipboard}
-                onClick={paste}
-                disabled={!!blocker || busy}
-                title="Aus der Zwischenablage einfügen"
-              >
-                Einfügen
-              </Button>
-            </div>
-            {showPasscode ? (
+            <div className="meet-form__field meet-form__field--link">
+              <label htmlFor={ids.meeting} className="meet-form__label">
+                {isWeb() ? 'Zoom-Link oder Meeting-ID' : 'Link oder Meeting-ID'}
+              </label>
               <div className="meet-form__row">
-                <label htmlFor={ids.passcode} className="sr-only">
-                  Kenncode
-                </label>
+                <input
+                  id={ids.meeting}
+                  className="input meet-form__input"
+                  value={meeting}
+                  onChange={(e) => setMeeting(e.target.value)}
+                  placeholder={isWeb() ? 'https://zoom.us/j/… oder 812 3456 7890' : 'https://zoom.us/j/…, 812 3456 7890 oder Teams-Link'}
+                  autoComplete="off"
+                  disabled={!!blocker || busy}
+                />
+                <Button type="button" variant="ghost" icon={Clipboard} onClick={paste} disabled={!!blocker || busy} title="Aus der Zwischenablage einfügen">
+                  <span className="meet-form__paste">Einfügen</span>
+                </Button>
+              </div>
+            </div>
+            {!isTeams && (
+              <div className="meet-form__field meet-form__field--code">
+                <span className="meet-form__label">
+                  <label htmlFor={ids.passcode}>Kenncode</label> <span className="meet-form__optional">optional</span>
+                  <InfoTip label="Wann brauche ich einen Kenncode?" align="end">
+                    <strong className="info-tip__title">Kenncode (Meeting-Passwort)</strong>
+                    Nur nötig, wenn für das Meeting in Zoom ein Kenncode hinterlegt ist. Steht er schon im Link (… ?pwd=…), musst du hier nichts
+                    eintragen. Du findest ihn in Zoom unter den Meeting-Informationen.
+                  </InfoTip>
+                </span>
                 <input
                   id={ids.passcode}
-                  className="input"
+                  className="input meet-form__input"
                   value={passcode}
                   onChange={(e) => setPasscode(e.target.value)}
-                  placeholder="Kenncode des Meetings"
+                  placeholder="z. B. 4711"
                   autoComplete="off"
+                  disabled={!!blocker || busy}
                 />
               </div>
-            ) : (
-              <button type="button" className="meet-form__more" onClick={() => setShowPasscode(true)}>
-                Zoom verlangt einen Kenncode?
-              </button>
             )}
-            <Button type="submit" variant="primary" size="lg" icon={busy ? LoaderCircle : ArrowRight} disabled={!meeting.trim() || !!blocker || busy}>
-              {busy
-                ? platform === 'teams'
-                  ? 'Wird eingerichtet …'
-                  : 'Regie tritt bei …'
-                : platform === 'teams'
-                  ? 'Chat mitlesen'
-                  : 'Meeting beitreten'}
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              className="meet-form__submit"
+              icon={busy ? LoaderCircle : ArrowRight}
+              disabled={!meeting.trim() || !!blocker || busy}
+            >
+              {busy ? (platform === 'teams' ? 'Wird eingerichtet …' : 'Regie tritt bei …') : platform === 'teams' ? 'Chat mitlesen' : 'Meeting beitreten'}
             </Button>
           </form>
         )}
 
+        {progress && (
+          <p className="meet-progress" role="status">
+            <LoaderCircle size={15} className="spin" aria-hidden /> {progress}
+          </p>
+        )}
         {platform === 'zoom' && regie?.state === 'fehler' && regie.error && (
           <p className="callout callout--danger meet-card__note" role="alert">
             <CircleAlert size={16} aria-hidden /> {regie.error}
@@ -265,32 +298,20 @@ export function MeetingView() {
             <CircleAlert size={16} aria-hidden /> {tl.error}
           </p>
         )}
-
-        {platform === 'teams' ? (
-          <ol className="meet-steps" aria-label="Ablauf">
-            <Step n={0} current={step} title="Teams-Link einfügen oder Meeting oben wählen, dann „Chat mitlesen“" />
-            <Step n={1} current={step} title="Live-Verbindung wird eingerichtet">
-              Tunnel und Benachrichtigung bei Microsoft, dauert bis zu einer halben Minute.
-            </Step>
-            <Step n={2} current={step} title="Verbunden">
-              Neue Nachrichten im Meeting-Chat kommen live an. Du selbst musst im Meeting sein, MeetingBackstage erscheint nicht als Teilnehmer.
-            </Step>
-          </ol>
-        ) : (
-          <ol className="meet-steps" aria-label="Ablauf">
-            <Step n={0} current={step} title="Link einfügen und „Meeting beitreten“" />
-            <Step n={1} current={step} title="Regie-Fenster öffnet sich">
-              Lass es offen, solange der Workshop läuft. Kamera und Mikrofon nicht erlauben.
-            </Step>
-            <Step n={2} current={step} title="In Zoom zulassen">
-              „MeetingBackstage (Regie)“ wartet ggf. im Warteraum.
-            </Step>
-            <Step n={3} current={step} title="Verbunden">
-              Chat-Nachrichten an alle kommen live an.
-            </Step>
-          </ol>
-        )}
       </section>
+
+      {!connected && (
+        <MeetingLists
+          currentLink={meeting}
+          disabled={!available || busy}
+          onJoin={(link, code, topic) => join(link, code, topic)}
+          onUse={(link, code) => {
+            setMeeting(link);
+            if (code) setPasscode(code);
+            document.getElementById(ids.meeting)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }}
+        />
+      )}
 
       <p className="meet-foot subtle">
         Zugangsdaten, Chat-Export als Notlösung und Team-Namen findest du unter{' '}
