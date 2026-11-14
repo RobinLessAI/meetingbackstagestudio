@@ -17,6 +17,17 @@ let mainSite: string | null = null;
 
 export const isWeb = () => web;
 export const currentUser = () => user;
+let slides: string | null = null;
+let studio: string | null = null;
+/** Adresse des Folien-Editors (slide.… oder /folien) und des Studios. */
+export const slidesUrl = () => slides;
+export const studioUrl = () => studio;
+export const setSiteUrls = (s: { slides?: string | null; studio?: string | null }) => {
+  slides = s.slides ?? null;
+  studio = s.studio ?? null;
+};
+/** Läuft gerade der Folien-Editor (slide.… oder /folien) statt des Studios? */
+export const isSlidesApp = () => window.location.hostname.startsWith('slide.') || window.location.pathname === '/folien';
 /** Adresse der Hauptseite (z. B. https://meetingbackstage.de) oder null. */
 export const mainSiteUrl = () => mainSite;
 export const setMainSite = (url: string | null) => {

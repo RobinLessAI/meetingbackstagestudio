@@ -18,6 +18,7 @@ export const BEREICHE = [
   { id: 'spotlight', label: 'Spotlight (Personen in Zoom hervorheben)', gruppe: 'Regie' },
   { id: 'dran', label: 'Wer war dran', gruppe: 'Regie' },
   { id: 'ausgabe', label: 'OBS-Ausgabe', gruppe: 'Ausgabe' },
+  { id: 'slides', label: 'Slides (Folien für OBS)', gruppe: 'Ausgabe' },
   { id: 'integrationen', label: 'Zoom & Einstellungen', gruppe: 'Grundlagen' },
   { id: 'produkte', label: 'Weitere Produkte', gruppe: 'Grundlagen' },
 ];
@@ -48,7 +49,8 @@ export function createRoles({ file, log = () => {} }) {
     data = structuredClone(DEFAULT);
   }
 
-  function normalize(raw) {
+  /** authoritative = aus der Verwaltung gespeichert: Haken gelten genau so (keine automatische Freischaltung). */
+  function normalize(raw, authoritative = false) {
     const seen = new Set();
     const rollen = (Array.isArray(raw?.rollen) ? raw.rollen : []).slice(0, 20).map((r) => {
       let id = String(r?.id ?? '').trim();
@@ -67,14 +69,17 @@ export function createRoles({ file, log = () => {} }) {
     });
     if (!rollen.length) throw new RoleError('Mindestens eine Rolle wird gebraucht.');
     const standard = rollen.some((r) => r.id === raw?.standard) ? raw.standard : rollen[0].id;
-    return { rollen, standard };
+    // Neue Bereiche (seit der Datei gespeichert wurde) sind für alle Rollen erst einmal freigeschaltet.
+    const bekannt = authoritative ? ALLE : Array.isArray(raw?.bekannt) ? raw.bekannt : ALLE.filter((b) => b !== 'slides');
+    for (const neu of ALLE.filter((b) => !bekannt.includes(b))) for (const r of rollen) if (!r.bereiche.includes(neu)) r.bereiche.push(neu);
+    return { rollen, standard, bekannt: ALLE };
   }
 
   return {
     state: () => ({ ...structuredClone(data), bereiche: BEREICHE, standardHinweis: STANDARD_HINWEIS }),
 
     async save(raw) {
-      const next = normalize(raw);
+      const next = normalize(raw, true);
       const tmp = `${file}.tmp`;
       await fsp.writeFile(tmp, JSON.stringify(next, null, 1), { mode: 0o600 });
       await fsp.rename(tmp, file);

@@ -19,7 +19,7 @@ export default defineConfig({
     // Die lokal eingebundene Weltkarte macht das Bundle bewusst etwas größer.
     chunkSizeWarningLimit: 900,
     rollupOptions: {
-      input: { main: 'index.html', ausgabe: 'ausgabe.html' },
+      input: { main: 'index.html', ausgabe: 'ausgabe.html', folie: 'folie.html' },
     },
   },
 });

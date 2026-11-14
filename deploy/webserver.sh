@@ -6,6 +6,7 @@
 #   MB_PUBLIC_URL    Adresse des Studios, z. B. https://studio.meetingbackstage.de
 #   MB_ADMIN_EMAILS  erste Adresse = Kontakt für die https-Zertifikate
 #   MB_MAIN_DOMAIN   (optional) Hauptdomain; sonst die Studio-Adresse ohne „studio.“
+# Eingerichtet werden: Studio, Hauptdomain (+ www), slide.<Hauptdomain> (Folien für OBS).
 set -euo pipefail
 ENV_FILE="/etc/meetingbackstage/studio.env"
 CADDYFILE="/etc/caddy/Caddyfile"
@@ -47,6 +48,16 @@ CADDY
 
 www.$MAIN_DOMAIN {
 	redir https://$MAIN_DOMAIN{uri} permanent
+}
+
+slide.$MAIN_DOMAIN {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:4300
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
 }
 
 $MAIN_DOMAIN {

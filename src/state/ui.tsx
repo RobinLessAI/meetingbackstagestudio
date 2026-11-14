@@ -19,6 +19,7 @@ export const VIEWS: ViewDef[] = [
   { id: 'spotlight', label: 'Spotlight', short: 'Spotlight' },
   { id: 'dran', label: 'Wer war dran', short: 'Dran' },
   { id: 'ausgabe', label: 'OBS-Ausgabe', short: 'OBS' },
+  { id: 'slides', label: 'Slides', short: 'Slides' },
   { id: 'integrationen', label: 'Zoom & Einstellungen', short: 'Zoom' },
   { id: 'produkte', label: 'Weitere Produkte', short: 'Produkte' },
   { id: 'verwaltung', label: 'Verwaltung', short: 'Verwaltung', admin: true },

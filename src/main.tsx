@@ -19,6 +19,8 @@ import './styles/components.css';
 import './styles/layout.css';
 import './styles/views.css';
 import './styles/ausgabe.css';
+import './styles/slides.css';
+import './styles/slides-editor.css';
 
 import { Root } from './web/Root.tsx';
 import { applyTheme, readTheme } from './state/theme.ts';

@@ -22,6 +22,7 @@ import { AccountError, createAccounts, createLimiter, MIN_PASSWORD, normalizeEma
 import { brevoTransport, createMailer, smtpTransport } from './mailer.mjs';
 import { createMailTemplates } from './mailTemplates.mjs';
 import { createRoles, RoleError } from './roles.mjs';
+import { createSlides, MEDIA_MIME, SlideError } from './slides.mjs';
 import { createRoom } from './room.mjs';
 import { zoomSignatureOk } from './zoomAccount.mjs';
 import { ICONS, BLOCK_TYPES } from './website/render.mjs';
@@ -110,6 +111,11 @@ const PUBLIC = new URL(PUBLIC_URL);
 const MAIN_HOST = (process.env.MB_MAIN_DOMAIN || (PUBLIC.hostname.startsWith('studio.') ? PUBLIC.hostname.slice('studio.'.length) : '')).toLowerCase();
 const MAIN_URL = MAIN_HOST ? `https://${MAIN_HOST}` : PUBLIC_URL;
 const WEBSITE_ASSETS = path.join(ROOT, 'website', 'assets');
+// MeetingBackstage Slides: Editor und OBS-Adressen auf slide.<Hauptdomain> (lokal unter /folien auf derselben Adresse)
+const SLIDE_URL = (process.env.MB_SLIDE_URL || (WEB && MAIN_HOST ? `https://slide.${MAIN_HOST}` : PUBLIC_URL)).replace(/\/+$/, '');
+const SLIDE = new URL(SLIDE_URL);
+// Anmeldung gilt für Studio und Slides gemeinsam (Cookie für die Hauptdomain), wenn beide darunter liegen.
+const COOKIE_DOMAIN = WEB && MAIN_HOST && PUBLIC.hostname.endsWith(`.${MAIN_HOST}`) && SLIDE.hostname.endsWith(`.${MAIN_HOST}`) ? MAIN_HOST : '';
 const SECURE_COOKIE = PUBLIC.protocol === 'https:';
 const TRUST_PROXY = process.env.MB_TRUST_PROXY === '1';
 const ADMIN_EMAILS = (process.env.MB_ADMIN_EMAILS ?? '').split(',').map((e) => e.trim()).filter(Boolean);
@@ -218,6 +224,14 @@ const sendMail = (id, to, vars) => mailer.send({ to, ...mailTemplates.render(id,
 
 const accountDir = (id) => path.join(DATA_DIR, 'konten', id.replace(/[^a-f0-9-]/gi, ''));
 
+// Folien (MeetingBackstage Slides): je Konto, lokal ein gemeinsamer Bestand
+const slides = createSlides({
+  dataDir: DATA_DIR,
+  ownerDir: (owner) => (WEB ? accountDir(owner) : DATA_DIR),
+  owners: () => (WEB ? accounts.list().map((u) => u.id) : ['lokal']),
+  log,
+});
+
 function roomFor(user) {
   let room = rooms.get(user.id);
   if (!room) {
@@ -254,7 +268,7 @@ function isLocalHost(hostHeader) {
 function hostAllowed(hostHeader) {
   if (isLocalHost(hostHeader)) return true;
   const host = String(hostHeader ?? '').toLowerCase();
-  return WEB && (host === PUBLIC.host.toLowerCase() || isMainHost(host));
+  return WEB && (host === PUBLIC.host.toLowerCase() || host === SLIDE.host.toLowerCase() || isMainHost(host));
 }
 /** Anfrage an die Hauptseite (meetingbackstage.de, www.meetingbackstage.de)? */
 function isMainHost(hostHeader) {
@@ -266,7 +280,7 @@ function originAllowed(origin) {
   if (!origin || origin === 'null') return true;
   try {
     const o = new URL(origin);
-    if (WEB && o.origin === PUBLIC.origin) return true;
+    if (WEB && (o.origin === PUBLIC.origin || o.origin === SLIDE.origin)) return true;
     return ['localhost', '127.0.0.1', '[::1]'].includes(o.hostname) && (!WEB || isLocalHost(PUBLIC.host));
   } catch {
     return false;
@@ -281,11 +295,26 @@ function cookies(req) {
   }
   return out;
 }
-const sessionCookie = (value, maxAge) =>
-  `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${SECURE_COOKIE ? '; Secure' : ''}`;
+const sessionCookie = (value, maxAge, domain = COOKIE_DOMAIN) =>
+  `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${domain ? `; Domain=${domain}` : ''}${SECURE_COOKIE ? '; Secure' : ''}`;
+/** Abmelden: Cookie für die Hauptdomain und ein älteres nur für diese Adresse löschen. */
+const clearSessionCookies = () => (COOKIE_DOMAIN ? [sessionCookie('', 0), sessionCookie('', 0, '')] : sessionCookie('', 0));
 const clientIp = (req) =>
   (TRUST_PROXY ? String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() : '') || req.socket.remoteAddress || '?';
-const sessionUser = (req) => (WEB ? accounts.session(cookies(req)[COOKIE]) : null);
+/** Angemeldetes Konto; bei mehreren Anmelde-Cookies (alt: nur Studio, neu: alle Subdomains) zählt das gültige. */
+const sessionUser = (req) => {
+  if (!WEB) return null;
+  const values = String(req.headers.cookie ?? '')
+    .split(';')
+    .map((p) => p.trim())
+    .filter((p) => p.startsWith(`${COOKIE}=`))
+    .map((p) => decodeURIComponent(p.slice(COOKIE.length + 1)));
+  for (const v of values) {
+    const u = accounts.session(v);
+    if (u) return u;
+  }
+  return null;
+};
 
 function json(res, status, body, headers = {}) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers });
@@ -341,7 +370,7 @@ async function notifyAdmins(id, vars) {
 async function handleAccountApi(req, res, url) {
   const route = url.pathname;
   try {
-    if (route === '/api/modus') return json(res, 200, { web: WEB, minPasswort: MIN_PASSWORD, hauptseite: MAIN_HOST ? MAIN_URL : null });
+    if (route === '/api/modus') return json(res, 200, { web: WEB, minPasswort: MIN_PASSWORD, hauptseite: MAIN_HOST ? MAIN_URL : null, slides: SLIDE.host !== PUBLIC.host ? SLIDE_URL : `${PUBLIC_URL}/folien`, studio: PUBLIC_URL });
     if (route === '/api/konto/bestaetigen' && req.method === 'GET') {
       try {
         const user = await accounts.verifyEmail(url.searchParams.get('token') ?? '');
@@ -387,7 +416,7 @@ async function handleAccountApi(req, res, url) {
       }
       case '/api/konto/abmelden':
         await accounts.logout(cookies(req)[COOKIE]);
-        return json(res, 200, { ok: true }, { 'Set-Cookie': sessionCookie('', 0) });
+        return json(res, 200, { ok: true }, { 'Set-Cookie': clearSessionCookies() });
       case '/api/konto/passwort-vergessen': {
         if (!ipLimiter.take(`reset:${ip}`)) return json(res, 429, { fehler: 'Zu viele Versuche. Bitte später erneut versuchen.' });
         const r = await accounts.requestReset(body.email);
@@ -447,6 +476,7 @@ async function handleAccountApi(req, res, url) {
           // Verbindung zu Zoom zurückziehen, bevor die Daten verschwinden
           await roomFor(target).zoomDisconnect().catch(() => {});
           await closeRoom(target.id, 'Konto gelöscht');
+          await slides.removeOwner(target.id).catch(() => {});
           await accounts.remove(target.id);
           await fsp.rm(accountDir(target.id), { recursive: true, force: true });
         } else return json(res, 400, { fehler: 'Unbekannte Aktion.' });
@@ -610,6 +640,128 @@ async function handleZoomApi(req, res, url) {
   }
 }
 
+// ------------------------------------------------------------- Slides
+/** Medien der Folien (/m/<name>): öffentlich für OBS, mit Bereichsanfragen, damit Videos springen und schleifen können. */
+function serveSlideMedia(req, res, name) {
+  const file = slides.mediaFile(name);
+  if (!file) return res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Nicht gefunden');
+  const size = fs.statSync(file).size;
+  const headers = {
+    'Content-Type': MEDIA_MIME[path.extname(file)] ?? 'application/octet-stream',
+    'Accept-Ranges': 'bytes',
+    'Cache-Control': 'public, max-age=604800, immutable',
+    'X-Content-Type-Options': 'nosniff',
+    'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+  };
+  const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range ?? ''));
+  if (range && (range[1] || range[2])) {
+    let start = range[1] ? Number(range[1]) : size - Number(range[2]);
+    let end = range[1] && range[2] ? Number(range[2]) : size - 1;
+    start = Math.max(0, start);
+    end = Math.min(size - 1, end);
+    if (start > end) return res.writeHead(416, { 'Content-Range': `bytes */${size}` }).end();
+    res.writeHead(206, { ...headers, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': end - start + 1 });
+    if (req.method === 'HEAD') return res.end();
+    return fs.createReadStream(file, { start, end }).pipe(res);
+  }
+  res.writeHead(200, { ...headers, 'Content-Length': size });
+  if (req.method === 'HEAD') return res.end();
+  fs.createReadStream(file).pipe(res);
+}
+
+/** Öffentliche OBS-Adressen: /s/<key> (eine Folie) und /kanal/<key> (Folie auf Sendung); .json = Daten, /live = Aktualisierungen. */
+function serveSlidePublic(req, res, url) {
+  const m = /^\/(s|kanal)\/([a-f0-9]{24})(\.json|\/live)?$/.exec(url.pathname);
+  if (!m) return false;
+  const kind = m[1] === 's' ? 's' : 'k';
+  const key = m[2];
+  const current = () => {
+    if (kind === 's') {
+      const f = slides.bySlideKey(key);
+      return f ? { folie: f } : null;
+    }
+    return slides.byChannelKey(key);
+  };
+  const data = current();
+  if (!data) {
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Diese Folien-Adresse gibt es nicht (mehr).');
+    return true;
+  }
+  if (m[3] === '.json') {
+    json(res, 200, data);
+    return true;
+  }
+  if (m[3] === '/live') {
+    res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
+    res.write(`retry: 3000\ndata: ${JSON.stringify(data)}\n\n`);
+    slides.subscribe(kind, key, res);
+    return true;
+  }
+  const page = path.join(DIST, 'folie.html');
+  if (!fs.existsSync(page)) {
+    res.writeHead(503).end('Nicht gebaut');
+    return true;
+  }
+  // Relative Pfade des Builds (./assets/…) gelten unter /s/<key> nicht: Basis auf / setzen
+  const html = fs.readFileSync(page, 'utf8').replace('<head>', '<head><base href="/">');
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' });
+  res.end(html);
+  return true;
+}
+
+/** Folien bearbeiten (Editor und Studio). Web: angemeldet und Bereich „slides“ freigeschaltet. */
+async function handleSlidesApi(req, res, url) {
+  try {
+    let owner = 'lokal';
+    if (WEB) {
+      const user = sessionUser(req);
+      if (!user || user.status !== 'aktiv') return json(res, 401, { fehler: 'Bitte anmelden.' });
+      if (!rightsOf(user).bereiche.includes('slides')) return json(res, 403, { fehler: 'Slides sind in deinem Paket nicht enthalten.' });
+      owner = user.id;
+    }
+    if (req.method !== 'GET' && !originAllowed(req.headers.origin)) return json(res, 403, { fehler: 'Anfrage abgelehnt.' });
+    const route = url.pathname.slice('/api/slides'.length) || '/';
+    const body = async () => {
+      if (!String(req.headers['content-type'] ?? '').includes('application/json')) throw new SlideError('Anfrage abgelehnt.', 403);
+      return readJson(req, 3 * 1024 * 1024);
+    };
+    if (route === '/' && req.method === 'GET') return json(res, 200, slides.state(owner, SLIDE_URL));
+    if (route === '/' && req.method === 'POST') return json(res, 200, { folie: await slides.create(owner, await body()) });
+    if (route === '/kanal' && req.method === 'POST') return json(res, 200, { kanal: await slides.setLive(owner, (await body()).liveId ?? null) });
+    if (route === '/medien' && req.method === 'POST') {
+      let original = '';
+      try {
+        original = decodeURIComponent(String(req.headers['x-dateiname'] ?? ''));
+      } catch {
+        original = '';
+      }
+      const mime = String(req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase();
+      return json(res, 200, { medium: await slides.addMedia(owner, req, mime, original), ...slides.state(owner, SLIDE_URL) });
+    }
+    const med = /^\/medien\/([a-z0-9.-]+)$/.exec(route);
+    if (med && req.method === 'DELETE') {
+      await slides.removeMedia(owner, med[1]);
+      return json(res, 200, slides.state(owner, SLIDE_URL));
+    }
+    const one = /^\/([a-f0-9]{10})(\/[a-z]+)?$/.exec(route);
+    if (one) {
+      const [, id, action] = one;
+      if (!action && req.method === 'PUT') return json(res, 200, { folie: await slides.update(owner, id, await body()) });
+      if (!action && req.method === 'DELETE') {
+        await slides.remove(owner, id);
+        return json(res, 200, { ok: true });
+      }
+      if (action === '/duplizieren' && req.method === 'POST') return json(res, 200, { folie: await slides.duplicate(owner, id) });
+      if (action === '/schluessel' && req.method === 'POST') return json(res, 200, { folie: await slides.renewKey(owner, id) });
+    }
+    return json(res, 404, { fehler: 'Nicht gefunden.' });
+  } catch (e) {
+    if (e instanceof SlideError || e instanceof AccountError) return json(res, e.status ?? 400, { fehler: e.message });
+    log(`Slides: ${e.message}`);
+    if (!res.headersSent) json(res, 500, { fehler: 'Speichern nicht möglich. Bitte erneut versuchen.' });
+  }
+}
+
 // ------------------------------------------------------------- Hauptseite (Web)
 /** Dateien der Hauptseite: /_web/medien/… (hochgeladen) und /_web/… (Schrift, Logos, Stil aus website/assets). */
 function serveWebFile(req, res, url) {
@@ -762,6 +914,18 @@ const server = http.createServer((req, res) => {
     res.writeHead(404).end();
     return;
   }
+  // Slides: Medien und öffentliche OBS-Adressen (ohne Anmeldung), Bearbeiten über /api/slides
+  if (url.pathname.startsWith('/m/') && (req.method === 'GET' || req.method === 'HEAD') && !isMainHost(req.headers.host)) {
+    serveSlideMedia(req, res, decodeURIComponent(url.pathname.slice(3)));
+    return;
+  }
+  if ((url.pathname.startsWith('/s/') || url.pathname.startsWith('/kanal/')) && req.method === 'GET' && !isMainHost(req.headers.host)) {
+    if (serveSlidePublic(req, res, url)) return;
+  }
+  if (url.pathname === '/api/slides' || url.pathname.startsWith('/api/slides/')) {
+    handleSlidesApi(req, res, url);
+    return;
+  }
   if (url.pathname.startsWith('/_web/') && (req.method === 'GET' || req.method === 'HEAD')) {
     serveWebFile(req, res, url);
     return;
@@ -789,7 +953,7 @@ const server = http.createServer((req, res) => {
     handleZoomApi(req, res, url);
     return;
   }
-  if (!WEB && url.pathname === '/api/modus') return json(res, 200, { web: false });
+  if (!WEB && url.pathname === '/api/modus') return json(res, 200, { web: false, slides: `${PUBLIC_URL}/folien`, studio: '/' });
   if (!WEB && url.pathname === '/teams/anmelden' && req.method === 'GET') {
     const target = localRoom.teamsAccount.authorizeUrl();
     if (!target) return teamsCallbackPage(res, false, 'TEAMS_CLIENT_ID fehlt in .env.local. Danach die App neu starten.');
@@ -839,6 +1003,9 @@ const server = http.createServer((req, res) => {
   if (pathname === '/' || pathname === '') pathname = '/index.html';
   if (pathname === '/ausgabe') pathname = '/ausgabe.html';
   if (pathname === '/regie') pathname = '/regie.html';
+  // Folien-Editor (lokal unter /folien, im Web auf slide.<Hauptdomain>): dieselbe App
+  if (pathname === '/folien/') return res.writeHead(302, { Location: '/folien' }).end();
+  if (pathname === '/folien') pathname = '/index.html';
   const file = path.normalize(path.join(DIST, pathname));
   if (!file.startsWith(DIST + path.sep)) {
     res.writeHead(403).end();

@@ -1585,3 +1585,15 @@ a.btn { text-decoration: none; }
 .locked__text { color: var(--text-2); }
 .locked__text a { color: var(--accent); }
 .locked__actions { margin-top: 6px; flex-wrap: wrap; }
+
+/* ------------------------------------------------------------------ Slides im Studio */
+.slides-url { display: flex; gap: 8px; flex-wrap: wrap; }
+.slides-url .input { flex: 1; min-width: 240px; }
+.slides-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.slides-card { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--panel); }
+.slides-card.is-on-air { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
+.slides-card__thumb { display: block; border-radius: 8px; }
+.slides-card__thumb:hover { outline: 2px solid var(--accent); }
+.slides-card__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.slides-card__head h2 { font-size: var(--fs-lg); font-weight: 600; }
+.slides-card__actions { display: flex; flex-wrap: wrap; gap: 6px; }

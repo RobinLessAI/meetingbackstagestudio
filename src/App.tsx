@@ -15,6 +15,7 @@ import { RosterView } from './views/RosterView.tsx';
 import { AdminView } from './web/AdminView.tsx';
 import { WebsiteView } from './web/website/WebsiteView.tsx';
 import { ProductsView } from './views/ProductsView.tsx';
+import { SlidesView } from './views/SlidesView.tsx';
 import { LockedView } from './views/LockedView.tsx';
 import { actionAllowed } from './state/rights.ts';
 import { RosterPopupWindow, useRosterSync } from './components/RosterList.tsx';
@@ -184,6 +185,7 @@ function Shell() {
         {!lockedView && view === 'verwaltung' && <AdminView />}
         {!lockedView && view === 'website' && <WebsiteView />}
         {!lockedView && view === 'produkte' && <ProductsView />}
+        {!lockedView && view === 'slides' && <SlidesView />}
       </main>
       <MuteAllDialog />
       <Presentation />

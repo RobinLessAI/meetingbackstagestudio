@@ -1,0 +1,19 @@
+[
+  { "name": "Barlow", "art": "Serifenlos", "fett": true },
+  { "name": "Inter", "art": "Serifenlos", "fett": true },
+  { "name": "Urbanist", "art": "Serifenlos", "fett": true },
+  { "name": "Montserrat", "art": "Serifenlos", "fett": true },
+  { "name": "Poppins", "art": "Serifenlos", "fett": true },
+  { "name": "Oswald", "art": "Schmal", "fett": true },
+  { "name": "Bebas Neue", "art": "Schmal, nur Großbuchstaben", "fett": false },
+  { "name": "Playfair Display", "art": "Serif, elegant", "fett": true },
+  { "name": "Lora", "art": "Serif", "fett": true },
+  { "name": "Merriweather", "art": "Serif", "fett": true },
+  { "name": "Roboto Slab", "art": "Serifenbetont", "fett": true },
+  { "name": "Caveat", "art": "Handschrift", "fett": true },
+  { "name": "IBM Plex Mono", "art": "Schreibmaschine", "fett": true },
+  { "name": "Arial", "art": "System", "fett": true },
+  { "name": "Georgia", "art": "System, Serif", "fett": true },
+  { "name": "Verdana", "art": "System", "fett": true },
+  { "name": "Courier New", "art": "System, Schreibmaschine", "fett": true }
+]

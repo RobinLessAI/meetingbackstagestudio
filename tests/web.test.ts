@@ -135,7 +135,7 @@ let anna = '';
 let ben = '';
 
 test('Registrierung, Bestätigung, Freischaltung durch die Verwaltung', async () => {
-  assert.deepEqual(await (await fetch(`${BASE}/api/modus`)).json(), { web: true, minPasswort: 10, hauptseite: 'https://mb.test' });
+  assert.deepEqual(await (await fetch(`${BASE}/api/modus`)).json(), { web: true, minPasswort: 10, hauptseite: 'https://mb.test', slides: 'https://slide.mb.test', studio: `http://localhost:${PORT}` });
   // Zu kurzes Passwort, ungültige Adresse
   assert.equal((await post('/api/konto/registrieren', { email: 'x@example.org', passwort: 'kurz' })).status, 400);
   assert.equal((await post('/api/konto/registrieren', { email: 'keine-adresse', passwort: 'sehr-geheim-123' })).status, 400);
@@ -491,6 +491,99 @@ test('Rollen: Bereiche je Rolle, Zuweisung, gesperrtes Spotlight, feste Admins',
   assert.equal((await post('/api/verwaltung/konto', { id: annaId, aktion: 'rolle', rolle: 'nutzer' }, admin)).status, 200);
   assert.equal((await me(anna)).rolleName, 'Nutzer');
   a.ws.close();
+});
+
+test('Slides: Folien je Konto, feste OBS-Adressen mit Live-Aktualisierung, Kanal, Medien', async () => {
+  const call = (path: string, method: string, cookie: string, body?: unknown, headers: Record<string, string> = {}) =>
+    fetch(`${BASE}${path}`, { method, headers: { cookie, ...(body === undefined || body instanceof Buffer ? {} : { 'Content-Type': 'application/json' }), ...headers }, body: body === undefined ? undefined : body instanceof Buffer ? body : JSON.stringify(body) });
+  const host = (path: string, h: string) =>
+    new Promise<{ status: number; body: string; headers: http.IncomingHttpHeaders }>((resolve, reject) => {
+      http.get({ host: '127.0.0.1', port: PORT, path, headers: { host: h } }, (res) => {
+        let body = '';
+        res.on('data', (c) => (body += c));
+        res.on('end', () => resolve({ status: res.statusCode ?? 0, body, headers: res.headers }));
+      }).on('error', reject);
+    });
+  // Ohne Anmeldung kein Zugriff
+  assert.equal((await call('/api/slides', 'GET', '')).status, 401);
+  const st = await (await call('/api/slides', 'GET', anna)).json();
+  assert.deepEqual(st.folien, []);
+  assert.equal(st.basis, 'https://slide.mb.test');
+  // Folie anlegen: Felder werden gefiltert (Farben, Schriften, fremde Bildadressen)
+  const created = await (await call('/api/slides', 'POST', anna, {
+    name: 'Bauchbinde',
+    hintergrund: { typ: 'farbe', color: 'red; background:url(x)' },
+    elemente: [
+      { typ: 'text', text: '<script>alert(1)</script>Hallo', font: 'Comic Sans', size: 99999, color: '#abcdef' },
+      { typ: 'bild', src: 'https://evil.example/x.png' },
+      { typ: 'unbekannt' },
+    ],
+  })).json();
+  const f = created.folie;
+  assert.equal(f.hintergrund.color, '#11243c');
+  assert.equal(f.elemente.length, 2);
+  assert.equal(f.elemente[0].font, 'Barlow');
+  assert.equal(f.elemente[0].size, 600);
+  assert.equal(f.elemente[0].color, '#abcdef');
+  assert.equal(f.elemente[1].src, '');
+  assert.match(f.key, /^[a-f0-9]{24}$/);
+  // Andere Konten sehen die Folie nicht
+  assert.equal((await call(`/api/slides/${f.id}`, 'PUT', admin, f)).status, 404);
+  // Öffentliche OBS-Adresse (ohne Anmeldung) und Live-Aktualisierung
+  const pub = await (await fetch(`${BASE}/s/${f.key}.json`)).json();
+  assert.equal(pub.folie.name, 'Bauchbinde');
+  assert.equal((await fetch(`${BASE}/s/${'0'.repeat(24)}.json`)).status, 404);
+  const page = await host(`/s/${f.key}`, 'slide.mb.test');
+  assert.equal(page.status, 200);
+  assert.match(page.body, /<base href="\/">/);
+  const ac = new AbortController();
+  const live = await fetch(`${BASE}/s/${f.key}/live`, { signal: ac.signal });
+  const reader = live.body!.getReader();
+  const next = async () => {
+    let txt = '';
+    while (!txt.includes('\n\n')) txt += new TextDecoder().decode((await reader.read()).value);
+    return JSON.parse(txt.split('data: ')[1].split('\n')[0]);
+  };
+  assert.equal((await next()).folie.elemente[0].text, '<script>alert(1)</script>Hallo');
+  await call(`/api/slides/${f.id}`, 'PUT', anna, { ...f, elemente: [{ ...f.elemente[0], text: 'Neu' }] });
+  assert.equal((await next()).folie.elemente[0].text, 'Neu');
+  ac.abort();
+  // Kanal: zeigt die Folie auf Sendung
+  const kanal = st.kanal.key;
+  assert.equal((await (await fetch(`${BASE}/kanal/${kanal}.json`)).json()).folie, null);
+  await call('/api/slides/kanal', 'POST', anna, { liveId: f.id });
+  assert.equal((await (await fetch(`${BASE}/kanal/${kanal}.json`)).json()).folie.id, f.id);
+  // Medien: PNG ok, falscher Inhalt abgelehnt, Video mit Bereichsanfrage
+  const png = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489', 'hex');
+  const upPng = await call('/api/slides/medien', 'POST', anna, png, { 'Content-Type': 'image/png', 'X-Dateiname': 'logo.png' });
+  const medium = (await upPng.json()).medium;
+  assert.match(medium.url, /^\/m\/logo-[a-f0-9]{16}\.png$/);
+  assert.equal((await call('/api/slides/medien', 'POST', anna, Buffer.from('<html>nein</html>'), { 'Content-Type': 'image/png' })).status, 415);
+  assert.equal((await call('/api/slides/medien', 'POST', anna, Buffer.from('x'), { 'Content-Type': 'application/zip' })).status, 415);
+  const mp4 = Buffer.concat([Buffer.from('00000018667479706d703432', 'hex'), Buffer.alloc(2000, 1)]);
+  const vid = (await (await call('/api/slides/medien', 'POST', anna, mp4, { 'Content-Type': 'video/mp4', 'X-Dateiname': 'clip.mp4' })).json()).medium;
+  const part = await fetch(`${BASE}${vid.url}`, { headers: { range: 'bytes=0-99' } });
+  assert.equal(part.status, 206);
+  assert.equal(part.headers.get('content-range'), `bytes 0-99/${mp4.length}`);
+  assert.equal((await part.arrayBuffer()).byteLength, 100);
+  // Verwendete Medien lassen sich nicht löschen
+  await call(`/api/slides/${f.id}`, 'PUT', anna, { ...f, elemente: [{ typ: 'bild', src: medium.url }] });
+  assert.equal((await call(`/api/slides/medien/${medium.url.slice(3)}`, 'DELETE', anna)).status, 409);
+  // Neue OBS-Adresse: alte zeigt nichts mehr
+  const renewed = (await (await call(`/api/slides/${f.id}/schluessel`, 'POST', anna, {})).json()).folie;
+  assert.notEqual(renewed.key, f.key);
+  assert.equal((await fetch(`${BASE}/s/${f.key}.json`)).status, 404);
+  // Folien-Editor auf der Slide-Adresse (dieselbe App)
+  const editor = await host('/', 'slide.mb.test');
+  assert.equal(editor.status, 200);
+  assert.match(editor.body, /<div id="root">/);
+  // Ohne Recht „slides“ kein Zugriff
+  const k = await (await post('/api/verwaltung/konten', {}, admin)).json();
+  const ohne = k.rollen.rollen.map((r: { id: string; bereiche: string[] }) => ({ ...r, bereiche: r.bereiche.filter((b: string) => b !== 'slides') }));
+  await post('/api/verwaltung/rollen', { rollen: ohne, standard: k.rollen.standard }, admin);
+  assert.equal((await call('/api/slides', 'GET', anna)).status, 403);
+  await post('/api/verwaltung/rollen', { rollen: k.rollen.rollen, standard: k.rollen.standard }, admin);
+  assert.equal((await call('/api/slides', 'GET', anna)).status, 200);
 });
 
 test('Passwort vergessen: neuer Link, altes Passwort und alte Sitzungen ungültig', async () => {

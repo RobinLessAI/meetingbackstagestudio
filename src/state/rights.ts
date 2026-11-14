@@ -13,6 +13,7 @@ const VIEW_BEREICH: Partial<Record<ViewId, string>> = {
   ausgabe: 'ausgabe',
   integrationen: 'integrationen',
   produkte: 'produkte',
+  slides: 'slides',
 };
 
 export const graphicAllowed = (k: GraphicKind) => canUse(`grafik:${k}`);

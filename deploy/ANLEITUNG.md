@@ -168,6 +168,26 @@ Adressen aus `MB_ADMIN_EMAILS` bleiben immer Admin. Darunter unter **Rollen & Re
 - Änderungen wirken sofort, auch in bereits geöffneten Studio-Fenstern. Gesperrt werden auch Tastenkürzel und Stream-Deck-Aktionen;
   Spotlight-Befehle lehnt zusätzlich der Server ab.
 
+## 10. MeetingBackstage Slides (slide.meetingbackstage.de)
+
+Folien mit Text, Formen, Bildern und Videos für OBS – unabhängig von Zoom. Gestaltet wird auf `slide.meetingbackstage.de`
+(Anmeldung wie im Studio), im Studio gibt es die Kategorie **Slides** mit Vorschau, Kanal und „Bearbeiten“.
+
+**Einmalig einrichten:**
+
+1. DNS: In der Hetzner Console → **DNS** → Zone `meetingbackstage.de` einen Eintrag anlegen:
+   Typ **A**, Name **slide**, Wert **2.31.157.102**.
+2. Auf dem Server `mb-aktualisieren` (und, falls die Webserver-Meldung fehlt, `bash /opt/meetingbackstage/deploy/webserver.sh`).
+   Caddy holt das https-Zertifikat für `slide.` automatisch, sobald der DNS-Eintrag wirkt (meist wenige Minuten).
+3. Einmal neu anmelden: Die Anmeldung gilt ab jetzt für Studio und Slides gemeinsam.
+
+**OBS:** Je Folie eine feste Adresse `https://slide.meetingbackstage.de/s/…`, dazu ein **Kanal** `…/kanal/…`, der immer die
+Folie „auf Sendung“ zeigt. Quelle „Browser“, 1920 × 1080. Änderungen erscheinen sofort. Mit `?ton=1` am Ende spielen Videos mit Ton.
+
+**Grenzen:** Bilder bis 15 MB (große Fotos werden im Browser verkleinert), Videos (MP4, WebM) bis 200 MB, insgesamt 2 GB je Konto.
+Dateien liegen in `/var/lib/meetingbackstage/folien-medien/`, die Folien je Konto in `konten/<id>/folien.json`.
+In der Verwaltung lässt sich „Slides“ je Rolle freischalten.
+
 ## Im Alltag
 
 | Was | Befehl auf dem Server |

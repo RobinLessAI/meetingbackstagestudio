@@ -1,0 +1,16 @@
+/* MeetingBackstage Slides: Fläche und Einblend-Animationen (Ausgabe, Editor, Vorschauen) */
+.slide-canvas { position: relative; overflow: hidden; background: transparent; }
+.slide-thumb { position: relative; overflow: hidden; width: 100%; min-height: 0; border-radius: 8px; background: repeating-conic-gradient(#0f2033 0% 25%, #0b1828 0% 50%) 50% / 16px 16px; }
+@keyframes sl-einblenden { from { opacity: 0; } }
+@keyframes sl-von-unten { from { opacity: 0; translate: 0 80px; } }
+@keyframes sl-von-oben { from { opacity: 0; translate: 0 -80px; } }
+@keyframes sl-von-links { from { opacity: 0; translate: -120px 0; } }
+@keyframes sl-von-rechts { from { opacity: 0; translate: 120px 0; } }
+@keyframes sl-zoom { from { opacity: 0; scale: 0.85; } }
+@media (prefers-reduced-motion: reduce) { .slide-canvas * { animation: none !important; } }
+
+/* OBS-Seite */
+html.folie-seite, html.folie-seite body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+.folie-ausgabe { position: fixed; inset: 0; overflow: hidden; }
+.folie-ausgabe__stage { transform-origin: 0 0; position: absolute; }
+.folie-leer { position: fixed; inset: 0; }

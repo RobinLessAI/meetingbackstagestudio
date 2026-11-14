@@ -245,3 +245,12 @@ Favicon, SEO je Seite, Menü und Fußzeile, Entwurf mit Vorschau, Veröffentlich
 - `src/web/website/` – Bearbeitungsoberfläche (Tiptap als Texteditor)
 - `website/inhalt-start.json` – Inhalt beim ersten Start, `website/assets/` – Stil, Schrift (Urbanist), Logos, unter `/_web/`
 - `npm run website` – Startinhalt als statische Vorschau nach `website/dist`
+
+## MeetingBackstage Slides
+
+Folien für OBS mit fester Adresse, unabhängig von Zoom. Editor auf `slide.<Hauptdomain>` (lokal unter `/folien`), im Studio die Kategorie „Slides“.
+
+- `server/slides.mjs` – Folien je Konto, Kanal („auf Sendung“), Medien-Upload als Datenstrom mit Grenzen und Prüfung des Dateityps, Live-Aktualisierung per Server-Sent Events
+- `src/slides/` – Datenmodell, Darstellung (`SlideRender.tsx`), OBS-Seite (`ausgabe.tsx`, `folie.html`), Editor (`Editor.tsx`, `Canvas.tsx`, `Inspector.tsx`)
+- Öffentliche Adressen: `/s/<key>`, `/kanal/<key>` (je `.json` und `/live`), Medien unter `/m/<name>` mit Bereichsanfragen
+- Schriften (frei lizenziert) in `public/folien-schriften/`

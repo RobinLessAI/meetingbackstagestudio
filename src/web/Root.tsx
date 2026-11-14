@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { App } from '../App.tsx';
 import { AuthScreen } from './AuthScreen.tsx';
-import { api, setMainSite, setMode, type Rechte, type WebUser } from './mode.ts';
+import { api, canUse, isSlidesApp, setMainSite, setMode, setSiteUrls, studioUrl, type Rechte, type WebUser } from './mode.ts';
+import { SlidesEditor } from '../slides/Editor.tsx';
+import { Lock } from 'lucide-react';
 
 /**
  * Startet die App: lokal sofort, im Web-Modus erst nach der Anmeldung.
@@ -15,9 +17,10 @@ export function Root() {
     (async () => {
       let web = false;
       try {
-        const m = await api<{ web: boolean; minPasswort?: number; hauptseite?: string | null }>('/api/modus');
+        const m = await api<{ web: boolean; minPasswort?: number; hauptseite?: string | null; slides?: string; studio?: string }>('/api/modus');
         web = m.web;
         setMainSite(m.hauptseite ?? null);
+        setSiteUrls({ slides: m.slides ?? null, studio: m.studio ?? null });
         if (m.minPasswort) setMinPassword(m.minPasswort);
       } catch {
         web = false;
@@ -46,5 +49,23 @@ export function Root() {
 
   if (phase === 'laden') return <div className="auth auth--loading" aria-busy="true" />;
   if (phase === 'anmelden') return <AuthScreen minPassword={minPassword} />;
+  if (isSlidesApp()) {
+    if (!canUse('slides'))
+      return (
+        <div className="sl-app sl-app--center">
+          <div className="locked">
+            <span className="locked__icon" aria-hidden>
+              <Lock size={26} />
+            </span>
+            <h1 className="locked__title">MeetingBackstage Slides</h1>
+            <p className="locked__text">Slides sind in deinem Paket nicht enthalten. Schreib uns an info@meetingbackstage.de, wenn du sie freischalten möchtest.</p>
+            <a className="btn btn--secondary" href={studioUrl() ?? '/'}>
+              Zum Studio
+            </a>
+          </div>
+        </div>
+      );
+    return <SlidesEditor studioUrl={studioUrl() ?? '/'} />;
+  }
   return <App />;
 }

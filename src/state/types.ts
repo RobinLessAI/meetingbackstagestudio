@@ -443,7 +443,8 @@ export type ViewId =
   | 'dran'
   | 'verwaltung'
   | 'website'
-  | 'produkte';
+  | 'produkte'
+  | 'slides';
 
 export type ParticipantFilter =
   | 'alle'

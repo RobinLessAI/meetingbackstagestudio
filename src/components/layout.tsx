@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Globe,
   Boxes,
+  GalleryHorizontalEnd,
   Sun,
   Users,
   Video,
@@ -52,6 +53,7 @@ const ICONS: Record<ViewId, LucideIcon> = {
   verwaltung: ShieldCheck,
   website: Globe,
   produkte: Boxes,
+  slides: GalleryHorizontalEnd,
 };
 
 export function Brand() {
