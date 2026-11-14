@@ -126,3 +126,37 @@ test('Nachricht: Kopfzeilen und Base64-Text', () => {
   );
   assert.match(m, /Content-Transfer-Encoding: base64\r\n\r\n/);
 });
+
+test('E-Mail-Vorlagen: Platzhalter, Maskierung, Textfassung, HTML-Mail mit Knopf', async () => {
+  // @ts-expect-error – JavaScript-Modul ohne Typen
+  const { createMailTemplates, htmlToText } = await import('../server/mailTemplates.mjs');
+  const dir = mkdtempSync(join(tmpdir(), 'mb-mt-'));
+  const t = createMailTemplates({ file: join(dir, 'v.json'), logoUrl: 'https://x.example/logo.png', baseVars: { studio: 'https://studio.example', website: 'https://example.de' } });
+  const m = t.render('bestaetigen', { name: '<b>Eve</b>', email: 'eve@example.org', link: 'https://studio.example/api/konto/bestaetigen?token=abc' });
+  assert.equal(m.subject, 'Bitte bestätige deine E-Mail-Adresse');
+  assert.match(m.html, /Hallo &lt;b&gt;Eve&lt;\/b&gt;,/, 'Werte werden maskiert');
+  assert.match(m.html, /href="https:\/\/studio\.example\/api\/konto\/bestaetigen\?token=abc"/);
+  assert.match(m.html, /src="https:\/\/x\.example\/logo\.png"/);
+  assert.match(m.text, /E-Mail-Adresse bestätigen:\nhttps:\/\/studio\.example\/api\/konto\/bestaetigen\?token=abc/);
+  assert.match(m.text, /https:\/\/example\.de/);
+  // Ohne Namen kein „Hallo ,“
+  assert.match(t.render('passwort', { link: 'https://s/x' }).text, /Hallo,/);
+  // Eigene Vorlage, Skript wird entfernt, javascript:-Links unschädlich
+  await t.save({ vorlagen: { passwort: { betreff: 'X', ueberschrift: '', inhalt: '<p>Hi</p><script>x()</script><a href="javascript:alert(1)">a</a>', knopf: '' } } });
+  const own = t.render('passwort', { link: 'https://s/x' });
+  assert.doesNotMatch(own.html, /script|javascript:/);
+  assert.doesNotMatch(own.html, /Falls der Knopf/, 'ohne Knopftext kein Knopf');
+  assert.deepEqual(t.state().eigene, ['passwort']);
+  assert.equal(htmlToText('<p>A <a href="https://x.de">Link</a></p><ul><li>eins</li></ul>'), 'A Link (https://x.de)\n\n- eins');
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('Nachricht mit HTML: multipart/alternative mit Text und HTML', () => {
+  const msg = buildMessage({ from: 'MB <a@b.de>', to: 'c@d.de', subject: 'Hallo', text: 'Grüße', html: '<p>Grüße</p>' });
+  const boundary = msg.match(/boundary="([^"]+)"/)![1];
+  assert.match(msg, /Content-Type: multipart\/alternative/);
+  assert.equal(msg.split(`--${boundary}`).length, 4);
+  assert.match(msg, /Content-Type: text\/html; charset=utf-8/);
+  const htmlPart = msg.split(`--${boundary}`)[2].split('\r\n\r\n')[1];
+  assert.equal(Buffer.from(htmlPart.replace(/\r\n/g, ''), 'base64').toString('utf8'), '<p>Grüße</p>');
+});

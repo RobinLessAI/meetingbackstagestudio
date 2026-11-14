@@ -33,7 +33,7 @@ const esc = (s) =>
     .replace(/"/g, '&quot;');
 
 // ----------------------------------------------------------------- Filter für Texte und Links
-const SAFE_LINK = /^(https?:\/\/|mailto:|tel:|\/|#|\{\{(studio|mail)\}\})/i;
+const SAFE_LINK = /^(https?:\/\/|mailto:|tel:|\/|#|\{\{(studio|mail|link|website)\}\})/i;
 
 /** Link-Ziel prüfen: nur http(s), mailto, tel, eigene Pfade und Anker. Sonst „#“. */
 export function safeLink(href) {

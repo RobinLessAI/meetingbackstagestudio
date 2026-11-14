@@ -19,7 +19,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { AccountError, createAccounts, createLimiter, MIN_PASSWORD, normalizeEmail, publicUser } from './accounts.mjs';
-import { brevoTransport, createMailer, MAILS, smtpTransport } from './mailer.mjs';
+import { brevoTransport, createMailer, smtpTransport } from './mailer.mjs';
+import { createMailTemplates } from './mailTemplates.mjs';
 import { createRoom } from './room.mjs';
 import { zoomSignatureOk } from './zoomAccount.mjs';
 import { ICONS, BLOCK_TYPES } from './website/render.mjs';
@@ -195,6 +196,17 @@ const website = WEB
       log,
     })
   : null;
+// E-Mail-Vorlagen (bearbeitbar unter Website → E-Mail-Vorlagen)
+const mailTemplates = WEB
+  ? createMailTemplates({
+      file: path.join(WEB_DIR, 'mail-vorlagen.json'),
+      logoUrl: `${MAIN_URL}/_web/bilder/mail-logo.png`,
+      baseVars: { studio: PUBLIC_URL, website: MAIN_URL },
+    })
+  : null;
+/** Mail nach Vorlage verschicken. */
+const sendMail = (id, to, vars) => mailer.send({ to, ...mailTemplates.render(id, { email: to, ...vars }) });
+
 const accountDir = (id) => path.join(DATA_DIR, 'konten', id.replace(/[^a-f0-9-]/gi, ''));
 
 function roomFor(user) {
@@ -312,8 +324,8 @@ function handleAction(req, res, id) {
 const loginLimiter = createLimiter({ max: 8, windowMs: 15 * 60_000 });
 const ipLimiter = createLimiter({ max: 20, windowMs: 60 * 60_000 });
 
-async function notifyAdmins(mail) {
-  for (const u of accounts.list()) if (u.admin && u.status === 'aktiv') await mailer.send({ to: u.email, ...mail }).catch(() => {});
+async function notifyAdmins(id, vars) {
+  for (const u of accounts.list()) if (u.admin && u.status === 'aktiv') await mailer.send({ to: u.email, ...mailTemplates.render(id, vars) }).catch(() => {});
 }
 
 async function handleAccountApi(req, res, url) {
@@ -323,7 +335,7 @@ async function handleAccountApi(req, res, url) {
     if (route === '/api/konto/bestaetigen' && req.method === 'GET') {
       try {
         const user = await accounts.verifyEmail(url.searchParams.get('token') ?? '');
-        if (user.status === 'wartet') await notifyAdmins(MAILS.neuesKonto(user.email, `${PUBLIC_URL}/#verwaltung`));
+        if (user.status === 'wartet') await notifyAdmins('neuesKonto', { email: user.email, name: user.name ?? '', link: `${PUBLIC_URL}/#verwaltung` });
         res.writeHead(302, { Location: `/?hinweis=${user.status === 'aktiv' ? 'bestaetigt' : 'wartet'}`, 'Cache-Control': 'no-store' }).end();
       } catch {
         res.writeHead(302, { Location: '/?hinweis=link-ungueltig', 'Cache-Control': 'no-store' }).end();
@@ -348,7 +360,7 @@ async function handleAccountApi(req, res, url) {
         const r = await accounts.register({ email: body.email, password: body.passwort, name: body.name });
         if (r.verifyToken) {
           try {
-            await mailer.send({ to: normalizeEmail(body.email), ...MAILS.bestaetigen(`${PUBLIC_URL}/api/konto/bestaetigen?token=${r.verifyToken}`) });
+            await sendMail('bestaetigen', normalizeEmail(body.email), { name: String(body.name ?? '').trim(), link: `${PUBLIC_URL}/api/konto/bestaetigen?token=${r.verifyToken}` });
           } catch (e) {
             log(`Bestätigungs-Mail nicht gesendet: ${e.message}`);
             return json(res, 502, { fehler: 'Das Konto ist angelegt, aber die Bestätigungs-Mail konnte nicht gesendet werden. Bitte später erneut „Konto anlegen“ mit denselben Daten versuchen.' });
@@ -371,7 +383,7 @@ async function handleAccountApi(req, res, url) {
         const r = await accounts.requestReset(body.email);
         if (r) {
           try {
-            await mailer.send({ to: r.user.email, ...MAILS.passwort(`${PUBLIC_URL}/?passwort=${r.token}`) });
+            await sendMail('passwort', r.user.email, { name: r.user.name ?? '', link: `${PUBLIC_URL}/?passwort=${r.token}` });
           } catch (e) {
             log(`Passwort-Mail nicht gesendet: ${e.message}`);
             return json(res, 502, { fehler: 'Die E-Mail konnte gerade nicht gesendet werden. Bitte später erneut versuchen.' });
@@ -405,7 +417,7 @@ async function handleAccountApi(req, res, url) {
         if (body.aktion === 'freischalten' || body.aktion === 'entsperren') {
           const wasWaiting = target.status === 'wartet';
           await accounts.setStatus(target.id, 'aktiv');
-          if (wasWaiting) await mailer.send({ to: target.email, ...MAILS.freigeschaltet(PUBLIC_URL) }).catch(() => {});
+          if (wasWaiting) await sendMail('freigeschaltet', target.email, { name: target.name ?? '', link: PUBLIC_URL }).catch(() => {});
         } else if (body.aktion === 'sperren') {
           await accounts.setStatus(target.id, 'gesperrt');
           await closeRoom(target.id, 'Konto gesperrt');
@@ -631,6 +643,33 @@ async function handleWebsiteApi(req, res, url) {
 
     if (route === '/api/website' && req.method === 'GET') {
       return json(res, 200, { ...website.state(), symbole: ICONS, blocktypen: BLOCK_TYPES, siteUrl: MAIN_URL, studioUrl: PUBLIC_URL, medienMax: MEDIA_MAX });
+    }
+    // ----- E-Mail-Vorlagen
+    if (route === '/api/website/mails' && req.method === 'GET') return json(res, 200, mailTemplates.state());
+    if (route === '/api/website/mails' && req.method === 'PUT') {
+      needJson();
+      await mailTemplates.save(await readJson(req, 512 * 1024));
+      return json(res, 200, mailTemplates.state());
+    }
+    if (route === '/api/website/mails/vorschau' && req.method === 'POST') {
+      needJson();
+      const body = await readJson(req, 512 * 1024);
+      const id = String(body.id ?? '');
+      const vars = mailTemplates.sampleVars(id, { name: user.name || 'Anna Beispiel', email: user.email });
+      return json(res, 200, mailTemplates.render(id, vars, body.vorlage ?? null, body.fuss ?? null));
+    }
+    if (route === '/api/website/mails/test' && req.method === 'POST') {
+      needJson();
+      const body = await readJson(req, 512 * 1024);
+      const id = String(body.id ?? '');
+      const vars = mailTemplates.sampleVars(id, { name: user.name || '', email: user.email });
+      const mail = mailTemplates.render(id, vars, body.vorlage ?? null, body.fuss ?? null);
+      try {
+        await mailer.send({ to: user.email, ...mail, subject: `[Test] ${mail.subject}` });
+      } catch (e) {
+        throw new WebsiteError(`Testmail nicht gesendet: ${e.message}`, 502);
+      }
+      return json(res, 200, { ok: true, an: user.email });
     }
     if (route === '/api/website/vorschau' && req.method === 'GET') {
       const html = await website.preview(url.searchParams.get('pfad') ?? '/');

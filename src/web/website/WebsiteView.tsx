@@ -11,6 +11,7 @@ import {
   FileText,
   History,
   Images,
+  Mail,
   Menu,
   Plus,
   RotateCcw,
@@ -24,10 +25,11 @@ import { useStore } from '../../state/store.tsx';
 import { currentUser } from '../mode.ts';
 import { BLOCKS, BlockEditor, blockSummary, createBlock } from './blocks.tsx';
 import { ImageField, MediaContext, NavListEditor, TextField, ListEditor } from './fields.tsx';
+import { MailTemplates } from './MailTemplates.tsx';
 import { uploadFavicon, uploadImage, websiteApi } from './media.ts';
 import type { Block, BlockTyp, Inhalt, Medium, Seite, Site, WebsiteState } from './types.ts';
 
-type Auswahl = { art: 'allgemein' } | { art: 'navigation' } | { art: 'medien' } | { art: 'versionen' } | { art: 'seite'; id: string };
+type Auswahl = { art: 'allgemein' } | { art: 'navigation' } | { art: 'medien' } | { art: 'versionen' } | { art: 'mails' } | { art: 'seite'; id: string };
 
 const when = (t: number | null) => (t ? new Date(t).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' }) : '–');
 const newId = () => Math.random().toString(36).slice(2, 10);
@@ -231,6 +233,7 @@ export function WebsiteView() {
                   ['allgemein', 'Allgemein & SEO', Settings],
                   ['navigation', 'Menü & Fußzeile', Menu],
                   ['medien', 'Bilder', Images],
+                  ['mails', 'E-Mail-Vorlagen', Mail],
                   ['versionen', 'Frühere Fassungen', History],
                 ] as const
               ).map(([art, label, Icon]) => (
@@ -272,6 +275,7 @@ export function WebsiteView() {
             )}
             {sel.art === 'allgemein' && <GeneralEditor site={draft.site} onChange={setSite} onMedia={(medien) => setState((s) => (s ? { ...s, medien } : s))} />}
             {sel.art === 'navigation' && <NavigationEditor site={draft.site} onChange={setSite} />}
+            {sel.art === 'mails' && <MailTemplates />}
             {sel.art === 'medien' && <MediaManager medien={state.medien} onMedia={(medien) => setState((s) => (s ? { ...s, medien } : s))} />}
             {sel.art === 'versionen' && (
               <VersionsPanel

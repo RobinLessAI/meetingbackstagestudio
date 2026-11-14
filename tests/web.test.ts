@@ -152,7 +152,7 @@ test('Registrierung, Bestätigung, Freischaltung durch die Verwaltung', async ()
   await fetch(`${BASE}/api/konto/bestaetigen?token=${lastLink('bestaetigen', 'anna@example.org')}`, { redirect: 'manual' });
   // Bestätigt, aber noch nicht freigeschaltet; die Verwaltung bekommt eine Mail
   assert.equal((await login('anna@example.org')).body.code, 'wartet');
-  assert.match(readFileSync(join(dir, 'web', 'mails.log'), 'utf8'), /wartet auf deine Freischaltung: anna@example\.org/);
+  assert.match(readFileSync(join(dir, 'web', 'mails.log'), 'utf8'), /Betreff: Neues Konto wartet auf Freischaltung[\s\S]*anna@example\.org/);
 
   const konten = (await (await post('/api/verwaltung/konten', {}, admin)).json()).konten;
   const annaId = konten.find((k: any) => k.email === 'anna@example.org').id;
@@ -423,6 +423,34 @@ test('Website: nur die Verwaltung bearbeitet, Veröffentlichen, Bilder, Vorschau
   const restored = await (await call('/api/website/wiederherstellen', 'POST', admin, { id: pub.versionen[0].id })).json();
   assert.ok(restored.entwurf.seiten.some((p: { pfad: string }) => p.pfad === '/preise/'));
   assert.equal((await call('/api/website/wiederherstellen', 'POST', admin, { id: '../x' })).status, 404);
+});
+
+test('E-Mail-Vorlagen: nur die Verwaltung, eigene Texte werden verschickt', async () => {
+  const call = (path: string, method: string, cookie: string, body?: unknown) =>
+    fetch(`${BASE}${path}`, { method, headers: { cookie, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) }, body: body === undefined ? undefined : JSON.stringify(body) });
+  assert.equal((await call('/api/website/mails', 'GET', anna)).status, 403);
+  const state = await (await call('/api/website/mails', 'GET', admin)).json();
+  assert.deepEqual(state.katalog.map((k: { id: string }) => k.id), ['bestaetigen', 'passwort', 'freigeschaltet', 'neuesKonto']);
+  assert.deepEqual(state.eigene, []);
+  // Vorschau mit ungespeicherter Fassung
+  const pv = await (await call('/api/website/mails/vorschau', 'POST', admin, { id: 'passwort', vorlage: { ...state.vorlagen.passwort, betreff: 'Hallo {{name}}' } })).json();
+  assert.match(pv.subject, /^Hallo /);
+  assert.match(pv.html, /<table/);
+  // Eigene Vorlage speichern (mit eingeschleustem Skript)
+  const vorlagen = { ...state.vorlagen, passwort: { betreff: 'Eigenes Passwort-Thema für {{email}}', ueberschrift: 'Los gehts', inhalt: '<p>Servus {{name}}!</p><script>alert(1)</script>', knopf: 'Jetzt ändern' } };
+  const saved = await (await call('/api/website/mails', 'PUT', admin, { vorlagen, fuss: 'Grüße aus Werl' })).json();
+  assert.deepEqual(saved.eigene, ['passwort']);
+  assert.doesNotMatch(JSON.stringify(saved.vorlagen.passwort), /script/);
+  // Testmail landet im Protokoll (ohne Versanddienst)
+  assert.equal((await call('/api/website/mails/test', 'POST', admin, { id: 'passwort' })).status, 200);
+  assert.match(readFileSync(join(dir, 'web', 'mails.log'), 'utf8'), /Betreff: \[Test\] Eigenes Passwort-Thema für chef@example\.org/);
+  // Echter Ablauf nutzt die eigene Vorlage
+  await post('/api/konto/passwort-vergessen', { email: 'anna@example.org' });
+  const log = readFileSync(join(dir, 'web', 'mails.log'), 'utf8');
+  assert.match(log, /Betreff: Eigenes Passwort-Thema für anna@example\.org[\s\S]*Jetzt ändern:\nhttp:\/\/localhost:\d+\/\?passwort=[\w-]+[\s\S]*Grüße aus Werl/);
+  // Zurück auf Standard
+  const reset = await (await call('/api/website/mails', 'PUT', admin, { vorlagen: Object.fromEntries(state.katalog.map((k: { id: string; standard: unknown }) => [k.id, k.standard])), fuss: state.standardFuss })).json();
+  assert.deepEqual(reset.eigene, []);
 });
 
 test('Passwort vergessen: neuer Link, altes Passwort und alte Sitzungen ungültig', async () => {

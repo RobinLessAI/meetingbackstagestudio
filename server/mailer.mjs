@@ -11,8 +11,8 @@ export function createMailer({ dir, log, from = 'MeetingBackstage <no-reply@meet
   const sent = []; // für Tests
   return {
     sent,
-    async send({ to, subject, text }) {
-      const mail = { to, subject, text, from, at: new Date().toISOString() };
+    async send({ to, subject, text, html }) {
+      const mail = { to, subject, text, html, from, at: new Date().toISOString() };
       sent.push(mail);
       if (sent.length > 50) sent.shift();
       if (transport) return transport(mail);
@@ -35,7 +35,7 @@ export function brevoTransport({ apiKey, from, fetchImpl = fetch, apiUrl }) {
     const res = await fetchImpl(url, {
       method: 'POST',
       headers: { 'api-key': apiKey, 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ sender, to: [{ email: mail.to }], subject: mail.subject, textContent: mail.text }),
+      body: JSON.stringify({ sender, to: [{ email: mail.to }], subject: mail.subject, textContent: mail.text, ...(mail.html ? { htmlContent: mail.html } : {}) }),
     });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
@@ -53,24 +53,43 @@ function parseFrom(from) {
   return m ? { name: m[1], email: m[2] } : { name: '', email: String(from).trim() };
 }
 
-/** Fertige Nachricht (Kopf + Text als Base64, damit Umlaute sicher ankommen). */
-export function buildMessage({ from, to, subject, text, now = new Date() }) {
-  const f = parseFrom(from);
-  const domain = f.email.split('@')[1] || 'localhost';
-  const body = Buffer.from(String(text).replace(/\r?\n/g, '\r\n'), 'utf8')
+/** Text als Base64 in 76-Zeichen-Zeilen (Umlaute kommen so sicher an). */
+const b64 = (s) =>
+  Buffer.from(String(s).replace(/\r?\n/g, '\r\n'), 'utf8')
     .toString('base64')
     .replace(/.{1,76}/g, '$&\r\n');
-  return [
+
+/** Fertige Nachricht: nur Text, oder Text und HTML (multipart/alternative). */
+export function buildMessage({ from, to, subject, text, html, now = new Date() }) {
+  const f = parseFrom(from);
+  const domain = f.email.split('@')[1] || 'localhost';
+  const body = b64(text);
+  const head = [
     `From: ${f.name ? `${encodeHeader(f.name)} ` : ''}<${f.email}>`,
     `To: <${to}>`,
     `Subject: ${encodeHeader(subject)}`,
     `Date: ${now.toUTCString().replace('GMT', '+0000')}`,
     `Message-ID: <${Date.now().toString(36)}.${Math.random().toString(36).slice(2)}@${domain}>`,
     'MIME-Version: 1.0',
+  ];
+  if (!html) return [...head, 'Content-Type: text/plain; charset=utf-8', 'Content-Transfer-Encoding: base64', '', body].join('\r\n');
+  const boundary = `mb-${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+  return [
+    ...head,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
     'Content-Type: text/plain; charset=utf-8',
     'Content-Transfer-Encoding: base64',
     '',
     body,
+    `--${boundary}`,
+    'Content-Type: text/html; charset=utf-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    b64(html),
+    `--${boundary}--`,
+    '',
   ].join('\r\n');
 }
 
@@ -126,7 +145,7 @@ export function smtpTransport({ host, port = 465, user, pass, from, connect, tim
       await cmd(`MAIL FROM:<${sender}>`, [250], 'Absender');
       await cmd(`RCPT TO:<${mail.to}>`, [250, 251], 'Empfänger');
       await cmd('DATA', [354], 'Nachricht');
-      await cmd(`${buildMessage({ from, to: mail.to, subject: mail.subject, text: mail.text })}\r\n.`, [250], 'Nachricht senden');
+      await cmd(`${buildMessage({ from, to: mail.to, subject: mail.subject, text: mail.text, html: mail.html })}\r\n.`, [250], 'Nachricht senden');
       socket.write('QUIT\r\n');
     } finally {
       clearTimeout(timer);

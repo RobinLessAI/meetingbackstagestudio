@@ -145,6 +145,9 @@ Die Hauptseite bearbeitest du im Studio: als Verwaltung anmelden → links **Web
   Suchmaschinen anzeigen“. Unter **Allgemein & SEO**: Name, Titel-Vorlage, allgemeine Beschreibung, **Favicon**, Logos.
 - **Menü & Fußzeile:** Menüpunkte, Knöpfe oben rechts, Links und Texte unten.
 - **Bilder:** hochladen (Fotos werden automatisch verkleinert), Adresse kopieren, löschen.
+- **E-Mail-Vorlagen:** alle Mails des Systems (Adresse bestätigen, Passwort zurücksetzen, Konto freigeschaltet, neues
+  Konto an die Verwaltung) mit eigenem Betreff, Überschrift, Text und Knopf; Platzhalter wie `{{name}}`, `{{link}}`;
+  Vorschau, Testmail an dich, gemeinsame Fußzeile. Gilt sofort nach „Speichern“ (gespeichert in `web/mail-vorlagen.json`).
 - **Entwurf → Vorschau → Veröffentlichen:** Änderungen werden laufend als Entwurf gespeichert und sind erst nach
   **Veröffentlichen** öffentlich. Unter **Frühere Fassungen** lassen sich die letzten 40 Stände zurückholen.
 
