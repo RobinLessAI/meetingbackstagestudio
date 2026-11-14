@@ -57,7 +57,7 @@
 .sl-output { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--panel); }
 .sl-output__label { font-size: var(--fs-sm); font-weight: 600; color: var(--text-2); }
 .sl-output .input { flex: 1; min-width: 220px; font-size: var(--fs-sm); }
-.sl-output__ton { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--text-2); }
+.sl-channel__row { display: flex; flex-wrap: wrap; gap: 6px; }
 .sl-empty { flex: 1; display: grid; place-content: center; justify-items: center; gap: 12px; color: var(--text-2); }
 
 .sl-inspector { display: flex; flex-direction: column; }

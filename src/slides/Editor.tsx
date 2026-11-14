@@ -28,6 +28,7 @@ import { ElementInspector, SlideInspector } from './Inspector.tsx';
 import { neueForm, neuerText, neuesBild, type Element, type Folie, type FolienState, type Medium } from './model.ts';
 import { SlideThumb } from './SlideRender.tsx';
 import { VORLAGEN, vorlage, type VorlageId } from './vorlagen.ts';
+import { mitTon, TonButton, useTon } from './ton.tsx';
 
 type Toast = { id: number; text: string; tone: 'ok' | 'fehler' };
 const newId = () => Math.random().toString(36).slice(2, 10);
@@ -44,7 +45,7 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [mediaFor, setMediaFor] = useState<null | { typ: 'bild' | 'video'; ziel: 'neu' | 'element' | 'hintergrund' }>(null);
   const [newOpen, setNewOpen] = useState(false);
-  const [ton, setTon] = useState(false);
+  const [ton, setTon] = useTon();
   const textRef = useRef<HTMLTextAreaElement | null>(null);
   const past = useRef<Folie[]>([]);
   const future = useRef<Folie[]>([]);
@@ -256,8 +257,8 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
     else if (t.ziel === 'hintergrund') commit((f) => ({ ...f, hintergrund: { ...f.hintergrund, src: m.url } }));
   };
 
-  const outputUrl = draft && st ? `${st.basis}/s/${draft.key}${ton ? '?ton=1' : ''}` : '';
-  const channelUrl = st ? `${st.basis}/kanal/${st.kanal.key}${ton ? '?ton=1' : ''}` : '';
+  const outputUrl = draft && st ? mitTon(`${st.basis}/s/${draft.key}`, ton) : '';
+  const channelUrl = st ? mitTon(`${st.basis}/kanal/${st.kanal.key}`, ton) : '';
   const backUrl = studioUrl ?? '/';
 
   if (error && !st) {
@@ -358,11 +359,14 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
               <input className="input mono" readOnly value={channelUrl} aria-label="Adresse des Kanals" onFocus={(e) => e.target.select()} />
               <IconButton label="Kanal-Adresse kopieren" icon={Copy} onClick={() => copy(channelUrl, 'Kanal-Adresse')} />
             </div>
-            {live && (
-              <Button size="sm" variant="ghost" icon={EyeOff} onClick={() => setLive(null)}>
-                Kanal leeren
-              </Button>
-            )}
+            <div className="sl-channel__row">
+              <TonButton on={ton} onChange={setTon} />
+              {live && (
+                <Button size="sm" variant="ghost" icon={EyeOff} onClick={() => setLive(null)}>
+                  Kanal leeren
+                </Button>
+              )}
+            </div>
           </div>
 
           {draft && (
@@ -407,9 +411,7 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
                 <a className="btn btn--ghost btn--sm" href={outputUrl} target="_blank" rel="noreferrer">
                   <ExternalLink size={14} aria-hidden /> Ansehen
                 </a>
-                <label className="sl-output__ton" title="Videos mit Ton abspielen (OBS gibt den Ton der Browserquelle aus)">
-                  <input type="checkbox" checked={ton} onChange={(e) => setTon(e.target.checked)} /> mit Ton
-                </label>
+                <TonButton on={ton} onChange={setTon} />
                 <Button size="sm" variant={live === draft.id ? 'secondary' : 'primary'} icon={Radio} onClick={() => setLive(live === draft.id ? null : draft.id)}>
                   {live === draft.id ? 'Auf Sendung' : 'Im Kanal zeigen'}
                 </Button>

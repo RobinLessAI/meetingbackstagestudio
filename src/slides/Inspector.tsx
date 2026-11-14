@@ -282,7 +282,7 @@ export function ElementInspector({
               <Toggle label="Ton abspielen" on={el.ton} onChange={setAny('ton')} />
             </div>
           )}
-          {el.typ === 'video' && el.ton && <p className="sl-hint">Ton gibt es nur, wenn die OBS-Adresse mit „?ton=1“ endet (unten bei der Adresse auswählbar).</p>}
+          {el.typ === 'video' && el.ton && <p className="sl-hint">In OBS ist der Ton nur zu hören, wenn bei der OBS-Adresse der Knopf „Mit Ton“ eingeschaltet ist.</p>}
         </Section>
       )}
 

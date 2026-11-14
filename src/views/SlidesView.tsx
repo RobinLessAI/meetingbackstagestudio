@@ -6,12 +6,14 @@ import { slidesApi } from '../slides/api.ts';
 import type { FolienState } from '../slides/model.ts';
 import { SlideThumb } from '../slides/SlideRender.tsx';
 import { slidesUrl } from '../web/mode.ts';
+import { mitTon, TonButton, useTon } from '../slides/ton.tsx';
 
 /** Studio-Seite „Slides“: alle Folien mit Vorschau, OBS-Adressen, Kanal; Bearbeiten öffnet den Folien-Editor. */
 export function SlidesView() {
   const { notify } = useStore();
   const [st, setSt] = useState<FolienState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ton, setTon] = useTon();
   const editor = slidesUrl() ?? '/folien';
   const editLink = (id?: string) => `${editor}${id ? `${editor.includes('?') ? '&' : '?'}folie=${id}` : ''}`;
 
@@ -47,7 +49,7 @@ export function SlidesView() {
       notify((e as Error).message, 'fehler');
     }
   };
-  const channelUrl = st ? `${st.basis}/kanal/${st.kanal.key}` : '';
+  const channelUrl = st ? mitTon(`${st.basis}/kanal/${st.kanal.key}`, ton) : '';
 
   return (
     <div className="view">
@@ -77,12 +79,13 @@ export function SlidesView() {
 
       {st && (
         <Panel eyebrow="Eine Adresse für alles" title="Kanal">
-          <p className="muted">Lege diese Adresse einmal als Browserquelle in OBS an (1920 × 1080). Sie zeigt immer die Folie, die du unten „auf Sendung“ schaltest.</p>
+          <p className="muted">Lege diese Adresse einmal als Browserquelle in OBS an (1920 × 1080). Sie zeigt immer die Folie, die du unten „auf Sendung“ schaltest. „Mit Ton“ gilt für alle kopierten Adressen auf dieser Seite.</p>
           <div className="slides-url">
             <input className="input mono" readOnly value={channelUrl} aria-label="Adresse des Kanals" onFocus={(e) => e.target.select()} />
             <Button icon={Copy} onClick={() => copy(channelUrl, 'Kanal-Adresse')}>
               Kopieren
             </Button>
+            <TonButton on={ton} onChange={setTon} />
             {st.kanal.liveId && (
               <Button variant="ghost" onClick={() => setLive(null)}>
                 Kanal leeren
@@ -107,7 +110,7 @@ export function SlidesView() {
         <div className="slides-grid">
           {st.folien.map((f) => {
             const onAir = st.kanal.liveId === f.id;
-            const url = `${st.basis}/s/${f.key}`;
+            const url = mitTon(`${st.basis}/s/${f.key}`, ton);
             return (
               <article key={f.id} className={`slides-card${onAir ? ' is-on-air' : ''}`}>
                 <a href={editLink(f.id)} target="_blank" rel="noreferrer" className="slides-card__thumb" aria-label={`${f.name} bearbeiten`}>
