@@ -6,6 +6,7 @@ import { slidesApi, useSlideEvents } from './api.ts';
 import { maxSchritt, UEBERGAENGE, type FolienState, type KanalState, type Praesentation } from './model.ts';
 import { SlideThumb } from './SlideRender.tsx';
 import { Steuerpult } from './Steuerpult.tsx';
+import { filterFolien, filterPraes, ordnerName, OrdnerLeiste, useOrdnerWahl, zielOrdner } from './ordner.tsx';
 
 export function PraesentationenPanel({
   st,
@@ -22,6 +23,12 @@ export function PraesentationenPanel({
   const sel = st.praesentationen.find((p) => p.id === selId) ?? null;
   const timer = useRef<number | undefined>(undefined);
   const [drag, setDrag] = useState<number | null>(null);
+  const [wahl, setWahl] = useOrdnerWahl(st);
+  const [suche, setSuche] = useState('');
+  // Auswahl für „Folien hinzufügen“: startet im Ordner der Präsentation
+  const [poolWahl, setPoolWahl] = useState<string>('alle');
+  const [poolSuche, setPoolSuche] = useState('');
+  useEffect(() => setPoolWahl(sel?.ordner ?? 'alle'), [sel?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useSlideEvents((kanal) => onState((s) => ({ ...s, kanal })));
   useEffect(() => {
@@ -43,7 +50,7 @@ export function PraesentationenPanel({
   };
   const create = async () => {
     try {
-      const r = await slidesApi.createPraes({ name: `Präsentation ${st.praesentationen.length + 1}`, folien: [] });
+      const r = await slidesApi.createPraes({ name: `Präsentation ${st.praesentationen.length + 1}`, folien: [], ordner: zielOrdner(wahl) });
       onState((s) => ({ ...s, praesentationen: [...s.praesentationen, r.praesentation] }));
       setSelId(r.praesentation.id);
     } catch (e) {
@@ -80,18 +87,29 @@ export function PraesentationenPanel({
             Neu
           </Button>
         </div>
+        <OrdnerLeiste
+          st={st}
+          wahl={wahl}
+          onWahl={setWahl}
+          suche={suche}
+          onSuche={setSuche}
+          onState={onState}
+          onError={(m) => toast(m, 'fehler')}
+          zaehlen="praesentationen"
+        />
         {st.praesentationen.length === 0 && (
           <p className="sl-hint">
             Eine Präsentation zeigt mehrere Folien nacheinander über die Kanal-Adresse – mit Übergängen und Klick-Animationen.
           </p>
         )}
         <ul className="sl-praes-list">
-          {st.praesentationen.map((p) => (
+          {filterPraes(st, wahl, suche).map((p) => (
             <li key={p.id}>
               <button type="button" className={p.id === selId ? 'is-active' : ''} onClick={() => setSelId(p.id)}>
                 <strong>{p.name}</strong>
                 <span>
                   {p.folien.filter(byId).length} Folien{st.kanal.ablauf?.id === p.id ? ' · läuft' : ''}
+                  {(wahl === 'alle' || suche) && p.ordner ? ` · ${ordnerName(st, p.ordner)}` : ''}
                 </span>
               </button>
             </li>
@@ -138,6 +156,22 @@ export function PraesentationenPanel({
                       ))}
                     </select>
                   </div>
+                </div>
+                <div className="sl-field">
+                  <label htmlFor="praes-ordner">Ordner</label>
+                  <select
+                    id="praes-ordner"
+                    className="select"
+                    value={sel.ordner ?? ''}
+                    onChange={(e) => change({ ...sel, ordner: e.target.value || null })}
+                  >
+                    <option value="">Ohne Ordner</option>
+                    {st.ordner.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <label className="sl-check">
                   <input type="checkbox" checked={sel.schleife} onChange={(e) => change({ ...sel, schleife: e.target.checked })} />
@@ -198,8 +232,20 @@ export function PraesentationenPanel({
 
             <section className="sl-praes__card">
               <h2 className="sl-praes__title">Folien hinzufügen</h2>
+              <div className="sl-praes__poolbar">
+                <OrdnerLeiste
+                  st={st}
+                  wahl={poolWahl}
+                  onWahl={setPoolWahl}
+                  suche={poolSuche}
+                  onSuche={setPoolSuche}
+                  onState={onState}
+                  onError={(m) => toast(m, 'fehler')}
+                  verwalten={false}
+                />
+              </div>
               <div className="sl-praes__pool">
-                {st.folien.map((f) => (
+                {filterFolien(st, poolWahl, poolSuche).map((f) => (
                   <button
                     key={f.id}
                     type="button"

@@ -1,6 +1,6 @@
 // Schnittstelle zum Server für Folien (Editor und Studio).
 import { useEffect, useRef } from 'react';
-import type { Folie, FolienState, KanalState, Medium, Praesentation } from './model.ts';
+import type { Folie, FolienState, KanalState, Medium, Ordner, Praesentation } from './model.ts';
 
 async function request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
   const res = await fetch(path, {
@@ -31,6 +31,9 @@ export const slidesApi = {
     request<{ kanal: KanalState }>('/api/slides/steuerung', 'POST', { befehl, ...arg }),
   createPraes: (p: Partial<Praesentation>) => request<{ praesentation: Praesentation }>('/api/slides/praesentationen', 'POST', p),
   updatePraes: (p: Praesentation) => request<{ praesentation: Praesentation }>(`/api/slides/praesentationen/${p.id}`, 'PUT', p),
+  createOrdner: (name: string) => request<{ ordner: Ordner }>('/api/slides/ordner', 'POST', { name }),
+  renameOrdner: (id: string, name: string) => request<{ ordner: Ordner }>(`/api/slides/ordner/${id}`, 'PUT', { name }),
+  removeOrdner: (id: string) => request<{ ok: boolean }>(`/api/slides/ordner/${id}`, 'DELETE'),
   removePraes: (id: string) => request<{ ok: boolean }>(`/api/slides/praesentationen/${id}`, 'DELETE'),
   removeMedia: (name: string) => request<FolienState>(`/api/slides/medien/${encodeURIComponent(name)}`, 'DELETE'),
 };

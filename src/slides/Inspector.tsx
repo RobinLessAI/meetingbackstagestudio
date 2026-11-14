@@ -30,6 +30,7 @@ import {
   type Element,
   type Folie,
   type Hintergrund,
+  type Ordner,
   type UebergangTyp,
 } from './model.ts';
 
@@ -489,7 +490,9 @@ export function SlideInspector({
   onPickMedia,
   flach,
   onFlach,
+  ordner = [],
 }: {
+  ordner?: Ordner[];
   folie: Folie;
   onChange: Patch<Folie>;
   onPickMedia: (typ: 'bild' | 'video') => void;
@@ -508,6 +511,22 @@ export function SlideInspector({
         <div className="sl-field">
           <label htmlFor="folie-name">Name</label>
           <input id="folie-name" className="input" value={folie.name} onChange={(e) => onChange({ name: e.target.value }, 'name')} />
+        </div>
+        <div className="sl-field">
+          <label htmlFor="folie-ordner">Ordner</label>
+          <select
+            id="folie-ordner"
+            className="select"
+            value={folie.ordner ?? ''}
+            onChange={(e) => onChange({ ordner: e.target.value || null }, 'ordner')}
+          >
+            <option value="">Ohne Ordner</option>
+            {ordner.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </select>
         </div>
       </Section>
       <Section title="Hintergrund">

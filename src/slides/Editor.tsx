@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   Check,
+  Download,
   Circle,
   Copy,
   ExternalLink,
@@ -30,6 +31,8 @@ import { SlideThumb } from './SlideRender.tsx';
 import { VORLAGEN, vorlage, type VorlageId } from './vorlagen.ts';
 import { mitTon, TonButton, useTon } from './ton.tsx';
 import { PraesentationenPanel } from './Praesentationen.tsx';
+import { ExportDialog } from './ExportDialog.tsx';
+import { filterFolien, ordnerName, OrdnerLeiste, useOrdnerWahl, zielOrdner } from './ordner.tsx';
 
 type Toast = { id: number; text: string; tone: 'ok' | 'fehler' };
 const newId = () => Math.random().toString(36).slice(2, 10);
@@ -48,6 +51,9 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
   const [newOpen, setNewOpen] = useState(false);
   const [ton, setTon] = useTon();
   const [flach, setFlach] = useState(false);
+  const [wahl, setWahl] = useOrdnerWahl(st);
+  const [suche, setSuche] = useState('');
+  const [exportOpen, setExportOpen] = useState(false);
   const [bereich, setBereich] = useState<'folien' | 'praesentationen'>(() =>
     new URLSearchParams(window.location.search).get('bereich') === 'praesentationen' ? 'praesentationen' : 'folien',
   );
@@ -248,7 +254,7 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
     try {
       await flush();
       const name = VORLAGEN.find((v) => v.id === id)?.name ?? 'Folie';
-      const r = await slidesApi.create(vorlage(id, name));
+      const r = await slidesApi.create({ ...vorlage(id, name), ordner: zielOrdner(wahl) });
       setSt((s) => (s ? { ...s, folien: [...s.folien, r.folie] } : s));
       setFolieId(r.folie.id);
       setNewOpen(false);
@@ -345,6 +351,17 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
           <IconButton label="Rückgängig (⌘ Z)" icon={Undo2} onClick={undo} disabled={!past.current.length} />
           <IconButton label="Wiederholen (⇧ ⌘ Z)" icon={Redo2} onClick={redo} disabled={!future.current.length} />
         </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          icon={Download}
+          onClick={async () => {
+            await flush();
+            setExportOpen(true);
+          }}
+        >
+          Exportieren
+        </Button>
         <span className={`sl-top__status sl-top__status--${saving}`} role="status">
           {saving === 'speichert' ? (
             'Speichert …'
@@ -369,8 +386,20 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
                 Neu
               </Button>
             </div>
+            <OrdnerLeiste
+              st={st}
+              wahl={wahl}
+              onWahl={setWahl}
+              suche={suche}
+              onSuche={setSuche}
+              onState={(fn) => setSt((s) => (s ? fn(s) : s))}
+              onError={(m) => toast(m, 'fehler')}
+            />
+            {filterFolien(st, wahl, suche).length === 0 && (
+              <p className="sl-hint">{suche ? 'Keine Folie gefunden.' : 'Dieser Ordner ist noch leer. „Neu“ legt eine Folie direkt hier an.'}</p>
+            )}
             <ul className="sl-slides">
-              {st.folien.map((f) => {
+              {filterFolien(st, wahl, suche).map((f) => {
                 const shown = f.id === draft?.id ? draft : f;
                 return (
                   <li key={f.id} className={`sl-slide${f.id === folieId ? ' is-active' : ''}`}>
@@ -387,6 +416,7 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
                         {live === f.id && <Radio size={13} className="sl-live" aria-label="auf Sendung" />}
                         {shown.name}
                       </span>
+                      {(wahl === 'alle' || suche) && shown.ordner && <span className="sl-slide__ordner">{ordnerName(st, shown.ordner)}</span>}
                     </button>
                   </li>
                 );
@@ -515,6 +545,7 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
                   onPickMedia={(typ) => setMediaFor({ typ, ziel: 'hintergrund' })}
                   flach={flach}
                   onFlach={setFlach}
+                  ordner={st.ordner}
                 />
                 <div className="sl-actions sl-actions--slide">
                   <Button
@@ -563,6 +594,8 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
           </aside>
         </div>
       )}
+
+      <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} st={st} wahl={wahl} />
 
       <MediaLibrary
         open={!!mediaFor}

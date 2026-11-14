@@ -203,3 +203,21 @@
 .ref-error { position: fixed; left: 50%; bottom: 90px; translate: -50% 0; z-index: 10; }
 @media (max-width: 900px) { .ref-body { grid-template-columns: 1fr; } .ref-now__stage { min-height: 220px; } }
 .sl-3d-presets { flex-wrap: wrap; }
+
+/* Ordner und Export */
+.ordner { display: flex; flex-direction: column; gap: 6px; }
+.ordner__row { display: flex; align-items: center; gap: 2px; }
+.ordner__select { flex: 1; min-width: 0; height: 32px; }
+.ordner__row .icon-btn { width: 30px; height: 30px; flex: none; }
+.ordner__search { display: flex; align-items: center; gap: 6px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: var(--raised); color: var(--text-3); }
+.ordner__search .input { border: 0; background: none; height: 30px; padding: 0; flex: 1; min-width: 0; box-shadow: none; }
+.sl-slide__ordner { font-size: 11px; font-weight: 500; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exp { display: grid; gap: 14px; }
+.exp__card { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--raised); }
+.exp__card h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--fs-md); }
+.exp__card p { margin: 0; }
+.exp__umfang { display: grid; gap: 6px; font-size: var(--fs-sm); }
+.exp__umfang input { accent-color: var(--accent); margin-right: 6px; }
+.exp__stage { position: fixed; left: -30000px; top: 0; width: 1920px; height: 1080px; pointer-events: none; }
+.sl-praes__poolbar { max-width: 420px; }
+.sl-praes__poolbar { max-width: 420px; }

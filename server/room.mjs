@@ -628,6 +628,11 @@ export function createRoom({ id, dataDir, web, cfg, log: baseLog, keys, renewKey
     regieStatus,
     counts,
     savedAt: () => saved?.savedAt ?? null,
+    /** Für den Export: Veranstaltung (ohne Chat) und Vorlagen. */
+    exportData: () => ({
+      veranstaltung: saved?.state && typeof saved.state === 'object' ? { ...saved.state, chat: [], highlightId: null } : null,
+      vorlagen: templates,
+    }),
     /** Anzahl offener Verbindungen (zum Aufräumen leerer Räume). */
     connections: () => roles.size,
 

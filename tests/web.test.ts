@@ -1,5 +1,6 @@
 // Web-Modus: Kundenkonten, Freischaltung, Trennung der Konten, Sperre, Passwort, Schutz gegen Durchprobieren,
 // „Mit Zoom verbinden“ (nachgebauter Zoom-Server), OBF-Token für die Regie, App-Entfernung über Zoom.
+import { unzipSync } from 'fflate';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -710,6 +711,40 @@ test('Slides: Folien je Konto, feste OBS-Adressen mit Live-Aktualisierung, Kanal
   const editor = await host('/', 'slide.mb.test');
   assert.equal(editor.status, 200);
   assert.match(editor.body, /<div id="root">/);
+  // Ordner: anlegen, Folie hineinlegen, umbenennen, löschen (Folie bleibt)
+  const kurs = (await (await call('/api/slides/ordner', 'POST', anna, { name: 'Kurs Rhetorik' })).json()).ordner;
+  assert.match(kurs.id, /^[a-f0-9]{8}$/);
+  assert.equal((await call(`/api/slides/ordner/${kurs.id}`, 'PUT', admin, { name: 'x' })).status, 404, 'fremder Ordner');
+  const imKurs = (await (await call('/api/slides', 'POST', anna, { name: 'Im Kurs', ordner: kurs.id, elemente: [{ typ: 'bild', src: medium.url }] })).json()).folie;
+  assert.equal(imKurs.ordner, kurs.id);
+  assert.equal((await (await call('/api/slides', 'POST', anna, { name: 'Falsch', ordner: 'abcdef12' })).json()).folie.ordner, null);
+  await call(`/api/slides/ordner/${kurs.id}`, 'PUT', anna, { name: 'Kurs Rhetorik 2' });
+  // Export: alles (mit Studio-Daten und Medien) und nur ein Ordner
+  assert.equal((await fetch(`${BASE}/api/export`)).status, 401);
+  const zipRes = await call('/api/export', 'GET', anna);
+  assert.equal(zipRes.headers.get('content-type'), 'application/zip');
+  assert.match(zipRes.headers.get('content-disposition') ?? '', /attachment; filename="meetingbackstage-export-\d{4}-\d{2}-\d{2}\.zip"/);
+  const zip = unzipSync(new Uint8Array(await zipRes.arrayBuffer()));
+  assert.ok(zip['LIESMICH.txt']);
+  assert.ok(zip['studio/veranstaltung.json']);
+  assert.ok(zip['studio/vorlagen.json']);
+  const exp = JSON.parse(new TextDecoder().decode(zip['slides/folien.json']));
+  assert.equal(exp.ordner[0].name, 'Kurs Rhetorik 2');
+  assert.ok(exp.folien.some((x: { name: string }) => x.name === 'Im Kurs'));
+  assert.deepEqual([...zip[`slides/medien/${medium.url.slice(3)}`]], [...png]);
+  assert.ok(zip[`slides/medien/${vid.url.slice(3)}`]);
+  const nurKurs = unzipSync(new Uint8Array(await (await call(`/api/export?ordner=${kurs.id}`, 'GET', anna)).arrayBuffer()));
+  const expKurs = JSON.parse(new TextDecoder().decode(nurKurs['slides/folien.json']));
+  assert.deepEqual(expKurs.folien.map((x: { name: string }) => x.name), ['Im Kurs']);
+  assert.equal(nurKurs['studio/veranstaltung.json'], undefined);
+  assert.ok(nurKurs[`slides/medien/${medium.url.slice(3)}`]);
+  assert.equal(nurKurs[`slides/medien/${vid.url.slice(3)}`], undefined, 'nur benutzte Medien');
+  assert.equal((await call('/api/export?ordner=00000000', 'GET', anna)).status, 404);
+  // Ordner löschen: Folie bleibt, ohne Ordner
+  await call(`/api/slides/ordner/${kurs.id}`, 'DELETE', anna);
+  const nach = await (await call('/api/slides', 'GET', anna)).json();
+  assert.equal(nach.ordner.length, 0);
+  assert.equal(nach.folien.find((x: { id: string }) => x.id === imKurs.id).ordner, null);
   // Ohne Recht „slides“ kein Zugriff
   const k = await (await post('/api/verwaltung/konten', {}, admin)).json();
   const ohne = k.rollen.rollen.map((r: { id: string; bereiche: string[] }) => ({ ...r, bereiche: r.bereiche.filter((b: string) => b !== 'slides') }));

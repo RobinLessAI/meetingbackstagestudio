@@ -256,5 +256,7 @@ Folien für OBS mit fester Adresse, unabhängig von Zoom. Editor auf `slide.<Hau
 - Präsentationen: Reihenfolge, Klick-Schritte (`schritt` je Element), Übergänge (`uebergang` je Folie), Notizen (nie öffentlich),
   automatisch weiter (Zeitgeber auf dem Server), Steuerung über `/api/slides/steuerung`, Live-Zustand für die eigene Steuerung über
   `/api/slides/ereignisse`, Stream Deck über `/aktion/folie-weiter|folie-zurueck|folie-anfang|folie-leer`
+- Ordner (`ordner.tsx`, `/api/slides/ordner`), Export als ZIP (`server/export.mjs`, `/api/export[?ordner=<id>]`, als Datenstrom),
+  Folien als PNG im Browser (`ExportDialog.tsx`, html-to-image + fflate)
 - Steuerpult (`Steuerpult.tsx`), Präsentationen im Editor (`Praesentationen.tsx`), Referentenansicht (`Referent.tsx`, `?ansicht=referent`)
 - Schriften (frei lizenziert) in `public/folien-schriften/`

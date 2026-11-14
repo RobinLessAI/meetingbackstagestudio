@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CircleAlert, Copy, ExternalLink, Pencil, Plus, Presentation, Radio, RefreshCw } from 'lucide-react';
+import { CircleAlert, Copy, Download, ExternalLink, Pencil, Plus, Presentation, Radio, RefreshCw } from 'lucide-react';
 import { Badge, Button, Panel } from '../components/ui.tsx';
 import { useStore } from '../state/store.tsx';
 import { slidesApi, useSlideEvents } from '../slides/api.ts';
@@ -9,6 +9,8 @@ import type { FolienState, KanalState } from '../slides/model.ts';
 import { SlideThumb } from '../slides/SlideRender.tsx';
 import { slidesUrl } from '../web/mode.ts';
 import { mitTon, TonButton, useTon } from '../slides/ton.tsx';
+import { filterFolien, filterPraes, ordnerName, OrdnerLeiste, useOrdnerWahl } from '../slides/ordner.tsx';
+import { ExportDialog } from '../slides/ExportDialog.tsx';
 
 /** Studio-Seite „Slides“: alle Folien mit Vorschau, OBS-Adressen, Kanal; Bearbeiten öffnet den Folien-Editor. */
 export function SlidesView() {
@@ -16,6 +18,9 @@ export function SlidesView() {
   const [st, setSt] = useState<FolienState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ton, setTon] = useTon();
+  const [wahl, setWahl] = useOrdnerWahl(st);
+  const [suche, setSuche] = useState('');
+  const [exportOpen, setExportOpen] = useState(false);
   const editor = slidesUrl() ?? '/folien';
   const editLink = (id?: string) => `${editor}${id ? `${editor.includes('?') ? '&' : '?'}folie=${id}` : ''}`;
 
@@ -85,6 +90,9 @@ export function SlidesView() {
           <Button icon={RefreshCw} onClick={load}>
             Aktualisieren
           </Button>
+          <Button icon={Download} disabled={!st} onClick={() => setExportOpen(true)}>
+            Exportieren
+          </Button>
           <a className="btn btn--primary" href={editLink()} target="_blank" rel="noreferrer">
             <Pencil size={16} aria-hidden /> Folien-Editor öffnen
           </a>
@@ -99,7 +107,10 @@ export function SlidesView() {
 
       {st && (
         <Panel eyebrow="Eine Adresse für alles" title="Kanal">
-          <p className="muted">Lege diese Adresse einmal als Browserquelle in OBS an (1920 × 1080). Sie zeigt immer die Folie, die du unten „auf Sendung“ schaltest. „Mit Ton“ gilt für alle kopierten Adressen auf dieser Seite.</p>
+          <p className="muted">
+            Lege diese Adresse einmal als Browserquelle in OBS an (1920 × 1080). Sie zeigt immer die Folie, die du unten „auf Sendung“ schaltest. „Mit
+            Ton“ gilt für alle kopierten Adressen auf dieser Seite.
+          </p>
           <div className="slides-url">
             <input className="input mono" readOnly value={channelUrl} aria-label="Adresse des Kanals" onFocus={(e) => e.target.select()} />
             <Button icon={Copy} onClick={() => copy(channelUrl, 'Kanal-Adresse')}>
@@ -116,20 +127,48 @@ export function SlidesView() {
       )}
 
       {st && (
+        <div className="slides-filter">
+          <OrdnerLeiste
+            st={st}
+            wahl={wahl}
+            onWahl={setWahl}
+            suche={suche}
+            onSuche={setSuche}
+            onState={(fn) => setSt((x) => (x ? fn(x) : x))}
+            onError={(m) => notify(m, 'fehler')}
+          />
+          <span className="subtle">Ordner und Suche gelten für Präsentationen und Folien auf dieser Seite.</span>
+        </div>
+      )}
+
+      {st && (
         <Panel
           eyebrow="Mehrere Folien nacheinander"
           title="Präsentation"
           actions={
-            <a className="btn btn--ghost btn--sm" href={`${editor}${editor.includes('?') ? '&' : '?'}bereich=praesentationen`} target="_blank" rel="noreferrer">
+            <a
+              className="btn btn--ghost btn--sm"
+              href={`${editor}${editor.includes('?') ? '&' : '?'}bereich=praesentationen`}
+              target="_blank"
+              rel="noreferrer"
+            >
               <Presentation size={14} aria-hidden /> Präsentationen bearbeiten
             </a>
           }
         >
-          <Steuerpult st={st} kanal={st.kanal} onKanal={setKanal} onError={(m) => notify(m, 'fehler')} referentUrl={referentUrl} />
+          <Steuerpult
+            st={st}
+            kanal={st.kanal}
+            onKanal={setKanal}
+            onError={(m) => notify(m, 'fehler')}
+            referentUrl={referentUrl}
+            praesentationen={filterPraes(st, wahl, suche)}
+          />
           <details className="slides-deck">
             <summary>Stream Deck: Weiter, Zurück, Anfang, Schwarz</summary>
             <p className="muted">
-              Aktion „Website“ auf eine Taste ziehen, Adresse einfügen und „GET-Anfrage im Hintergrund“ einschalten. Wirkt auch, wenn kein Browserfenster offen ist.
+              Aktion „Website“ auf eine Taste ziehen, Adresse einfügen und „GET-Anfrage im Hintergrund“ einschalten. Wirkt auch, wenn kein
+              Browserfenster offen ist.
             </p>
             {[
               ['folie-weiter', 'Weiter'],
@@ -139,7 +178,13 @@ export function SlidesView() {
             ].map(([id, label]) => (
               <div key={id} className="slides-url">
                 <span className="slides-deck__label">{label}</span>
-                <input className="input mono" readOnly value={deckUrl(id)} aria-label={`Stream-Deck-Adresse: ${label}`} onFocus={(e) => e.target.select()} />
+                <input
+                  className="input mono"
+                  readOnly
+                  value={deckUrl(id)}
+                  aria-label={`Stream-Deck-Adresse: ${label}`}
+                  onFocus={(e) => e.target.select()}
+                />
                 <Button icon={Copy} disabled={!actionKey} onClick={() => copy(deckUrl(id), 'Stream-Deck-Adresse')}>
                   Kopieren
                 </Button>
@@ -162,7 +207,7 @@ export function SlidesView() {
 
       {st && st.folien.length > 0 && (
         <div className="slides-grid">
-          {st.folien.map((f) => {
+          {filterFolien(st, wahl, suche).map((f) => {
             const onAir = st.kanal.liveId === f.id;
             const url = mitTon(`${st.basis}/s/${f.key}`, ton);
             return (
@@ -172,6 +217,7 @@ export function SlidesView() {
                 </a>
                 <div className="slides-card__head">
                   <h2>{f.name}</h2>
+                  {(wahl === 'alle' || suche) && f.ordner && <span className="subtle slides-card__ordner">{ordnerName(st, f.ordner)}</span>}
                   {onAir && <Badge tone="danger">auf Sendung</Badge>}
                 </div>
                 <div className="slides-card__actions">
@@ -194,6 +240,7 @@ export function SlidesView() {
           })}
         </div>
       )}
+      {st && <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} st={st} wahl={wahl} />}
     </div>
   );
 }

@@ -126,6 +126,8 @@ export interface Folie {
   notizen: string;
   /** 3D-Perspektive der ganzen Folie */
   dreiD: DreiD;
+  /** Ordner (z. B. Kurs), null = ohne Ordner */
+  ordner?: string | null;
   elemente: Element[];
 }
 
@@ -171,6 +173,12 @@ export interface Praesentation {
   /** Sekunden bis zum automatischen Weiterschalten, 0 = aus */
   auto: number;
   schleife: boolean;
+  ordner?: string | null;
+}
+
+export interface Ordner {
+  id: string;
+  name: string;
 }
 
 export interface KanalState {
@@ -206,6 +214,7 @@ export interface FolienState {
   medien: Medium[];
   kanal: KanalState;
   praesentationen: Praesentation[];
+  ordner: Ordner[];
   speicher: { belegt: number; max: number; bildMax: number; videoMax: number };
   basis: string;
 }

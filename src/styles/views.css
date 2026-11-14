@@ -1602,3 +1602,7 @@ a.btn { text-decoration: none; }
 .slides-deck[open] { gap: 8px; }
 .slides-deck .slides-url { align-items: center; margin-top: 6px; }
 .slides-deck__label { width: 140px; font-size: var(--fs-sm); color: var(--text-2); }
+.slides-filter { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.slides-filter .ordner { width: 360px; max-width: 100%; }
+.slides-filter > .subtle { font-size: var(--fs-xs); padding-top: 8px; }
+.slides-card__ordner { font-size: var(--fs-xs); }

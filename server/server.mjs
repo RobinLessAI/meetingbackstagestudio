@@ -23,6 +23,7 @@ import { brevoTransport, createMailer, smtpTransport } from './mailer.mjs';
 import { createMailTemplates } from './mailTemplates.mjs';
 import { createRoles, RoleError } from './roles.mjs';
 import { createSlides, MEDIA_MIME, SlideError } from './slides.mjs';
+import { exportEntries, writeZip } from './export.mjs';
 import { createRoom } from './room.mjs';
 import { zoomSignatureOk } from './zoomAccount.mjs';
 import { ICONS, BLOCK_TYPES } from './website/render.mjs';
@@ -720,6 +721,39 @@ function serveSlidePublic(req, res, url) {
   return true;
 }
 
+/** Export aller Daten des Kontos als ZIP: /api/export (alles) oder /api/export?ordner=<id> (nur Folien eines Ordners). */
+async function handleExport(req, res, url) {
+  let owner = 'lokal';
+  let room = localRoom;
+  let wer = 'lokal';
+  if (WEB) {
+    const user = sessionUser(req);
+    if (!user || user.status !== 'aktiv') return json(res, 401, { fehler: 'Bitte anmelden.' });
+    owner = user.id;
+    room = roomFor(user);
+    wer = user.email;
+  }
+  const ordner = url.searchParams.get('ordner');
+  const st = slides.exportState(owner, ordner);
+  if (!st) return json(res, 404, { fehler: 'Ordner nicht gefunden.' });
+  const entries = exportEntries({ wer, studio: ordner ? null : room.exportData(), folien: st, mediaFile: (n) => slides.mediaFile(n) });
+  const tag = new Date().toISOString().slice(0, 10);
+  const teil = st.ordnerName ? `-${st.ordnerName.toLowerCase().replace(/[^a-z0-9äöüß]+/g, '-').replace(/^-|-$/g, '')}` : '';
+  res.writeHead(200, {
+    'Content-Type': 'application/zip',
+    'Content-Disposition': `attachment; filename="meetingbackstage-export${encodeURIComponent(teil)}-${tag}.zip"`,
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+  });
+  try {
+    await writeZip(res, entries);
+    log(`Export erstellt (${entries.length} Dateien).`);
+  } catch (e) {
+    log(`Export abgebrochen: ${e.message}`);
+    res.destroy();
+  }
+}
+
 /** Folien bearbeiten (Editor und Studio). Web: angemeldet und Bereich „slides“ freigeschaltet. */
 async function handleSlidesApi(req, res, url) {
   try {
@@ -749,6 +783,13 @@ async function handleSlidesApi(req, res, url) {
       res.write(`retry: 3000\ndata: ${JSON.stringify({ typ: 'kanal', kanal: slides.kanalState(owner) })}\n\n`);
       slides.subscribe('o', owner, res);
       return;
+    }
+    if (route === '/ordner' && req.method === 'POST') return json(res, 200, { ordner: await slides.createOrdner(owner, await body()) });
+    const od = /^\/ordner\/([a-f0-9]{8})$/.exec(route);
+    if (od && req.method === 'PUT') return json(res, 200, { ordner: await slides.renameOrdner(owner, od[1], await body()) });
+    if (od && req.method === 'DELETE') {
+      await slides.removeOrdner(owner, od[1]);
+      return json(res, 200, { ok: true });
     }
     if (route === '/praesentationen' && req.method === 'POST') return json(res, 200, { praesentation: await slides.createPraesentation(owner, await body()) });
     const pr = /^\/praesentationen\/([a-f0-9]{12})$/.exec(route);
@@ -950,6 +991,13 @@ const server = http.createServer((req, res) => {
   }
   if ((url.pathname.startsWith('/s/') || url.pathname.startsWith('/kanal/')) && req.method === 'GET' && !isMainHost(req.headers.host)) {
     if (serveSlidePublic(req, res, url)) return;
+  }
+  if (url.pathname === '/api/export' && req.method === 'GET' && !isMainHost(req.headers.host)) {
+    handleExport(req, res, url).catch((e) => {
+      log(`Export: ${e.message}`);
+      if (!res.headersSent) json(res, 500, { fehler: 'Export nicht möglich.' });
+    });
+    return;
   }
   if (url.pathname === '/api/slides' || url.pathname.startsWith('/api/slides/')) {
     handleSlidesApi(req, res, url);

@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { Globe, KeyRound, LogOut, ShieldCheck, UserRound } from 'lucide-react';
+import { Globe, KeyRound, LogOut, ShieldCheck, UserRound, Download } from 'lucide-react';
 import { Button, Dialog } from '../components/ui.tsx';
 import { useStore } from '../state/store.tsx';
 import { useUi } from '../state/ui.tsx';
@@ -56,6 +56,16 @@ export function AccountMenu() {
           >
             <KeyRound size={15} aria-hidden /> Passwort ändern
           </button>
+          <a
+            role="menuitem"
+            className="account__item"
+            href="/api/export"
+            download
+            onClick={() => setOpen(false)}
+            title="Alle deine Daten als ZIP: Veranstaltung, Vorlagen, Folien, Bilder und Videos"
+          >
+            <Download size={15} aria-hidden /> Meine Daten exportieren (ZIP)
+          </a>
           {mainSiteUrl() && (
             <a role="menuitem" className="account__item" href={mainSiteUrl()!} target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
               <Globe size={15} aria-hidden /> Zur Website {mainSiteUrl()!.replace(/^https?:\/\//, '')}

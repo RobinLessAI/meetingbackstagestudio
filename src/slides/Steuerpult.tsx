@@ -75,7 +75,10 @@ export function Steuerpult({
   onKanal,
   onError,
   referentUrl,
+  praesentationen,
 }: {
+  /** Nur diese Präsentationen zum Starten anbieten (z. B. gefiltert nach Ordner) */
+  praesentationen?: Praesentation[];
   st: FolienState;
   kanal: KanalState;
   onKanal: (k: KanalState) => void;
@@ -96,13 +99,17 @@ export function Steuerpult({
   if (!p || !kanal.ablauf) {
     return (
       <div className="sp">
-        {st.praesentationen.length === 0 ? (
-          <p className="muted">
-            Noch keine Präsentation. Lege im Folien-Editor unter „Präsentationen“ eine an und wähle die Folien in ihrer Reihenfolge.
-          </p>
+        {(praesentationen ?? st.praesentationen).length === 0 ? (
+          st.praesentationen.length > 0 ? (
+            <p className="muted">In diesem Ordner gibt es keine Präsentation.</p>
+          ) : (
+            <p className="muted">
+              Noch keine Präsentation. Lege im Folien-Editor unter „Präsentationen“ eine an und wähle die Folien in ihrer Reihenfolge.
+            </p>
+          )
         ) : (
           <ul className="sp-list">
-            {st.praesentationen.map((x) => {
+            {(praesentationen ?? st.praesentationen).map((x) => {
               const f = folienVon(st, x);
               return (
                 <li key={x.id}>

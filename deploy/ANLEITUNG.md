@@ -185,6 +185,17 @@ Folien mit Text, Formen, Bildern und Videos für OBS – unabhängig von Zoom. G
 Folie „auf Sendung“ zeigt. Quelle „Browser“, 1920 × 1080. Änderungen erscheinen sofort. Der Knopf **„Mit Ton“** neben den
 Adressen hängt `?ton=1` an, dann spielen Videos mit Ton (zusätzlich beim Video „Ton abspielen“ einschalten).
 
+**Ordner (z. B. ein Ordner je Kurs):** Im Folien-Editor links über der Folienliste den Ordner wählen; das Ordner-Symbol legt
+einen neuen an, Stift und Papierkorb benennen um bzw. löschen (die Folien bleiben dann unter „Ohne Ordner“ erhalten). Neue Folien
+und Präsentationen landen im gewählten Ordner; verschieben über „Ordner“ rechts bei der Folie bzw. Präsentation. Die Suche
+findet Folien über alle Ordner (Name, Texte, Notizen). Präsentationen dürfen Folien aus jedem Ordner verwenden.
+
+**Speichern und Export:** Alles liegt auf dem Server im eigenen Konto (Folien, Ordner, Präsentationen, Bilder, Videos,
+Veranstaltung und Vorlagen aus dem Studio) und wird automatisch gespeichert. „Exportieren“ (im Folien-Editor oben, im Studio
+unter „Slides“, im Kontomenü) lädt herunter:
+- **Alle Daten als ZIP** – inklusive Bilder und Videos in Originalqualität, mit `LIESMICH.txt`; oder nur einen Ordner.
+- **Folien als Bilder (PNG, 1920 × 1080)** – je Ordner ein Unterordner, z. B. für PowerPoint oder Handouts.
+
 **3D-Perspektive:** Bei einer Folie rechts unter „3D-Perspektive“ die Folie räumlich neigen: seitlich drehen, nach hinten
 kippen, in der Ebene drehen, Tiefenwirkung (Verzerrung), Größe und Position, wahlweise mit Schatten und mit oder ohne
 Hintergrund. Vier Vorlagen (links/rechts gedreht, nach hinten gekippt, schräg im Raum) als Startpunkt. Einzelne Elemente

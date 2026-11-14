@@ -19,7 +19,8 @@ export const LIMITS = {
   kontoMax: 2 * 1024 * 1024 * 1024,
   folienMax: 200,
   elementeMax: 120,
-  praesMax: 50,
+  praesMax: 200,
+  ordnerMax: 200,
   schritteMax: 20,
 };
 export const MEDIA_TYPES = {
@@ -164,10 +165,15 @@ export function normalizeFolie(raw, keep = {}) {
     hintergrund: normalizeHintergrund(raw?.hintergrund),
     uebergang: { typ: pick(raw?.uebergang?.typ, UEBERGAENGE, 'blende'), dauer: num(raw?.uebergang?.dauer, 0.1, 3, 0.6) },
     notizen: str(raw?.notizen, 4000),
+    ordner: ordnerId(raw?.ordner),
     dreiD: normalizeDreiD(raw?.dreiD),
     elemente: (Array.isArray(raw?.elemente) ? raw.elemente.slice(0, LIMITS.elementeMax) : []).map(normalizeElement).filter(Boolean),
   };
 }
+
+const ordnerId = (v) => (typeof v === 'string' && /^[a-f0-9]{8}$/.test(v) ? v : null);
+/** Ordner (z. B. ein Kurs): sortiert Folien und Präsentationen. */
+const normalizeOrdner = (raw, keep = {}) => ({ id: keep.id ?? randomId(4), name: str(raw?.name, 80).trim() || 'Ordner' });
 
 /** Präsentation: Name, Reihenfolge der Folien, automatisch weiter (Sekunden, 0 = aus), Endlosschleife. */
 export function normalizePraesentation(raw, keep = {}) {
@@ -178,6 +184,7 @@ export function normalizePraesentation(raw, keep = {}) {
     folien: ids,
     auto: Math.round(num(raw?.auto, 0, 3600, 0)),
     schleife: bool(raw?.schleife),
+    ordner: ordnerId(raw?.ordner),
   };
 }
 
@@ -235,6 +242,7 @@ export function createSlides({ dataDir, ownerDir, owners = () => [], log = () =>
     }
     const folien = (d?.folien ?? []).map((f) => ({ ...normalizeFolie(f, { id: f.id, key: f.key }), updatedAt: f.updatedAt ?? Date.now() }));
     const medien = (d?.medien ?? []).filter((m) => MEDIA_NAME.test(m?.name ?? ''));
+    const ordner = (d?.ordner ?? []).map((o) => normalizeOrdner(o, { id: o.id })).filter((o) => /^[a-f0-9]{8}$/.test(o.id));
     const praesentationen = (d?.praesentationen ?? []).map((p) => normalizePraesentation(p, { id: p.id }));
     const k = d?.kanal ?? {};
     const kanal = {
@@ -245,7 +253,7 @@ export function createSlides({ dataDir, ownerDir, owners = () => [], log = () =>
       leer: bool(k.leer),
       seit: Date.now(),
     };
-    const entry = { folien, medien, kanal, praesentationen };
+    const entry = { folien, medien, kanal, praesentationen, ordner };
     data.set(owner, entry);
     if (!d) save(owner).catch(() => {}); // neuer Kanal-Schlüssel: sofort festhalten
     for (const f of folien) slideIndex.set(f.key, { owner, id: f.id });
@@ -385,6 +393,11 @@ export function createSlides({ dataDir, ownerDir, owners = () => [], log = () =>
     for (const set of subscribers.values()) for (const res of set) res.write(': ping\n\n');
   }, 25_000).unref();
 
+  /** Ordner muss es geben, sonst „ohne Ordner“. */
+  const checkOrdner = (owner, obj) => {
+    if (obj.ordner && !load(owner).ordner.some((o) => o.id === obj.ordner)) obj.ordner = null;
+    return obj;
+  };
   const used = (owner) => load(owner).medien.reduce((s, m) => s + (m.groesse || 0), 0);
   const findFolie = (owner, id) => {
     const f = load(owner).folien.find((x) => x.id === id);
@@ -402,6 +415,7 @@ export function createSlides({ dataDir, ownerDir, owners = () => [], log = () =>
         medien: d.medien,
         kanal: kanalState(owner),
         praesentationen: d.praesentationen,
+        ordner: d.ordner,
         speicher: { belegt: used(owner), max: LIMITS.kontoMax, bildMax: LIMITS.bildMax, videoMax: LIMITS.videoMax },
         basis,
       };
@@ -410,7 +424,7 @@ export function createSlides({ dataDir, ownerDir, owners = () => [], log = () =>
     async create(owner, raw) {
       const d = load(owner);
       if (d.folien.length >= LIMITS.folienMax) throw new SlideError(`Höchstens ${LIMITS.folienMax} Folien.`);
-      const f = normalizeFolie(raw);
+      const f = checkOrdner(owner, normalizeFolie(raw));
       d.folien.push(f);
       slideIndex.set(f.key, { owner, id: f.id });
       await save(owner);
@@ -420,7 +434,7 @@ export function createSlides({ dataDir, ownerDir, owners = () => [], log = () =>
     async update(owner, id, raw) {
       const d = load(owner);
       const old = findFolie(owner, id);
-      const f = normalizeFolie(raw, { id: old.id, key: old.key });
+      const f = checkOrdner(owner, normalizeFolie(raw, { id: old.id, key: old.key }));
       d.folien = d.folien.map((x) => (x.id === id ? f : x));
       await save(owner);
       notify(owner, f);
@@ -476,7 +490,7 @@ export function createSlides({ dataDir, ownerDir, owners = () => [], log = () =>
     async createPraesentation(owner, raw) {
       const d = load(owner);
       if (d.praesentationen.length >= LIMITS.praesMax) throw new SlideError(`Höchstens ${LIMITS.praesMax} Präsentationen.`);
-      const p = normalizePraesentation(raw);
+      const p = checkOrdner(owner, normalizePraesentation(raw));
       d.praesentationen.push(p);
       await save(owner);
       push(`o:${owner}`, { typ: 'folien' });
@@ -485,7 +499,7 @@ export function createSlides({ dataDir, ownerDir, owners = () => [], log = () =>
     async updatePraesentation(owner, id, raw) {
       const d = load(owner);
       if (!d.praesentationen.some((p) => p.id === id)) throw new SlideError('Präsentation nicht gefunden.', 404);
-      const p = normalizePraesentation(raw, { id });
+      const p = checkOrdner(owner, normalizePraesentation(raw, { id }));
       d.praesentationen = d.praesentationen.map((x) => (x.id === id ? p : x));
       const a = d.kanal.ablauf;
       if (a?.id === id) {
@@ -516,6 +530,51 @@ export function createSlides({ dataDir, ownerDir, owners = () => [], log = () =>
       pushChannel(owner);
       schedule(owner);
       push(`o:${owner}`, { typ: 'folien' });
+    },
+
+    // ------------------------------------------------------------- Ordner
+    async createOrdner(owner, raw) {
+      const d = load(owner);
+      if (d.ordner.length >= LIMITS.ordnerMax) throw new SlideError(`Höchstens ${LIMITS.ordnerMax} Ordner.`);
+      const o = normalizeOrdner(raw);
+      d.ordner.push(o);
+      d.ordner.sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true }));
+      await save(owner);
+      push(`o:${owner}`, { typ: 'folien' });
+      return o;
+    },
+    async renameOrdner(owner, id, raw) {
+      const d = load(owner);
+      const o = d.ordner.find((x) => x.id === id);
+      if (!o) throw new SlideError('Ordner nicht gefunden.', 404);
+      o.name = normalizeOrdner(raw).name;
+      d.ordner.sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true }));
+      await save(owner);
+      push(`o:${owner}`, { typ: 'folien' });
+      return o;
+    },
+    /** Ordner löschen: Folien und Präsentationen bleiben erhalten und landen in „Ohne Ordner“. */
+    async removeOrdner(owner, id) {
+      const d = load(owner);
+      if (!d.ordner.some((x) => x.id === id)) throw new SlideError('Ordner nicht gefunden.', 404);
+      d.ordner = d.ordner.filter((x) => x.id !== id);
+      for (const f of d.folien) if (f.ordner === id) f.ordner = null;
+      for (const p of d.praesentationen) if (p.ordner === id) p.ordner = null;
+      await save(owner);
+      push(`o:${owner}`, { typ: 'folien' });
+    },
+
+    /** Daten für den Export; mit ordnerId nur dieser Ordner (Präsentationen samt ihren Folien, nur benutzte Medien). */
+    exportState(owner, ordnerId = null) {
+      const d = load(owner);
+      if (!ordnerId) return { ordner: d.ordner, folien: d.folien, praesentationen: d.praesentationen, medien: d.medien, ordnerName: null };
+      const o = d.ordner.find((x) => x.id === ordnerId);
+      if (!o) return null;
+      const praesentationen = d.praesentationen.filter((p) => p.ordner === o.id);
+      const ids = new Set([...d.folien.filter((f) => f.ordner === o.id).map((f) => f.id), ...praesentationen.flatMap((p) => p.folien)]);
+      const folien = d.folien.filter((f) => ids.has(f.id));
+      const json = JSON.stringify(folien);
+      return { ordner: [o], folien, praesentationen, medien: d.medien.filter((m) => json.includes(m.url)), ordnerName: o.name };
     },
 
     // ------------------------------------------------------------- Medien
