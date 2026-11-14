@@ -20,7 +20,18 @@ import {
   Unlock,
 } from 'lucide-react';
 import { Button } from '../components/ui.tsx';
-import { FLAECHE, SCHRIFTEN, UEBERGAENGE, type Animation, type Element, type Folie, type Hintergrund, type UebergangTyp } from './model.ts';
+import {
+  FLAECHE,
+  SCHRIFTEN,
+  STANDARD_3D,
+  UEBERGAENGE,
+  type Animation,
+  type DreiD,
+  type Element,
+  type Folie,
+  type Hintergrund,
+  type UebergangTyp,
+} from './model.ts';
 
 type Patch<T> = (patch: Partial<T>, key?: string) => void;
 
@@ -61,8 +72,19 @@ export function NumberField({
     <div className={`sl-field${slider ? ' sl-field--slider' : ''}`}>
       <label htmlFor={id}>{label}</label>
       <div className="sl-num">
-        {slider && <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => set(Number(e.target.value))} aria-label={label} />}
-        <input id={id} type="number" className="input" min={min} max={max} step={step} value={Math.round(value * 100) / 100} onChange={(e) => set(Number(e.target.value))} />
+        {slider && (
+          <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => set(Number(e.target.value))} aria-label={label} />
+        )}
+        <input
+          id={id}
+          type="number"
+          className="input"
+          min={min}
+          max={max}
+          step={step}
+          value={Math.round(value * 100) / 100}
+          onChange={(e) => set(Number(e.target.value))}
+        />
         {unit && <span className="sl-unit">{unit}</span>}
       </div>
     </div>
@@ -95,13 +117,30 @@ function Toggle({ label, on, onChange, icon: Icon }: { label: string; on: boolea
     </button>
   );
 }
-function Choice<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: Array<{ v: T; l: ReactNode; t?: string }>; onChange: (v: T) => void }) {
+function Choice<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: Array<{ v: T; l: ReactNode; t?: string }>;
+  onChange: (v: T) => void;
+}) {
   return (
     <div className="sl-field">
       <span className="sl-label">{label}</span>
       <div className="sl-choice" role="group" aria-label={label}>
         {options.map((o) => (
-          <button key={o.v} type="button" className={value === o.v ? 'is-on' : ''} aria-pressed={value === o.v} title={o.t} onClick={() => onChange(o.v)}>
+          <button
+            key={o.v}
+            type="button"
+            className={value === o.v ? 'is-on' : ''}
+            aria-pressed={value === o.v}
+            title={o.t}
+            onClick={() => onChange(o.v)}
+          >
             {o.l}
           </button>
         ))}
@@ -160,16 +199,39 @@ export function ElementInspector({
     <div className="sl-inspector">
       <div className="sl-inspector__head">
         <input className="input sl-name" value={el.name} onChange={(e) => onChange({ name: e.target.value }, 'name')} aria-label="Name der Ebene" />
-        <Toggle label={el.hidden ? 'Einblenden' : 'Ausblenden'} on={el.hidden} onChange={(v) => onChange({ hidden: v }, 'hidden')} icon={el.hidden ? EyeOff : Eye} />
-        <Toggle label={el.locked ? 'Entsperren' : 'Sperren'} on={el.locked} onChange={(v) => onChange({ locked: v }, 'locked')} icon={el.locked ? Lock : Unlock} />
+        <Toggle
+          label={el.hidden ? 'Einblenden' : 'Ausblenden'}
+          on={el.hidden}
+          onChange={(v) => onChange({ hidden: v }, 'hidden')}
+          icon={el.hidden ? EyeOff : Eye}
+        />
+        <Toggle
+          label={el.locked ? 'Entsperren' : 'Sperren'}
+          on={el.locked}
+          onChange={(v) => onChange({ locked: v }, 'locked')}
+          icon={el.locked ? Lock : Unlock}
+        />
       </div>
 
       {el.typ === 'text' && (
         <Section title="Text">
-          <textarea ref={textRef} className="textarea sl-text" rows={4} value={el.text} onChange={(e) => onChange({ text: e.target.value }, 'text')} aria-label="Text" />
+          <textarea
+            ref={textRef}
+            className="textarea sl-text"
+            rows={4}
+            value={el.text}
+            onChange={(e) => onChange({ text: e.target.value }, 'text')}
+            aria-label="Text"
+          />
           <div className="sl-field">
             <label htmlFor={`font-${el.id}`}>Schriftart</label>
-            <select id={`font-${el.id}`} className="select" value={el.font} onChange={(e) => onChange({ font: e.target.value }, 'font')} style={{ fontFamily: `'${el.font}'` }}>
+            <select
+              id={`font-${el.id}`}
+              className="select"
+              value={el.font}
+              onChange={(e) => onChange({ font: e.target.value }, 'font')}
+              style={{ fontFamily: `'${el.font}'` }}
+            >
               {SCHRIFTEN.map((s) => (
                 <option key={s.name} value={s.name} style={{ fontFamily: `'${s.name}'` }}>
                   {s.name} – {s.art}
@@ -223,7 +285,15 @@ export function ElementInspector({
         <Section title="Hintergrundfeld">
           <Row>
             <ColorField label="Farbe" value={el.bg} onChange={setAny('bg')} />
-            <NumberField label="Deckkraft" value={Math.round(el.bgOpacity * 100)} onChange={(v) => onChange({ bgOpacity: v / 100 }, 'bgOpacity')} min={0} max={100} unit="%" slider />
+            <NumberField
+              label="Deckkraft"
+              value={Math.round(el.bgOpacity * 100)}
+              onChange={(v) => onChange({ bgOpacity: v / 100 }, 'bgOpacity')}
+              min={0}
+              max={100}
+              unit="%"
+              slider
+            />
           </Row>
           <Row>
             <NumberField label="Innenabstand" value={el.pad} onChange={setAny('pad')} min={0} max={400} unit="px" />
@@ -250,7 +320,15 @@ export function ElementInspector({
           />
           <Row>
             <ColorField label="Füllung" value={el.fill} onChange={setAny('fill')} />
-            <NumberField label="Deckkraft" value={Math.round(el.fillOpacity * 100)} onChange={(v) => onChange({ fillOpacity: v / 100 }, 'fillOpacity')} min={0} max={100} unit="%" slider />
+            <NumberField
+              label="Deckkraft"
+              value={Math.round(el.fillOpacity * 100)}
+              onChange={(v) => onChange({ fillOpacity: v / 100 }, 'fillOpacity')}
+              min={0}
+              max={100}
+              unit="%"
+              slider
+            />
           </Row>
           <div className="sl-toggles">
             <Toggle label="Farbverlauf" on={el.verlauf} onChange={setAny('verlauf')} />
@@ -284,7 +362,9 @@ export function ElementInspector({
               <Toggle label="Ton abspielen" on={el.ton} onChange={setAny('ton')} />
             </div>
           )}
-          {el.typ === 'video' && el.ton && <p className="sl-hint">In OBS ist der Ton nur zu hören, wenn bei der OBS-Adresse der Knopf „Mit Ton“ eingeschaltet ist.</p>}
+          {el.typ === 'video' && el.ton && (
+            <p className="sl-hint">In OBS ist der Ton nur zu hören, wenn bei der OBS-Adresse der Knopf „Mit Ton“ eingeschaltet ist.</p>
+          )}
         </Section>
       )}
 
@@ -317,7 +397,19 @@ export function ElementInspector({
         </Row>
         <Row>
           <NumberField label="Drehung" value={el.rot} onChange={setAny('rot')} min={-360} max={360} unit="°" />
-          <NumberField label="Deckkraft" value={Math.round(el.opacity * 100)} onChange={(v) => onChange({ opacity: v / 100 }, 'opacity')} min={0} max={100} unit="%" slider />
+          <NumberField
+            label="Deckkraft"
+            value={Math.round(el.opacity * 100)}
+            onChange={(v) => onChange({ opacity: v / 100 }, 'opacity')}
+            min={0}
+            max={100}
+            unit="%"
+            slider
+          />
+        </Row>
+        <Row>
+          <NumberField label="3D kippen (oben/unten)" value={el.kippX ?? 0} onChange={setAny('kippX')} min={-80} max={80} unit="°" slider />
+          <NumberField label="3D drehen (links/rechts)" value={el.kippY ?? 0} onChange={setAny('kippY')} min={-80} max={80} unit="°" slider />
         </Row>
         <div className="sl-toggles">
           <Button size="sm" icon={AlignHorizontalJustifyCenter} onClick={() => onChange({ x: Math.round((FLAECHE.w - el.w) / 2) }, 'x')}>
@@ -335,7 +427,12 @@ export function ElementInspector({
       <Section title="Animation beim Einblenden">
         <div className="sl-field">
           <label htmlFor={`schritt-${el.id}`}>Erscheint</label>
-          <select id={`schritt-${el.id}`} className="select" value={el.schritt ?? 0} onChange={(e) => onChange({ schritt: Number(e.target.value) }, 'schritt')}>
+          <select
+            id={`schritt-${el.id}`}
+            className="select"
+            value={el.schritt ?? 0}
+            onChange={(e) => onChange({ schritt: Number(e.target.value) }, 'schritt')}
+          >
             <option value={0}>Mit der Folie</option>
             {Array.from({ length: Math.min(20, Math.max(maxSchritt, el.schritt ?? 0) + 1) }, (_, i) => i + 1).map((n) => (
               <option key={n} value={n}>
@@ -386,7 +483,23 @@ export function ElementInspector({
 }
 
 // ----------------------------------------------------------------- Folie (nichts ausgewählt)
-export function SlideInspector({ folie, onChange, onPickMedia }: { folie: Folie; onChange: Patch<Folie>; onPickMedia: (typ: 'bild' | 'video') => void }) {
+export function SlideInspector({
+  folie,
+  onChange,
+  onPickMedia,
+  flach,
+  onFlach,
+}: {
+  folie: Folie;
+  onChange: Patch<Folie>;
+  onPickMedia: (typ: 'bild' | 'video') => void;
+  /** Editor: 3D beim Bearbeiten ausblenden */
+  flach: boolean;
+  onFlach: (v: boolean) => void;
+}) {
+  const d = folie.dreiD ?? STANDARD_3D;
+  const setD = (patch: Partial<DreiD>, key: string) => onChange({ dreiD: { ...d, ...patch } }, `3d-${key}`);
+  const preset = (p: Partial<DreiD>) => onChange({ dreiD: { ...STANDARD_3D, ...p, an: true } }, '3d-preset');
   const h = folie.hintergrund;
   const setH = (patch: Partial<Hintergrund>, key: string) => onChange({ hintergrund: { ...h, ...patch } }, `hg-${key}`);
   return (
@@ -410,7 +523,9 @@ export function SlideInspector({ folie, onChange, onPickMedia }: { folie: Folie;
             { v: 'video', l: 'Video' },
           ]}
         />
-        {(h.typ === 'farbe' || h.typ === 'verlauf') && <ColorField label={h.typ === 'verlauf' ? 'Farbe 1' : 'Farbe'} value={h.color} onChange={(color) => setH({ color }, 'color')} />}
+        {(h.typ === 'farbe' || h.typ === 'verlauf') && (
+          <ColorField label={h.typ === 'verlauf' ? 'Farbe 1' : 'Farbe'} value={h.color} onChange={(color) => setH({ color }, 'color')} />
+        )}
         {h.typ === 'verlauf' && (
           <Row>
             <ColorField label="Farbe 2" value={h.color2} onChange={(color2) => setH({ color2 }, 'color2')} />
@@ -432,9 +547,94 @@ export function SlideInspector({ folie, onChange, onPickMedia }: { folie: Folie;
           </>
         )}
         {h.typ !== 'transparent' && (
-          <NumberField label="Abdunkeln" value={Math.round(h.abdunkeln * 100)} onChange={(v) => setH({ abdunkeln: v / 100 }, 'abdunkeln')} min={0} max={90} unit="%" slider />
+          <NumberField
+            label="Abdunkeln"
+            value={Math.round(h.abdunkeln * 100)}
+            onChange={(v) => setH({ abdunkeln: v / 100 }, 'abdunkeln')}
+            min={0}
+            max={90}
+            unit="%"
+            slider
+          />
         )}
-        {h.typ === 'transparent' && <p className="sl-hint">Durchsichtig: In OBS liegt die Folie über deinem Video. Das Karomuster zeigt die durchsichtigen Stellen.</p>}
+        {h.typ === 'transparent' && (
+          <p className="sl-hint">Durchsichtig: In OBS liegt die Folie über deinem Video. Das Karomuster zeigt die durchsichtigen Stellen.</p>
+        )}
+      </Section>
+      <Section title="3D-Perspektive">
+        <label className="sl-check">
+          <input type="checkbox" checked={d.an} onChange={(e) => setD({ an: e.target.checked }, 'an')} />
+          Folie räumlich neigen (Tiefenwirkung)
+        </label>
+        <div className="sl-toggles sl-3d-presets">
+          <Button size="sm" onClick={() => preset({ drehY: -28 })}>
+            Nach links gedreht
+          </Button>
+          <Button size="sm" onClick={() => preset({ drehY: 28 })}>
+            Nach rechts gedreht
+          </Button>
+          <Button size="sm" onClick={() => preset({ drehX: 45, drehY: 0, groesse: 0.9, y: 120 })}>
+            Nach hinten gekippt
+          </Button>
+          <Button size="sm" onClick={() => preset({ drehX: 18, drehY: -22, drehZ: 4, groesse: 0.8 })}>
+            Schräg im Raum
+          </Button>
+        </div>
+        {d.an && (
+          <>
+            <NumberField label="Seitlich drehen" value={d.drehY} onChange={(drehY) => setD({ drehY }, 'y')} min={-80} max={80} unit="°" slider />
+            <NumberField label="Nach hinten kippen" value={d.drehX} onChange={(drehX) => setD({ drehX }, 'x')} min={-80} max={80} unit="°" slider />
+            <NumberField
+              label="In der Ebene drehen"
+              value={d.drehZ}
+              onChange={(drehZ) => setD({ drehZ }, 'z')}
+              min={-180}
+              max={180}
+              unit="°"
+              slider
+            />
+            <NumberField
+              label="Tiefenwirkung (Verzerrung)"
+              value={d.staerke}
+              onChange={(staerke) => setD({ staerke }, 'staerke')}
+              min={0}
+              max={100}
+              unit="%"
+              slider
+            />
+            <NumberField
+              label="Größe"
+              value={Math.round(d.groesse * 100)}
+              onChange={(v) => setD({ groesse: v / 100 }, 'groesse')}
+              min={20}
+              max={200}
+              unit="%"
+              slider
+            />
+            <Row>
+              <NumberField label="Verschieben X" value={d.x} onChange={(x) => setD({ x }, 'px')} min={-1920} max={1920} unit="px" />
+              <NumberField label="Verschieben Y" value={d.y} onChange={(y) => setD({ y }, 'py')} min={-1080} max={1080} unit="px" />
+            </Row>
+            <label className="sl-check">
+              <input type="checkbox" checked={d.hintergrundMit} onChange={(e) => setD({ hintergrundMit: e.target.checked }, 'hg')} />
+              Hintergrund mitneigen
+            </label>
+            <label className="sl-check">
+              <input type="checkbox" checked={d.schatten} onChange={(e) => setD({ schatten: e.target.checked }, 'schatten')} />
+              Schatten für mehr Tiefe
+            </label>
+            <label className="sl-check">
+              <input type="checkbox" checked={flach} onChange={(e) => onFlach(e.target.checked)} />
+              Im Editor flach bearbeiten (OBS zeigt weiter 3D)
+            </label>
+            <Button size="sm" variant="ghost" onClick={() => setD({ ...STANDARD_3D, an: true, drehY: 0 }, 'reset')}>
+              Winkel zurücksetzen
+            </Button>
+          </>
+        )}
+        <p className="sl-hint">
+          Die Fläche um die geneigte Folie bleibt in OBS durchsichtig – ideal, um die Folie schräg neben dein Kamerabild zu legen.
+        </p>
       </Section>
       <Section title="Präsentation">
         <div className="sl-field">
@@ -476,7 +676,10 @@ export function SlideInspector({ folie, onChange, onPickMedia }: { folie: Folie;
           />
         </div>
       </Section>
-      <p className="sl-hint">Tipp: Element anklicken, um es zu bearbeiten. Ziehen verschiebt, die Griffe ändern die Größe (Umschalt: Seitenverhältnis halten, Alt: ohne Einrasten).</p>
+      <p className="sl-hint">
+        Tipp: Element anklicken, um es zu bearbeiten. Ziehen verschiebt, die Griffe ändern die Größe (Umschalt: Seitenverhältnis halten, Alt: ohne
+        Einrasten).
+      </p>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 // Vorlagen für neue Folien (danach frei veränderbar).
-import { neueForm, neuerText, STANDARD_HINTERGRUND, type Folie } from './model.ts';
+import { neueForm, neuerText, STANDARD_3D, STANDARD_HINTERGRUND, type Folie } from './model.ts';
 
 export type VorlageId = 'leer' | 'bauchbinde' | 'titel' | 'pause' | 'zitat' | 'punkte';
 
@@ -13,8 +13,13 @@ export const VORLAGEN: Array<{ id: VorlageId; name: string; beschreibung: string
 ];
 
 /** Vorlage als vollständige neue Folie (ohne ID und Adresse, die vergibt der Server). */
-export function vorlage(id: VorlageId, name: string): Pick<Folie, 'name' | 'hintergrund' | 'elemente' | 'uebergang' | 'notizen'> {
-  return { uebergang: { typ: 'blende', dauer: 0.6 }, notizen: '', ...(inhalt(id, name) as Pick<Folie, 'name' | 'hintergrund' | 'elemente'>) };
+export function vorlage(id: VorlageId, name: string): Pick<Folie, 'name' | 'hintergrund' | 'elemente' | 'uebergang' | 'notizen' | 'dreiD'> {
+  return {
+    uebergang: { typ: 'blende', dauer: 0.6 },
+    notizen: '',
+    dreiD: { ...STANDARD_3D },
+    ...(inhalt(id, name) as Pick<Folie, 'name' | 'hintergrund' | 'elemente'>),
+  };
 }
 
 function inhalt(id: VorlageId, name: string): Partial<Folie> {

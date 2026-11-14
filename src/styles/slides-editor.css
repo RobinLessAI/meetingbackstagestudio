@@ -202,3 +202,4 @@
 .ref-start h1 { margin: 0; font-size: 26px; }
 .ref-error { position: fixed; left: 50%; bottom: 90px; translate: -50% 0; z-index: 10; }
 @media (max-width: 900px) { .ref-body { grid-template-columns: 1fr; } .ref-now__stage { min-height: 220px; } }
+.sl-3d-presets { flex-wrap: wrap; }

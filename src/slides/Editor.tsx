@@ -47,6 +47,7 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
   const [mediaFor, setMediaFor] = useState<null | { typ: 'bild' | 'video'; ziel: 'neu' | 'element' | 'hintergrund' }>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [ton, setTon] = useTon();
+  const [flach, setFlach] = useState(false);
   const [bereich, setBereich] = useState<'folien' | 'praesentationen'>(() =>
     new URLSearchParams(window.location.search).get('bereich') === 'praesentationen' ? 'praesentationen' : 'folien',
   );
@@ -458,6 +459,7 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
                   onBegin={() => commit((f) => f)}
                   onPatch={(id, patch) => patchEl(id, patch, undefined, true)}
                   onEditText={() => window.setTimeout(() => textRef.current?.focus(), 0)}
+                  flach={flach}
                 />
                 <div className="sl-output">
                   <span className="sl-output__label">OBS-Adresse dieser Folie</span>
@@ -511,6 +513,8 @@ export function SlidesEditor({ studioUrl }: { studioUrl: string | null }) {
                   folie={draft}
                   onChange={(patch, key) => commit((f) => ({ ...f, ...patch }), key)}
                   onPickMedia={(typ) => setMediaFor({ typ, ziel: 'hintergrund' })}
+                  flach={flach}
+                  onFlach={setFlach}
                 />
                 <div className="sl-actions sl-actions--slide">
                   <Button

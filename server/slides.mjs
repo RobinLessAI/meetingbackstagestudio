@@ -67,6 +67,9 @@ function normalizeElement(e) {
     w: num(e.w, 2, 8000, 400),
     h: num(e.h, 2, 8000, 200),
     rot: num(e.rot, -360, 360, 0),
+    // 3D-Neigung des Elements (Grad)
+    kippX: num(e.kippX, -80, 80, 0),
+    kippY: num(e.kippY, -80, 80, 0),
     opacity: num(e.opacity, 0, 1, 1),
     hidden: bool(e.hidden),
     locked: bool(e.locked),
@@ -135,6 +138,22 @@ function normalizeHintergrund(h) {
   };
 }
 
+/** 3D-Perspektive der ganzen Folie: Winkel, Stärke der Tiefenwirkung, Größe, Verschiebung. */
+function normalizeDreiD(d) {
+  return {
+    an: bool(d?.an),
+    drehX: num(d?.drehX, -80, 80, 0),
+    drehY: num(d?.drehY, -80, 80, -25),
+    drehZ: num(d?.drehZ, -180, 180, 0),
+    staerke: num(d?.staerke, 0, 100, 50),
+    groesse: num(d?.groesse, 0.2, 2, 0.85),
+    x: num(d?.x, -1920, 1920, 0),
+    y: num(d?.y, -1080, 1080, 0),
+    hintergrundMit: bool(d?.hintergrundMit, true),
+    schatten: bool(d?.schatten, true),
+  };
+}
+
 /** Folie aus dem Editor prüfen; ID und geheimer Schlüssel bleiben die vom Server. */
 export function normalizeFolie(raw, keep = {}) {
   return {
@@ -145,6 +164,7 @@ export function normalizeFolie(raw, keep = {}) {
     hintergrund: normalizeHintergrund(raw?.hintergrund),
     uebergang: { typ: pick(raw?.uebergang?.typ, UEBERGAENGE, 'blende'), dauer: num(raw?.uebergang?.dauer, 0.1, 3, 0.6) },
     notizen: str(raw?.notizen, 4000),
+    dreiD: normalizeDreiD(raw?.dreiD),
     elemente: (Array.isArray(raw?.elemente) ? raw.elemente.slice(0, LIMITS.elementeMax) : []).map(normalizeElement).filter(Boolean),
   };
 }

@@ -1,8 +1,16 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { FLAECHE, rgba, type Element, type Folie, type Hintergrund } from './model.ts';
+import { FLAECHE, perspektivePx, rgba, type DreiD, type Element, type Folie, type Hintergrund } from './model.ts';
 
 const fontStack = (f: string) => `'${f.replace(/'/g, '')}', 'Barlow', system-ui, sans-serif`;
 const shadowOf = (on: boolean, color: string, blur: number) => (on ? `0 ${Math.round(blur / 4)}px ${blur}px ${rgba(color, 0.55)}` : undefined);
+
+/** Drehung und 3D-Neigung eines Elements (auch für die Griffe im Editor). */
+export function elementTransform(e: Pick<Element, 'rot' | 'kippX' | 'kippY'>): string | undefined {
+  const parts: string[] = [];
+  if (e.kippX || e.kippY) parts.push(`perspective(1400px) rotateX(${e.kippX || 0}deg) rotateY(${e.kippY || 0}deg)`);
+  if (e.rot) parts.push(`rotate(${e.rot}deg)`);
+  return parts.length ? parts.join(' ') : undefined;
+}
 
 /** Stil des äußeren Rahmens (Position, Größe, Drehung, Deckkraft, Animation). */
 function frameStyle(e: Element, animate: boolean): CSSProperties {
@@ -12,7 +20,7 @@ function frameStyle(e: Element, animate: boolean): CSSProperties {
     top: e.y,
     width: e.w,
     height: e.h,
-    transform: e.rot ? `rotate(${e.rot}deg)` : undefined,
+    transform: elementTransform(e),
     opacity: e.opacity,
     display: e.hidden ? 'none' : undefined,
     ...(animate && e.anim !== 'keine'
@@ -140,25 +148,57 @@ export function SlideCanvas({
   animate = false,
   muted = true,
   schritt = Infinity,
+  flach = false,
   children,
 }: {
+  /** 3D-Perspektive ignorieren (Editor: flach bearbeiten) */
+  flach?: boolean;
   folie: Folie;
   animate?: boolean;
   muted?: boolean;
   schritt?: number;
   children?: ReactNode;
 }) {
-  return (
-    <div className="slide-canvas" style={{ width: FLAECHE.w, height: FLAECHE.h }}>
-      <Background h={folie.hintergrund} muted={muted} />
+  const d = folie.dreiD?.an && !flach ? folie.dreiD : null;
+  const hintergrund = <Background h={folie.hintergrund} muted={muted} />;
+  const inhalt = (
+    <>
       {folie.elemente
         .filter((e) => (e.schritt ?? 0) <= schritt)
         .map((e) => (
           <ElementView key={animate ? `${folie.id}-${e.id}` : e.id} e={e} animate={animate} muted={muted} />
         ))}
       {children}
+    </>
+  );
+  return (
+    <div className="slide-canvas" style={{ width: FLAECHE.w, height: FLAECHE.h }}>
+      {d ? (
+        <>
+          {!d.hintergrundMit && hintergrund}
+          {/* 3D: die Folie als geneigte Fläche im Raum. Die Griffe des Editors liegen in derselben Ebene. */}
+          <div className="slide-3d" style={{ perspective: `${perspektivePx(d.staerke)}px` }}>
+            <div className="slide-3d__ebene" style={dreiDStyle(d)}>
+              {d.hintergrundMit && hintergrund}
+              {inhalt}
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          {hintergrund}
+          {inhalt}
+        </>
+      )}
     </div>
   );
+}
+
+function dreiDStyle(d: DreiD): CSSProperties {
+  return {
+    transform: `translate(${d.x}px, ${d.y}px) rotateZ(${d.drehZ}deg) rotateX(${d.drehX}deg) rotateY(${d.drehY}deg) scale(${d.groesse})`,
+    filter: d.schatten ? 'drop-shadow(0 40px 60px rgba(0, 0, 0, 0.5))' : undefined,
+  };
 }
 
 /**

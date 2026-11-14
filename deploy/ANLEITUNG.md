@@ -185,6 +185,11 @@ Folien mit Text, Formen, Bildern und Videos für OBS – unabhängig von Zoom. G
 Folie „auf Sendung“ zeigt. Quelle „Browser“, 1920 × 1080. Änderungen erscheinen sofort. Der Knopf **„Mit Ton“** neben den
 Adressen hängt `?ton=1` an, dann spielen Videos mit Ton (zusätzlich beim Video „Ton abspielen“ einschalten).
 
+**3D-Perspektive:** Bei einer Folie rechts unter „3D-Perspektive“ die Folie räumlich neigen: seitlich drehen, nach hinten
+kippen, in der Ebene drehen, Tiefenwirkung (Verzerrung), Größe und Position, wahlweise mit Schatten und mit oder ohne
+Hintergrund. Vier Vorlagen (links/rechts gedreht, nach hinten gekippt, schräg im Raum) als Startpunkt. Einzelne Elemente
+lassen sich unter „Position und Größe“ zusätzlich in 3D kippen. Die Fläche um die geneigte Folie bleibt in OBS durchsichtig.
+
 **Präsentationen:** Im Folien-Editor oben auf **Präsentationen** umschalten, Präsentation anlegen und Folien in die gewünschte
 Reihenfolge bringen (ziehen oder Pfeile). Pro Folie stellst du rechts unter „Präsentation“ den **Übergang** (Überblenden,
 Schieben, Zoom, Wischen …) und die **Notizen** ein; bei einem Element legt „Erscheint → Beim 1. Klick“ fest, dass es erst nach

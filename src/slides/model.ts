@@ -16,6 +16,9 @@ interface Basis {
   w: number;
   h: number;
   rot: number;
+  /** 3D-Neigung (Grad): nach hinten/vorne kippen, seitlich drehen */
+  kippX: number;
+  kippY: number;
   opacity: number;
   hidden: boolean;
   locked: boolean;
@@ -121,8 +124,45 @@ export interface Folie {
   uebergang: { typ: UebergangTyp; dauer: number };
   /** Notizen für die Referentenansicht (nie in der OBS-Ausgabe) */
   notizen: string;
+  /** 3D-Perspektive der ganzen Folie */
+  dreiD: DreiD;
   elemente: Element[];
 }
+
+export interface DreiD {
+  an: boolean;
+  /** nach hinten kippen (+) / nach vorne (−), Grad */
+  drehX: number;
+  /** seitlich drehen: links nach hinten (−) / rechts nach hinten (+), Grad */
+  drehY: number;
+  /** in der Ebene drehen, Grad */
+  drehZ: number;
+  /** Tiefenwirkung 0–100 (100 = stark verzerrt) */
+  staerke: number;
+  /** Größe 0,2–2 */
+  groesse: number;
+  x: number;
+  y: number;
+  /** Hintergrund mitneigen oder flach lassen */
+  hintergrundMit: boolean;
+  schatten: boolean;
+}
+
+export const STANDARD_3D: DreiD = {
+  an: false,
+  drehX: 0,
+  drehY: -25,
+  drehZ: 0,
+  staerke: 50,
+  groesse: 0.85,
+  x: 0,
+  y: 0,
+  hintergrundMit: true,
+  schatten: true,
+};
+
+/** Abstand des Betrachters in Pixeln (CSS perspective) aus der Stärke der Tiefenwirkung */
+export const perspektivePx = (staerke: number) => Math.round(4400 - 40 * Math.max(0, Math.min(100, staerke)));
 
 export interface Praesentation {
   id: string;
@@ -180,6 +220,8 @@ const basis = (name: string, x: number, y: number, w: number, h: number): Basis 
   w,
   h,
   rot: 0,
+  kippX: 0,
+  kippY: 0,
   opacity: 1,
   hidden: false,
   locked: false,

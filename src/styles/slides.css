@@ -8,6 +8,9 @@
 @keyframes sl-von-rechts { from { opacity: 0; translate: 120px 0; } }
 @keyframes sl-zoom { from { opacity: 0; scale: 0.85; } }
 @media (prefers-reduced-motion: reduce) { .slide-canvas * { animation: none !important; } }
+/* 3D-Perspektive der ganzen Folie */
+.slide-3d { position: absolute; inset: 0; perspective-origin: 50% 50%; }
+.slide-3d__ebene { position: absolute; inset: 0; transform-origin: 50% 50%; backface-visibility: visible; }
 
 /* Übergänge zwischen Folien (Präsentation). --tr-dir: 1 = vorwärts, -1 = zurück */
 .sl-buehne { position: relative; width: 1920px; height: 1080px; overflow: hidden; }

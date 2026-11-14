@@ -1,6 +1,6 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { FLAECHE, type Element, type Folie } from './model.ts';
-import { SlideCanvas, useFitScale } from './SlideRender.tsx';
+import { elementTransform, SlideCanvas, useFitScale } from './SlideRender.tsx';
 
 type Handle = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
 const HANDLES: Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
@@ -25,7 +25,9 @@ export function EditorCanvas({
   onBegin,
   onPatch,
   onEditText,
+  flach = false,
 }: {
+  flach?: boolean;
   folie: Folie;
   selected: string | null;
   onSelect: (id: string | null) => void;
@@ -69,7 +71,8 @@ export function EditorCanvas({
   };
   const snap = (points: number[], cands: number[], th: number) => {
     let best: { d: number; at: number } | null = null;
-    for (const p of points) for (const c of cands) if (Math.abs(c - p) < th && (!best || Math.abs(c - p) < Math.abs(best.d))) best = { d: c - p, at: c };
+    for (const p of points)
+      for (const c of cands) if (Math.abs(c - p) < th && (!best || Math.abs(c - p) < Math.abs(best.d))) best = { d: c - p, at: c };
     return best;
   };
 
@@ -173,13 +176,13 @@ export function EditorCanvas({
     <div ref={ref} className="sl-canvas" onPointerDown={() => onSelect(null)}>
       <div className="sl-canvas__stage" style={{ width: FLAECHE.w * scale, height: FLAECHE.h * scale }}>
         <div style={{ transform: `scale(${scale})`, transformOrigin: '0 0', width: FLAECHE.w, height: FLAECHE.h }}>
-          <SlideCanvas folie={folie}>
+          <SlideCanvas folie={folie} flach={flach}>
             {folie.elemente.map((el) =>
               el.hidden ? null : (
                 <div
                   key={el.id}
                   className={`sl-hit${selected === el.id ? ' is-selected' : ''}${el.locked ? ' is-locked' : ''}`}
-                  style={{ left: el.x, top: el.y, width: el.w, height: el.h, transform: el.rot ? `rotate(${el.rot}deg)` : undefined, outlineWidth: 2 / scale }}
+                  style={{ left: el.x, top: el.y, width: el.w, height: el.h, transform: elementTransform(el), outlineWidth: 2 / scale }}
                   onPointerDown={(e) => start(e, el, 'move')}
                   onDoubleClick={() => el.typ === 'text' && onEditText()}
                   title={el.name}

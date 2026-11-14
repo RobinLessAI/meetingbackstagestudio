@@ -101,3 +101,24 @@ test('Automatisch weiter und Neustart des Servers', async () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('3D-Perspektive: Werte werden begrenzt, alte Folien bekommen Standardwerte', async () => {
+  const { dir, slides } = setup();
+  try {
+    const f = await slides.create('o', {
+      name: '3D',
+      dreiD: { an: true, drehX: 500, drehY: -30, staerke: 'viel', groesse: 0.01, hintergrundMit: 'ja' },
+      elemente: [{ typ: 'text', text: 'x', kippX: 20, kippY: -999 }],
+    });
+    assert.deepEqual(
+      [f.dreiD.an, f.dreiD.drehX, f.dreiD.drehY, f.dreiD.staerke, f.dreiD.groesse, f.dreiD.hintergrundMit],
+      [true, 80, -30, 50, 0.2, true],
+    );
+    assert.deepEqual([f.elemente[0].kippX, f.elemente[0].kippY], [20, -80]);
+    const alt = await slides.create('o', { name: 'Alt' });
+    assert.equal(alt.dreiD.an, false);
+    assert.equal(slides.bySlideKey(f.key).dreiD.drehY, -30, 'öffentliche Adresse liefert den Winkel mit');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
